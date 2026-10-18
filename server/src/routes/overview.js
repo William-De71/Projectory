@@ -54,12 +54,14 @@ export default async function overviewRoutes(app, { db }) {
         active: projects.filter((p) => p.status === 'active').length,
         open_issues: count("SELECT count(*) n FROM github_items WHERE type = 'issue'"),
         open_prs: count("SELECT count(*) n FROM github_items WHERE type = 'pr'"),
+        ci_failing: projects.filter((p) => p.ci === 'failure').length,
         open_bugs: count("SELECT count(*) n FROM items WHERE kind = 'bug' AND status IN ('todo', 'in_progress')"),
         unread: count('SELECT count(*) n FROM inbox WHERE read_at IS NULL'),
         minutes_this_month: count("SELECT coalesce(sum(minutes), 0) n FROM time_entries WHERE date >= date('now', 'start of month')"),
       },
       pinned: projects.filter((p) => p.pinned),
       outdated: projects.filter((p) => p.outdated),
+      ci_failing: projects.filter((p) => p.ci === 'failure').map(({ id, name, github }) => ({ id, name, run: github.ci.runs.find((r) => r.conclusion && r.conclusion !== 'success' && r.conclusion !== 'skipped') })),
       with_errors: projects.filter((p) => p.sync_error).map(({ id, name, sync_error }) => ({ id, name, sync_error })),
       urgent: db.prepare(
         `SELECT i.*, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id

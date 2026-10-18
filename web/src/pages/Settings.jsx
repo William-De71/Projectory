@@ -3,6 +3,7 @@ import { App, Button, Card, ColorPicker, Descriptions, Flex, Input, InputNumber,
 import { DeleteOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
+import NotificationSettings from '../components/NotificationSettings.jsx'
 
 function Categories() {
   const { message } = App.useApp()
@@ -70,6 +71,7 @@ export default function Settings() {
     <Flex vertical gap={16}>
       <Typography.Title level={3} style={{ margin: 0 }}>Paramètres</Typography.Title>
       <Categories />
+      <NotificationSettings notifyError={sync?.notify_error} />
       <Card size="small" title="Synchronisation">
         {sync && (
           <Descriptions size="small" column={1}>

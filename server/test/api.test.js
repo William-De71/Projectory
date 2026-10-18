@@ -6,6 +6,9 @@ import { compareVersions } from '../src/sync/http.js'
 
 // Fake upstream APIs: GitHub, npm, Discourse and an RSS feed.
 const upstream = { issues: [], release: 'v1.0.0', topics: [] }
+// Keep tests hermetic whatever the developer's environment holds.
+for (const key of ['GITHUB_TOKEN', 'NTFY_TOPIC', 'NTFY_SERVER', 'NTFY_TOKEN', 'APP_URL', 'APP_PASSWORD']) delete process.env[key]
+
 const realFetch = globalThis.fetch
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status })
 
@@ -107,4 +110,10 @@ test('decodes HTML entities in forum titles', async () => {
   const { decodeEntities } = await import('../src/sync/sources.js')
   assert.equal(decodeEntities('Probl&egrave;me d&rsquo;int&#233;gration &#x2014; ok'), 'Probl&egrave;me d’intégration — ok')
   assert.equal(decodeEntities('d&amp;#39;accord'), "d'accord")
+})
+
+test('errors are returned as { error } with the original message', async () => {
+  const res = await call('POST', '/api/projects/9999/sync')
+  assert.equal(res.status, 500)
+  assert.equal(res.body.error, 'Projet introuvable')
 })

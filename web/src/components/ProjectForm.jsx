@@ -45,7 +45,7 @@ export default function ProjectForm({ project, onClose, onSaved }) {
     if (!project) return
     form.resetFields()
     form.setFieldsValue({
-      status: 'active', tags: [], links: [], version_sources: [], forum_sources: [], pinned: false,
+      status: 'active', tags: [], links: [], version_sources: [], forum_sources: [], pinned: false, notify: true,
       ...project,
     })
   }, [project, form])
@@ -103,6 +103,9 @@ export default function ProjectForm({ project, onClose, onSaved }) {
             <Select options={options(PROJECT_STATUS)} />
           </Form.Item>
           <Form.Item name="pinned" label="Épinglé" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name="notify" label="Notifications" valuePropName="checked" tooltip="Envoyer les nouveautés de ce projet sur ntfy">
             <Switch />
           </Form.Item>
         </Flex>

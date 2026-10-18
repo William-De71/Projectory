@@ -20,6 +20,7 @@ export default function Dashboard() {
     { title: 'Bugs ouverts', value: stats.open_bugs, to: '/items' },
     { title: 'Issues GitHub', value: stats.open_issues },
     { title: 'PR ouvertes', value: stats.open_prs },
+    { title: 'CI en échec', value: stats.ci_failing, color: stats.ci_failing ? '#ff4d4f' : undefined },
     { title: 'Temps ce mois', value: formatMinutes(stats.minutes_this_month), to: '/time' },
   ]
 
@@ -44,13 +45,27 @@ export default function Dashboard() {
 
       <Row gutter={[12, 12]}>
         {tiles.map((t) => (
-          <Col key={t.title} xs={12} md={8} xl={4}>
+          <Col key={t.title} xs={12} md={6} xl={3}>
             <Card size="small" hoverable={!!t.to} onClick={() => t.to && navigate(t.to)}>
               <Statistic title={t.title} value={t.value} valueStyle={{ color: t.color }} />
             </Card>
           </Col>
         ))}
       </Row>
+
+      {!!data.ci_failing.length && (
+        <Alert
+          type="error"
+          showIcon
+          message="CI en échec"
+          description={data.ci_failing.map((p) => (
+            <div key={p.id}>
+              <Link to={`/projects/${p.id}`}>{p.name}</Link>
+              {p.run && <> : <a href={p.run.url} target="_blank" rel="noreferrer">{p.run.name}</a></>}
+            </div>
+          ))}
+        />
+      )}
 
       {!!data.with_errors.length && (
         <Alert

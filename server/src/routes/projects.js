@@ -5,7 +5,7 @@ import { syncProject } from '../sync/index.js'
 
 const FIELDS = [
   'name', 'description', 'category_id', 'status', 'tags', 'client', 'repo', 'homepage', 'links',
-  'deployed_version', 'version_sources', 'forum_sources', 'pinned',
+  'deployed_version', 'version_sources', 'forum_sources', 'pinned', 'notify',
 ]
 
 const LIST_SQL = `
@@ -21,6 +21,7 @@ const LIST_SQL = `
 export function withComputed(row) {
   const p = decode(row)
   // Outdated when an upstream version is newer than the one noted as deployed.
+  p.ci = p.github?.ci?.conclusion || null
   p.outdated = !!p.deployed_version && (p.versions || []).some((v) => v.version && compareVersions(v.version, p.deployed_version) > 0)
   return p
 }

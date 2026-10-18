@@ -125,6 +125,10 @@ const MIGRATIONS = [
   );
   CREATE INDEX time_project ON time_entries(project_id, date);
   `,
+  `
+  -- Per-project switch for push notifications.
+  ALTER TABLE projects ADD COLUMN notify INTEGER NOT NULL DEFAULT 1;
+  `,
 ]
 
 export function openDb(file = join(DATA_PATH, 'projectory.db')) {
@@ -157,7 +161,7 @@ export function decode(row) {
       try { out[col] = JSON.parse(out[col]) } catch { /* keep raw */ }
     }
   }
-  for (const col of ['pinned', 'draft']) if (col in out) out[col] = !!out[col]
+  for (const col of ['pinned', 'draft', 'notify']) if (col in out) out[col] = !!out[col]
   return out
 }
 
@@ -189,4 +193,15 @@ export function updateRow(db, table, id, body, allowed, { touch = true } = {}) {
   if (touch) sets.push("updated_at = datetime('now')")
   if (!sets.length) return 0
   return Number(db.prepare(`UPDATE ${table} SET ${sets.join(', ')} WHERE id = ?`).run(...values, id).changes)
+}
+
+// App configuration stored as JSON under "config:<name>" in the settings table.
+export function getConfig(db, name, fallback = {}) {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(`config:${name}`)
+  if (!row) return fallback
+  try { return JSON.parse(row.value) } catch { return fallback }
+}
+
+export function setConfig(db, name, value) {
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(`config:${name}`, JSON.stringify(value))
 }

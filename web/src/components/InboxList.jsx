@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { App, Button, Empty, Flex, List, Modal, Select, Tag, Tooltip, Typography } from 'antd'
-import { BugOutlined, CheckOutlined, GithubOutlined, MessageOutlined, PullRequestOutlined, RocketOutlined, UndoOutlined } from '@ant-design/icons'
+import { BugOutlined, CheckOutlined, CloseCircleOutlined, CheckCircleOutlined, GithubOutlined, MessageOutlined, PullRequestOutlined, RocketOutlined, UndoOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange } from '../api/client.js'
 import { ITEM_KIND, PRIORITY, options } from './labels.js'
@@ -12,8 +12,10 @@ const ICONS = {
   release: <RocketOutlined />,
   discourse: <MessageOutlined />,
   rss: <MessageOutlined />,
+  ci_failed: <CloseCircleOutlined style={{ color: '#ff4d4f' }} />,
+  ci_fixed: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
 }
-const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', rss: 'RSS' }
+const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', rss: 'RSS', ci_failed: 'CI', ci_fixed: 'CI' }
 
 function ConvertModal({ entry, onClose, onDone }) {
   const { message } = App.useApp()
@@ -60,7 +62,7 @@ export default function InboxList({ entries, loading, onChange, showProject = tr
             actions={[
               entry.item_id ? (
                 <Tag key="tracked" color="green">Suivi</Tag>
-              ) : entry.kind !== 'release' && entry.project_id ? (
+              ) : !['release', 'ci_fixed'].includes(entry.kind) && entry.project_id ? (
                 <Tooltip key="convert" title="Transformer en bug / tâche"><Button size="small" icon={<BugOutlined />} onClick={() => setConverting(entry)} /></Tooltip>
               ) : null,
               <Tooltip key="read" title={entry.read_at ? 'Marquer non lu' : 'Marquer lu'}>

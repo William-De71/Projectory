@@ -6,6 +6,7 @@ import fastifyStatic from '@fastify/static'
 import projectRoutes from './routes/projects.js'
 import contentRoutes from './routes/content.js'
 import overviewRoutes from './routes/overview.js'
+import integrationRoutes from './routes/integrations.js'
 
 function checkPassword(header, password) {
   const [scheme, encoded] = String(header || '').split(' ')
@@ -29,10 +30,18 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
     })
   }
 
+  // Must be set before the route plugins so they inherit it.
+  app.setErrorHandler((err, req, reply) => {
+    const status = err.statusCode || 500
+    if (status >= 500) req.log.error(err)
+    reply.code(status).send({ error: err.message })
+  })
+
   app.get('/api/health', async () => ({ ok: true }))
   await app.register(projectRoutes, { prefix: '/api', db })
   await app.register(contentRoutes, { prefix: '/api', db })
   await app.register(overviewRoutes, { prefix: '/api', db })
+  await app.register(integrationRoutes, { prefix: '/api', db })
 
   // In production the built front-end is served by the same process.
   if (webDist && existsSync(webDist)) {
@@ -42,11 +51,6 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
       return reply.sendFile('index.html')
     })
   }
-
-  app.setErrorHandler((err, req, reply) => {
-    req.log.error(err)
-    reply.code(err.statusCode || 500).send({ error: err.message })
-  })
 
   return app
 }

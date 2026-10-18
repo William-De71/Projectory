@@ -66,3 +66,62 @@ export async function latestGithubVersion(repo) {
   if (!tags.length) return null
   return { version: tags[0].name, url: `https://github.com/${repo}/releases/tag/${encodeURIComponent(tags[0].name)}` }
 }
+
+const FAILED = ['failure', 'timed_out', 'startup_failure']
+
+// Latest GitHub Actions run of each workflow on the default branch.
+export async function fetchCi(repo, branch) {
+  const data = await gh(`/repos/${repo}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=30&exclude_pull_requests=true`)
+  const latest = new Map()
+  for (const r of data.workflow_runs || []) {
+    if (!latest.has(r.workflow_id)) {
+      latest.set(r.workflow_id, { id: r.id, name: r.name, status: r.status, conclusion: r.conclusion, url: r.html_url, updated_at: r.updated_at, sha: r.head_sha?.slice(0, 7) })
+    }
+  }
+  const runs = [...latest.values()]
+  if (!runs.length) return null
+  let conclusion = 'success'
+  if (runs.some((r) => r.status === 'completed' && FAILED.includes(r.conclusion))) conclusion = 'failure'
+  else if (runs.some((r) => r.status !== 'completed')) conclusion = 'pending'
+  else if (runs.some((r) => r.conclusion !== 'success' && r.conclusion !== 'skipped')) conclusion = 'neutral'
+  return { conclusion, runs, checked_at: new Date().toISOString() }
+}
+
+export const failedRun = (ci) => ci?.runs.find((r) => r.status === 'completed' && FAILED.includes(r.conclusion))
+
+// Repositories of a user or organisation. With a token, the token owner's
+// private repositories are included.
+export async function listOwnerRepos(owner) {
+  let path
+  if (process.env.GITHUB_TOKEN) {
+    const me = await gh('/user').catch(() => null)
+    if (me?.login && (!owner || owner.toLowerCase() === me.login.toLowerCase())) {
+      owner = me.login
+      path = '/user/repos?affiliation=owner&sort=pushed'
+    }
+  }
+  if (!owner) throw new Error('Indique un utilisateur ou une organisation GitHub (ou configure GITHUB_TOKEN)')
+  path ??= `/users/${encodeURIComponent(owner)}/repos?type=owner&sort=pushed`
+  const repos = []
+  for (let page = 1; page <= 10; page++) {
+    const batch = await gh(`${path}&per_page=100&page=${page}`)
+    repos.push(...batch)
+    if (batch.length < 100) break
+  }
+  return {
+    owner,
+    repos: repos.map((r) => ({
+      full_name: r.full_name,
+      name: r.name,
+      description: r.description || '',
+      homepage: r.homepage || '',
+      topics: r.topics || [],
+      language: r.language,
+      fork: r.fork,
+      archived: r.archived,
+      private: r.private,
+      stars: r.stargazers_count,
+      pushed_at: r.pushed_at,
+    })),
+  }
+}

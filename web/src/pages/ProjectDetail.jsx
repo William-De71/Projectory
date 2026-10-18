@@ -14,6 +14,7 @@ import DocsPanel from '../components/DocsPanel.jsx'
 import InboxList from '../components/InboxList.jsx'
 import TimePanel from '../components/TimePanel.jsx'
 import { compareVersions } from '../components/versions.js'
+import CiStatus, { CI } from '../components/CiStatus.jsx'
 
 const VERSION_LABELS = { github: 'GitHub', npm: 'npm', docker: 'Docker Hub' }
 
@@ -46,6 +47,17 @@ function Overview({ project: p }) {
               {p.github.language && <Descriptions.Item label="Langage">{p.github.language}</Descriptions.Item>}
               {p.github.archived && <Descriptions.Item label="État"><Tag color="red">Archivé</Tag></Descriptions.Item>}
             </Descriptions>
+            {p.github.ci && (
+              <Flex vertical gap={4} style={{ marginTop: 8 }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>GitHub Actions ({p.github.default_branch})</Typography.Text>
+                {p.github.ci.runs.map((r) => (
+                  <a key={r.id} href={r.url} target="_blank" rel="noreferrer">
+                    {(CI[r.status !== 'completed' ? 'pending' : r.conclusion === 'success' ? 'success' : ['failure', 'timed_out', 'startup_failure'].includes(r.conclusion) ? 'failure' : 'neutral']).icon} {r.name}
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}> · {dayjs(r.updated_at).fromNow()}</Typography.Text>
+                  </a>
+                ))}
+              </Flex>
+            )}
           </Card>
         )}
       </div>
@@ -140,6 +152,8 @@ export default function ProjectDetail() {
         <LabelTag map={PROJECT_STATUS} value={p.status} />
         {p.client && <Tag>{p.client}</Tag>}
         {p.outdated && <Tag color="orange" icon={<WarningOutlined />}>Mise à jour disponible</Tag>}
+        <CiStatus ci={p.github?.ci} variant="tag" />
+        {p.notify === false && <Tooltip title="Notifications ntfy désactivées pour ce projet"><Tag>muet</Tag></Tooltip>}
         <Flex gap={8} style={{ marginLeft: 'auto' }} align="center">
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {p.last_synced_at ? `Synchro ${dayjs.utc(p.last_synced_at).local().fromNow()}` : 'Jamais synchronisé'}

@@ -3,8 +3,15 @@ import { Badge, Card, Flex, Tag, Tooltip, Typography } from 'antd'
 import { BugOutlined, GithubOutlined, PullRequestOutlined, PushpinFilled, WarningOutlined } from '@ant-design/icons'
 import { PROJECT_STATUS } from './labels.js'
 import { CategoryTag, LabelTag } from './Tags.jsx'
+import CiStatus from './CiStatus.jsx'
 
 const stripMarkdown = (md) => md.replace(/[*_`#>~]|\[([^\]]*)\]\([^)]*\)/g, (m, label) => label ?? '')
+
+function versionLabel(deployed, latest) {
+  if (!deployed) return latest
+  if (!latest || latest.replace(/^v/, '') === deployed.replace(/^v/, '')) return deployed
+  return `${deployed} → ${latest}`
+}
 
 export function latestVersion(p) {
   return (p.versions || []).find((v) => v.version)?.version
@@ -31,10 +38,11 @@ export default function ProjectCard({ project: p }) {
             <Tooltip title="Bugs / tâches ouverts"><span><BugOutlined /> {p.open_items}</span></Tooltip>
             {p.repo && <Tooltip title="Issues GitHub ouvertes"><span><GithubOutlined /> {p.open_issues}</span></Tooltip>}
             {p.repo && <Tooltip title="PR ouvertes"><span><PullRequestOutlined /> {p.open_prs}</span></Tooltip>}
+            <CiStatus ci={p.github?.ci} />
             {(latest || p.deployed_version) && (
-              <Tooltip title={`Utilisée : ${p.deployed_version || '?'} — dernière : ${latest || '?'}`}>
+              <Tooltip title={p.deployed_version ? `Utilisée : ${p.deployed_version} — dernière : ${latest || '?'}` : 'Dernière version publiée'}>
                 <Tag color={p.outdated ? 'orange' : 'default'} style={{ marginInlineEnd: 0 }}>
-                  {p.outdated && <WarningOutlined />} {p.deployed_version || '?'}{latest && latest.replace(/^v/, '') !== p.deployed_version.replace(/^v/, '') ? ` → ${latest}` : ''}
+                  {p.outdated && <WarningOutlined />} {versionLabel(p.deployed_version, latest)}
                 </Tag>
               </Tooltip>
             )}

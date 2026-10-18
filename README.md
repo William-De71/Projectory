@@ -15,7 +15,10 @@ Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 | | |
 |---|---|
 | **Projets classés par catégories** | Freelance, Perso, Organisation (Gladys…), Autre — catégories modifiables avec couleur. Statut (idée, actif, maintenance, pause, archivé), client, tags, liens, épinglage. |
+| **Import GitHub en masse** | Liste les dépôts d'un utilisateur ou d'une organisation (filtre, forks, archivés) et crée les projets d'un coup avec catégorie, statut et suivi des releases. Les dépôts déjà suivis sont ignorés. |
 | **Suivi GitHub** | Issues et PR ouvertes de chaque dépôt, étoiles, dernier push. Les **nouvelles** issues/PR arrivent dans la boîte de réception. |
+| **État de la CI** | Dernier run de chaque workflow GitHub Actions sur la branche principale : pastille verte/rouge sur les cartes, alerte au tableau de bord, notification quand la CI casse puis quand elle repasse au vert. |
+| **Notifications push ntfy** | Nouveautés envoyées sur ton téléphone via [ntfy](https://ntfy.sh) (serveur public ou auto-hébergé, token supporté), choix des événements, regroupement au-delà de 3 nouveautés, projets rendus muets individuellement. |
 | **Veille des versions** | Dernière release/tag GitHub, paquet npm ou image Docker Hub, comparée à la version que *tu* utilises/déploies → badge « mise à jour disponible » et notification. |
 | **Bugs remontés par un forum** | Forums **Discourse** (ex. [forum Gladys](https://community.gladysassistant.com) : catégorie, tag ou recherche) et **flux RSS/Atom** (filtre par mots-clés). Un clic transforme un sujet en bug suivi. |
 | **Bugs & tâches manuels** | Bug / fonctionnalité / tâche / question, priorité, statut, échéance, version cible, lien externe. Vue liste ou tableau Kanban (glisser-déposer). |
@@ -49,10 +52,12 @@ Mise à jour : `git pull && docker compose up -d --build`.
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `GITHUB_TOKEN` | — | Token GitHub. Sans token : 60 requêtes/heure et dépôts publics seulement. Un *fine-grained token* en lecture seule suffit (Metadata, Issues, Pull requests, Contents). |
+| `GITHUB_TOKEN` | — | Token GitHub. Sans token : 60 requêtes/heure et dépôts publics seulement (insuffisant au-delà de quelques projets). Un *fine-grained token* en lecture seule suffit : Metadata, Contents, Issues, Pull requests, Actions. |
 | `SYNC_INTERVAL_MINUTES` | `30` | Synchro automatique (0 = uniquement via le bouton 🔄). |
 | `APP_PASSWORD` | — | Active une authentification HTTP basique (identifiant libre). À mettre si l'app est exposée hors de ton réseau. |
 | `PROJECTORY_PORT` | `3001` | Port exposé sur l'hôte. |
+| `NTFY_SERVER`, `NTFY_TOPIC`, `NTFY_TOKEN` | `https://ntfy.sh`, —, — | Valeurs par défaut des notifications ; se règlent plutôt dans **Paramètres → Notifications push**. |
+| `APP_URL` | — | Adresse de Projectory (ex. `http://192.168.1.10:3001`), utilisée par les liens des notifications. |
 | `LOG_LEVEL` | `info` | Niveau de logs. |
 
 ### Sauvegarde
@@ -60,6 +65,12 @@ Mise à jour : `git pull && docker compose up -d --build`.
 Copie `data/projectory.db` (idéalement app arrêtée, ou via `sqlite3 data/projectory.db ".backup backup.db"`), ou utilise **Paramètres → Exporter en JSON**.
 
 ---
+
+## Démarrage rapide avec tes dépôts
+
+1. **Projets → Importer depuis GitHub** : laisse le champ vide pour lister les dépôts du propriétaire du token (ou saisis `William-De71`), filtre sur `gladys-`, coche, choisis la catégorie, puis **Importer**.
+2. La première synchro démarre en arrière-plan. Elle enregistre l'existant comme déjà lu, donc pas d'avalanche de notifications.
+3. **Paramètres → Notifications push** : installe l'app ntfy sur ton téléphone, abonne-toi à un topic difficile à deviner, renseigne-le ici, puis **Envoyer un test**.
 
 ## Exemple : suivre Gladys
 
@@ -119,9 +130,7 @@ Inspiré dans l'esprit de [portfolio-manager](https://github.com/AymericLeFeyer/
 
 ## Idées pour la suite
 
-- Notifications push (ntfy / Gotify / Discord / mail) pour les nouveautés importantes
 - Notifications GitHub personnelles (review demandée, mention) via `/notifications`
-- Statut CI (GitHub Actions) du dernier commit sur la branche principale
 - GitLab / Gitea / Forgejo en plus de GitHub
 - Création d'une issue GitHub depuis un bug suivi (et lien bidirectionnel)
 - Facturation : taux horaire par projet freelance, export CSV du temps passé
