@@ -153,6 +153,10 @@ const MIGRATIONS = [
     UNIQUE(project_id, version)
   );
   `,
+  `
+  -- Release created on the forge when the version was published.
+  ALTER TABLE milestones ADD COLUMN release_url TEXT NOT NULL DEFAULT '';
+  `,
 ]
 
 export function openDb(file = join(DATA_PATH, 'projectory.db')) {

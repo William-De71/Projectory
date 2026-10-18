@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { App, Button, Card, Checkbox, DatePicker, Empty, Flex, Form, Input, List, Modal, Popconfirm, Progress, Select, Tabs, Tag, Typography } from 'antd'
-import { CopyOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, RocketOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, ExportOutlined, FileTextOutlined, PlusOutlined, RocketOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
-import { ITEM_KIND, ITEM_STATUS, MILESTONE_STATUS } from './labels.js'
+import { FORGES, ITEM_KIND, ITEM_STATUS, MILESTONE_STATUS } from './labels.js'
 import { LabelTag } from './Tags.jsx'
 import { ItemForm } from './ItemsPanel.jsx'
 import Markdown from './Markdown.jsx'
@@ -83,44 +83,98 @@ function ChangelogModal({ state, onClose }) {
   )
 }
 
-function ReleaseButton({ projectId, milestone, onDone }) {
+// Publishes a version in Projectory and/or as a release on the project's forge.
+// mode "release": full publication; mode "forge": forge release of an already published version.
+function ReleaseModal({ state, project, onClose, onDone }) {
   const { message } = App.useApp()
-  const [closeItems, setCloseItems] = useState(true)
-  const [saveNote, setSaveNote] = useState(true)
-  const release = async () => {
+  const [form] = Form.useForm()
+  const [busy, setBusy] = useState(false)
+  const toForge = Form.useWatch('to_forge', form)
+  const forgeLabel = FORGES[project?.forge || 'github']?.label
+  const milestone = state?.milestone
+
+  const submit = async () => {
+    const v = await form.validateFields()
+    const forge = v.to_forge ? { tag: v.tag, draft: v.draft, prerelease: v.prerelease } : null
+    setBusy(true)
     try {
-      const res = await api.post(`/projects/${projectId}/release`, { version: milestone.version, close_items: closeItems, save_note: saveNote })
-      message.success(`Version ${milestone.version} publiée`)
-      notifyChange()
-      onDone(res)
+      if (state.mode === 'forge') {
+        await api.post(`/milestones/${milestone.id}/forge-release`, forge)
+        message.success(`Release créée sur ${forgeLabel}`)
+        notifyChange()
+        onDone(null)
+      } else {
+        const res = await api.post(`/projects/${project.id}/release`, { version: milestone.version, close_items: v.close_items, save_note: v.save_note, forge })
+        if (res.forge_error) message.warning(`Version publiée, mais la release ${forgeLabel} a échoué : ${res.forge_error}`, 8)
+        else message.success(`Version ${milestone.version} publiée${forge ? ` et release créée sur ${forgeLabel}` : ''}`)
+        notifyChange()
+        onDone(res)
+      }
     } catch (err) {
       message.error(err.message)
+    } finally {
+      setBusy(false)
     }
   }
+
   return (
-    <Popconfirm
-      title={`Publier ${milestone.version} ?`}
-      description={
-        <Flex vertical gap={4}>
-          <Checkbox checked={closeItems} onChange={(e) => setCloseItems(e.target.checked)}>Passer les éléments « en cours » à « terminé »</Checkbox>
-          <Checkbox checked={saveNote} onChange={(e) => setSaveNote(e.target.checked)}>Enregistrer le changelog dans les notes</Checkbox>
-        </Flex>
-      }
-      onConfirm={release}
-      okText="Publier"
+    <Modal
+      open={!!state}
+      title={state?.mode === 'forge' ? `Release ${forgeLabel} pour ${milestone?.version}` : `Publier ${milestone?.version}`}
+      okText={state?.mode === 'forge' ? 'Créer la release' : 'Publier'}
+      okButtonProps={{ loading: busy }}
+      onOk={submit}
+      onCancel={onClose}
+      destroyOnHidden
+      afterOpenChange={(open) => open && form.setFieldsValue({
+        close_items: true,
+        save_note: true,
+        to_forge: !!project?.repo,
+        tag: /^v/i.test(milestone.version) ? milestone.version : `v${milestone.version}`,
+        draft: false,
+        prerelease: false,
+      })}
     >
-      <Button size="small" type="primary" icon={<RocketOutlined />}>Publier</Button>
-    </Popconfirm>
+      <Form form={form} layout="vertical" preserve={false}>
+        {state?.mode !== 'forge' && (
+          <>
+            <Form.Item name="close_items" valuePropName="checked" style={{ marginBottom: 4 }}>
+              <Checkbox>Passer les éléments « en cours » à « terminé »</Checkbox>
+            </Form.Item>
+            <Form.Item name="save_note" valuePropName="checked" style={{ marginBottom: 4 }}>
+              <Checkbox>Enregistrer le changelog dans les notes</Checkbox>
+            </Form.Item>
+            <Form.Item name="to_forge" valuePropName="checked">
+              <Checkbox disabled={!project?.repo}>
+                {project?.repo ? `Créer la release sur ${forgeLabel} (${project.repo})` : "Créer la release sur la forge (aucun dépôt configuré)"}
+              </Checkbox>
+            </Form.Item>
+          </>
+        )}
+        {(state?.mode === 'forge' || toForge) && (
+          <Flex vertical style={{ padding: 12, border: '1px dashed rgba(127,127,127,.35)', borderRadius: 8 }}>
+            <Form.Item name="tag" label="Tag" rules={[{ required: true, message: 'Tag obligatoire' }]} extra={`Créé sur la branche ${project?.github?.default_branch || 'main'} s'il n'existe pas encore ; le changelog sert de description.`}>
+              <Input />
+            </Form.Item>
+            <Flex gap={16}>
+              {project?.forge !== 'gitlab' && <Form.Item name="draft" valuePropName="checked" style={{ marginBottom: 0 }}><Checkbox>Brouillon</Checkbox></Form.Item>}
+              <Form.Item name="prerelease" valuePropName="checked" style={{ marginBottom: 0 }}><Checkbox>Pré-version</Checkbox></Form.Item>
+            </Flex>
+          </Flex>
+        )}
+      </Form>
+    </Modal>
   )
 }
 
 // Versions of a project: progress, items, release and changelog.
-export default function RoadmapPanel({ projectId }) {
+export default function RoadmapPanel({ projectId, project }) {
   const { message } = App.useApp()
   const { data, loading, reload } = useApi(`/projects/${projectId}/roadmap`, { listen: true })
   const [editing, setEditing] = useState(null)
   const [changelog, setChangelog] = useState(null)
   const [item, setItem] = useState(null)
+  const [releasing, setReleasing] = useState(null)
 
   const versions = data?.versions || []
   const latest = [...versions].map((v) => v.version).sort((a, b) => compareVersions(b, a))[0]
@@ -173,7 +227,11 @@ export default function RoadmapPanel({ projectId }) {
           extra={
             <Flex gap={6}>
               <Button size="small" icon={<FileTextOutlined />} onClick={() => showChangelog(m.version)}>Changelog</Button>
-              {m.status === 'planned' && <ReleaseButton projectId={projectId} milestone={m} onDone={(res) => setChangelog({ title: `Changelog ${m.version}`, markdown: res.markdown, filename: `CHANGELOG-${m.version}.md` })} />}
+              {m.status === 'planned' && <Button size="small" type="primary" icon={<RocketOutlined />} onClick={() => setReleasing({ mode: 'release', milestone: m })}>Publier</Button>}
+              {m.release_url && <Button size="small" icon={<ExportOutlined />} href={m.release_url} target="_blank">Release</Button>}
+              {m.status === 'released' && m.id && !m.release_url && project?.repo && (
+                <Button size="small" icon={<RocketOutlined />} onClick={() => setReleasing({ mode: 'forge', milestone: m })}>Sur {FORGES[project.forge]?.label}</Button>
+              )}
               <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(m.id ? m : { project_id: Number(projectId), version: m.version })} />
               {m.id && <Popconfirm title="Supprimer cette version ? Les éléments gardent leur version cible." onConfirm={() => remove(m)}><Button size="small" icon={<DeleteOutlined />} /></Popconfirm>}
             </Flex>
@@ -225,6 +283,17 @@ export default function RoadmapPanel({ projectId }) {
 
       <MilestoneModal milestone={editing} latest={latest} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload() }} />
       <ChangelogModal state={changelog} onClose={() => setChangelog(null)} />
+      <ReleaseModal
+        state={releasing}
+        project={project}
+        onClose={() => setReleasing(null)}
+        onDone={(res) => {
+          const m = releasing.milestone
+          setReleasing(null)
+          reload()
+          if (res) setChangelog({ title: `Changelog ${m.version}`, markdown: res.markdown, filename: `CHANGELOG-${m.version}.md` })
+        }}
+      />
       <ItemForm item={item} onClose={() => setItem(null)} onSaved={() => { setItem(null); reload() }} />
     </Flex>
   )

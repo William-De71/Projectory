@@ -81,6 +81,11 @@ export default function gitea({ url, token }) {
       return tag ? { version: tag.name, url: `${base}/${repo}/src/tag/${encodeURIComponent(tag.name)}` } : null
     },
 
+    async createRelease(repo, { tag, name, body, target, draft, prerelease }) {
+      const rel = await api(`/repos/${repo}/releases`, { method: 'POST', body: { tag_name: tag, name, body, target_commitish: target, draft: !!draft, prerelease: !!prerelease } })
+      return { url: rel.html_url }
+    },
+
     async createIssue(repo, { title, body }) {
       const it = await api(`/repos/${repo}/issues`, { method: 'POST', body: { title, body } })
       return { number: it.number, url: it.html_url }

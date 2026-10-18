@@ -72,6 +72,12 @@ export default function gitlab({ url = 'https://gitlab.com', token }) {
       return tag ? { version: tag.name, url: `${base}/${repo}/-/tags/${encodeURIComponent(tag.name)}` } : null
     },
 
+    // GitLab has no draft releases; `ref` creates the tag when missing.
+    async createRelease(repo, { tag, name, body, target }) {
+      const rel = await api(`/projects/${pid(repo)}/releases`, { method: 'POST', body: { tag_name: tag, name, description: body, ref: target } })
+      return { url: rel._links?.self || `${base}/${repo}/-/releases/${encodeURIComponent(tag)}` }
+    },
+
     async createIssue(repo, { title, body, labels }) {
       const it = await api(`/projects/${pid(repo)}/issues`, { method: 'POST', body: { title, description: body, ...(labels?.length ? { labels: labels.join(',') } : {}) } })
       return { number: it.iid, url: it.web_url }

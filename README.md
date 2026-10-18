@@ -181,12 +181,3 @@ projectory/
 ```
 
 Inspiré dans l'esprit de [portfolio-manager](https://github.com/AymericLeFeyer/portfolio-manager) (Fastify + React/Ant Design, CRUD en tiroirs, docker-compose), mais écrit de zéro.
-
----
-
-## Idées pour la suite
-
-- Notifications perso GitLab (todos) et Gitea / Forgejo
-- Facturation : taux horaire par projet freelance, export CSV du temps passé
-- Publier la release sur la forge directement depuis l'onglet Versions
-- Import des notes depuis le bloc-notes (copier-coller → découpage en notes)

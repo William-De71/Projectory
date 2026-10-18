@@ -1,5 +1,6 @@
-import { insertRow, updateRow } from '../db.js'
+import { decode, insertRow, updateRow } from '../db.js'
 import { compareVersions } from '../sync/http.js'
+import { forgeFor, normalizeRepo } from '../sync/forges/index.js'
 
 const FIELDS = ['project_id', 'version', 'title', 'description', 'due_date', 'status', 'released_at']
 const DONE = ['done', 'wontfix']
@@ -28,6 +29,25 @@ export function changelog(db, projectId, version) {
   }
   if (!items.length) lines.push('', '_Aucun élément terminé pour cette version._')
   return lines.join('\n')
+}
+
+// Creates the release (and its tag) on the project's forge with the version's changelog.
+async function publishOnForge(db, projectId, version, { tag, draft, prerelease } = {}) {
+  const project = decode(db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId))
+  if (!project?.repo) throw Object.assign(new Error("Ce projet n'a pas de dépôt configuré"), { statusCode: 400 })
+  const tagName = String(tag || (/^v/i.test(version) ? version : `v${version}`)).trim()
+  // The forge shows the release name as title: drop the changelog heading.
+  const body = changelog(db, projectId, version).split('\n').slice(2).join('\n')
+  const { url } = await forgeFor(db, project).createRelease(normalizeRepo(project.repo), {
+    tag: tagName,
+    name: tagName,
+    body,
+    target: project.github?.default_branch || 'main',
+    draft,
+    prerelease,
+  })
+  db.prepare("UPDATE milestones SET release_url = ?, updated_at = datetime('now') WHERE project_id = ? AND version = ?").run(url, projectId, version)
+  return url
 }
 
 export default async function milestoneRoutes(app, { db }) {
@@ -123,6 +143,28 @@ export default async function milestoneRoutes(app, { db }) {
       const docId = insertRow(db, 'docs', { project_id: projectId, type: 'note', title: `Changelog ${version}`, content: markdown }, ['project_id', 'type', 'title', 'content'])
       doc = db.prepare('SELECT * FROM docs WHERE id = ?').get(docId)
     }
-    return { milestone: db.prepare('SELECT * FROM milestones WHERE project_id = ? AND version = ?').get(projectId, version), markdown, doc }
+    // The local release stands even if the forge refuses: it can be retried from the version card.
+    let forge_error = null
+    if (req.body?.forge) {
+      try {
+        await publishOnForge(db, projectId, version, req.body.forge)
+      } catch (err) {
+        forge_error = err.message
+      }
+    }
+    return { milestone: db.prepare('SELECT * FROM milestones WHERE project_id = ? AND version = ?').get(projectId, version), markdown, doc, forge_error }
+  })
+
+  app.post('/milestones/:id/forge-release', async (req, reply) => {
+    const m = db.prepare('SELECT * FROM milestones WHERE id = ?').get(Number(req.params.id))
+    if (!m) return reply.code(404).send({ error: 'Version introuvable' })
+    if (m.status !== 'released') return reply.code(400).send({ error: "Publie d'abord la version dans Projectory" })
+    if (m.release_url) return reply.code(409).send({ error: `Release déjà créée : ${m.release_url}` })
+    try {
+      await publishOnForge(db, m.project_id, m.version, req.body || {})
+    } catch (err) {
+      return reply.code(err.statusCode || 502).send({ error: err.message })
+    }
+    return db.prepare('SELECT * FROM milestones WHERE id = ?').get(m.id)
   })
 }

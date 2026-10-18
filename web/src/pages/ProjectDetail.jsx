@@ -130,7 +130,7 @@ export default function ProjectDetail() {
     { key: 'overview', label: 'Aperçu', children: <Overview project={p} /> },
     { key: 'items', label: <>Bugs & tâches <Badge count={p.open_items} size="small" color="blue" /></>, children: <ItemsPanel projectId={id} /> },
     { key: 'github', label: <>{FORGES[p.forge]?.label || 'Dépôt'} <Badge count={p.open_issues + p.open_prs} size="small" color="geekblue" /></>, children: <GithubPanel projectId={id} project={p} /> },
-    { key: 'roadmap', label: 'Versions', children: <RoadmapPanel projectId={id} /> },
+    { key: 'roadmap', label: 'Versions', children: <RoadmapPanel projectId={id} project={p} /> },
     { key: 'specs', label: 'Spécifications', children: <DocsPanel projectId={id} type="spec" /> },
     { key: 'notes', label: 'Notes', children: <DocsPanel projectId={id} type="note" /> },
     {
