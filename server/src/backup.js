@@ -1,6 +1,7 @@
 import { createReadStream, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { DATA_PATH, getConfig } from './db.js'
+import { mirrorUploads, pruneUploads } from './uploads.js'
 
 const NAME = /^projectory-(\d{4}-\d{2}-\d{2})\.db$/
 
@@ -60,6 +61,9 @@ export function createBackup(db, now = new Date()) {
   if (existsSync(file)) unlinkSync(file)
   db.exec(`VACUUM INTO '${file.replaceAll("'", "''")}'`)
   const deleted = rotateBackups(backupConfig(db))
+  // Attachments live outside the database: drop the orphans, copy the rest.
+  pruneUploads(db, { now: now.getTime() })
+  mirrorUploads(join(dir, 'uploads'), { now: now.getTime() })
   return { name, size: statSync(file).size, deleted }
 }
 

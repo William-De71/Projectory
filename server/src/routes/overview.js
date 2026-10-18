@@ -4,6 +4,7 @@ import { syncAll, syncState } from '../sync/index.js'
 import { forgeContext } from '../sync/forges/index.js'
 import { tr } from '../i18n.js'
 import { findStale } from '../insights.js'
+import { todayView } from '../today.js'
 
 const REPO_SOURCES = "'github', 'gitlab', 'gitea'"
 const INBOX_SQL = `SELECT x.*, p.name AS project_name FROM inbox x LEFT JOIN projects p ON p.id = x.project_id`
@@ -83,6 +84,12 @@ export default async function overviewRoutes(app, { db }) {
       ).all().map(decode),
       sync: syncState,
     }
+  })
+
+  app.get('/today', async (req) => {
+    const view = todayView(db, req.query.date)
+    const ci_failing = listProjects(db, { where: ["p.status != 'archived'"] }).filter((p) => p.ci === 'failure').map(({ id, name }) => ({ id, name }))
+    return { ...view, ci_failing }
   })
 
   app.get('/search', async (req) => {

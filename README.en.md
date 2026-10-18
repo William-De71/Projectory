@@ -36,6 +36,8 @@ Self-hosted (Docker), single-user, all data in one SQLite file.
 | **ntfy push notifications** | What's new is pushed to your phone through [ntfy](https://ntfy.sh) (public or self-hosted server, token supported), choice of events, grouped above 3 entries, per-project mute. |
 | **Upstream version watch** | Latest release/tag of the repository (any forge), of another GitHub repository, of an npm package or a Docker Hub image, compared with the version *you* use/deploy → "update available" badge and notification. |
 | **Bugs reported on forums** | **Discourse** forums (e.g. the [Gladys forum](https://community.gladysassistant.com): category, tag or search) and **RSS/Atom feeds** (keyword filter). One click turns a topic into a tracked bug. |
+| **"Today" view** | Pick 3 to 5 bugs or tasks for the day (☀ in the lists, or from the view) and tick them off as you go; unfinished ones carry over to the next day. Alongside: overdue or due today items, GitHub review requests, suggestions (in progress, high priority), failing CI, time spent. |
+| **Screenshots and attachments** | Paste (<kbd>Ctrl</kbd>+<kbd>V</kbd>) or drop a screenshot or a file into a bug description, a note or a spec: it is stored in `data/uploads/` and inserted as Markdown (images shown inline, other files linked). 25 MB maximum per file. |
 | **Manual bugs & tasks** | Bug / feature / task / question, priority, status, due date, target version, external link. List or Kanban board (drag and drop). |
 | **Specifications** | Markdown documents per project with a pre-filled template (context, goals, acceptance criteria…) and draft / in review / approved status. |
 | **Notes** | Markdown notes per project or global, "Quick note" button everywhere in the app. |
@@ -108,12 +110,13 @@ Open http://localhost:3001. Data lives in `./data/projectory.db`.
 | `NTFY_SERVER`, `NTFY_TOPIC`, `NTFY_TOKEN` | `https://ntfy.sh`, —, — | Notification defaults; usually set in **Settings → Push notifications**. |
 | `APP_URL` | — | Projectory's address (e.g. `http://192.168.1.10:3001`), used for links in notifications. |
 | `APP_LANG` | `fr` | Default server language (`fr` or `en`) until one is chosen in the UI. |
+| `UPLOADS_DIR` | `/data/uploads` | Folder for screenshots and attachments. |
 | `BACKUP_DIR` | `/data/backups` | Folder for automatic backups (e.g. a NAS share mounted in the container). |
 | `LOG_LEVEL` | `info` | Log level. |
 
 ### Backup
 
-Projectory makes a daily copy of the database in `data/backups/` (time and retention in **Settings → Automatic backups**, "Back up now" button). To restore: stop the container, replace `data/projectory.db` with the chosen backup, restart. The JSON export is still available in **Settings → Data and export**.
+Projectory makes a daily copy of the database in `data/backups/` (attachments are copied to `data/backups/uploads/`) (time and retention in **Settings → Automatic backups**, "Back up now" button). To restore: stop the container, replace `data/projectory.db` with the chosen backup (and copy `backups/uploads/` back into `uploads/` if needed), restart. Attachments no longer used anywhere are deleted after 24 h. The JSON export is still available in **Settings → Data and export**.
 
 ### Calendar and phone
 

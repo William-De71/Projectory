@@ -3,6 +3,7 @@ import { App, Button, Drawer, Flex, Form, Input, Popconfirm, Segmented, Select, 
 import { api } from '../api/client.js'
 import { DOC_STATUS, options } from './labels.js'
 import Markdown from './Markdown.jsx'
+import MarkdownInput from './MarkdownInput.jsx'
 import ProjectSelect from './ProjectSelect.jsx'
 import { getLang, t } from '../i18n/index.js'
 
@@ -141,7 +142,7 @@ export default function DocEditor({ doc, onClose, onSaved, onDeleted, withProjec
               forceRender: true,
               children: (
                 <Form.Item name="content" className="md-editor" style={{ marginBottom: 0 }}>
-                  <Input.TextArea autoSize={{ minRows: 16, maxRows: 40 }} placeholder={t('Markdown supporté : # titres, - listes, - [ ] cases à cocher, `code`…')} />
+                  <MarkdownInput autoSize={{ minRows: 16, maxRows: 40 }} placeholder={t('Markdown supporté : # titres, - listes, - [ ] cases à cocher, `code`…')} />
                 </Form.Item>
               ),
             },

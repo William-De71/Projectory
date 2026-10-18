@@ -13,6 +13,7 @@ import { api } from './api/client.js'
 import { getLang, hasSavedLang, setLang as storeLang } from './i18n/index.js'
 import AppLayout from './components/AppLayout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import Today from './pages/Today.jsx'
 import Projects from './pages/Projects.jsx'
 import ProjectDetail from './pages/ProjectDetail.jsx'
 import Inbox from './pages/Inbox.jsx'
@@ -72,6 +73,7 @@ export default function App() {
           <Routes>
             <Route element={<AppLayout dark={dark} onToggleDark={toggleDark} lang={lang} onChangeLang={changeLang} />}>
               <Route index element={<Dashboard />} />
+              <Route path="today" element={<Today />} />
               <Route path="projects" element={<Projects />} />
               <Route path="projects/:id" element={<ProjectDetail />} />
               <Route path="projects/:id/:tab" element={<ProjectDetail />} />

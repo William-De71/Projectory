@@ -7,6 +7,8 @@ import { api, notifyChange, useApi } from '../api/client.js'
 import { ITEM_KIND, ITEM_STATUS, PRIORITY, SOURCE, options } from './labels.js'
 import { LabelTag } from './Tags.jsx'
 import Markdown from './Markdown.jsx'
+import MarkdownInput from './MarkdownInput.jsx'
+import TodayButton from './TodayButton.jsx'
 import ProjectSelect from './ProjectSelect.jsx'
 import { t } from '../i18n/index.js'
 
@@ -74,6 +76,8 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
     setSaving(true)
     try {
       const body = { ...values, project_id: values.project_id ?? item.project_id, due_date: values.due_date ? values.due_date.format('YYYY-MM-DD') : null }
+      // Created from the "Today" view: planned for the day right away.
+      if (!item.id && item.focus_date) body.focus_date = item.focus_date
       const saved = item.id ? await api.put(`/items/${item.id}`, body) : await api.post('/items', body)
       notifyChange()
       onSaved?.(saved)
@@ -128,7 +132,7 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
         </Flex>
         <Form.Item name="external_url" label={t('Lien (post du forum, issue, mail…)')}><Input placeholder="https://…" /></Form.Item>
         <Form.Item name="body" label={t('Description / étapes de reproduction')} className="md-editor">
-          <Input.TextArea autoSize={{ minRows: 6, maxRows: 24 }} placeholder={'1. Aller sur…\n2. Cliquer sur…\n\nAttendu : …\nObtenu : …\nVersion : …'} />
+          <MarkdownInput autoSize={{ minRows: 6, maxRows: 24 }} placeholder={[t('1. Aller sur…'), t('2. Cliquer sur…'), '', t('Attendu : …'), t('Obtenu : …'), t('Version : …')].join('\n')} />
         </Form.Item>
       </Form>
     </Drawer>
@@ -205,6 +209,7 @@ export default function ItemsPanel({ projectId }) {
       render: (title, it) => (
         <Flex vertical gap={2}>
           <Flex gap={6} align="center">
+            <TodayButton item={it} onChange={(updated) => setData((rows) => rows.map((r) => (r.id === updated.id ? { ...r, focus_date: updated.focus_date } : r)))} />
             <Typography.Link onClick={() => setEditing(it)} delete={it.status === 'wontfix'}>{title}</Typography.Link>
             {it.issue_url && (
               <Tooltip title={t('Issue sur le dépôt')}>

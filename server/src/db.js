@@ -157,6 +157,12 @@ const MIGRATIONS = [
   -- Release created on the forge when the version was published.
   ALTER TABLE milestones ADD COLUMN release_url TEXT NOT NULL DEFAULT '';
   `,
+  `
+  -- Day an item was picked for the "Today" view (kept until done or removed).
+  ALTER TABLE items ADD COLUMN focus_date TEXT;
+  -- Reason of a personal GitHub notification (review_requested, mention...).
+  ALTER TABLE inbox ADD COLUMN reason TEXT;
+  `,
 ]
 
 export function openDb(file = join(DATA_PATH, 'projectory.db')) {
