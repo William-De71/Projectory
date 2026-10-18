@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.0 — 2026-10-18
+
+### ✨ Nouveautés
+
+- vue « Aujourd'hui » et captures / pièces jointes dans les bugs, notes et specs (#5) (7becbea)
+
 ## v0.4.0 — 2026-10-18
 
 ### ✨ Nouveautés
