@@ -10,6 +10,7 @@
 - `pushInbox` remplit aussi `fresh` (entrées nouvelles et non lues) : c'est ce qui part sur ntfy en fin de `syncProject` (`sync/notify.js`). La CI ne génère une entrée qu'aux changements d'état (vert → rouge, rouge → vert).
 - Forges (`server/src/sync/forges/`) : un adaptateur par forge (github, gitlab, gitea — Forgejo = gitea) avec la même interface (`fetchRepo`, `fetchCi`, `latestRelease`, `createIssue`, `listOwnerRepos`). Toujours passer par `forgeFor(db, project)` qui résout le token (comptes `config:forges` puis variables d'env). Noms historiques : la table `github_items` et la colonne `projects.github` contiennent les données de toutes les forges.
 - Source de version `repo` = releases du dépôt du projet (toute forge) ; `github` = autre dépôt GitHub.
+- Tâches planifiées (`server/src/jobs.js`, tick 60 s) : résumé hebdo ntfy (`insights.js`) et sauvegardes `VACUUM INTO` (`backup.js`, `BACKUP_DIR`). Le flux `/api/calendar.ics?token=` échappe à `APP_PASSWORD` (clé dans `config:calendar`). Statistiques : `fetchActivity` des forges, agrégées par `stats.js`.
 - Réglages applicatifs : `getConfig` / `setConfig` (clés `config:*` de la table `settings`). Le token ntfy n'est jamais renvoyé au front (`token_set`).
 - Les tests suppriment `GITHUB_TOKEN` & co de l'environnement : garder ce bloc en tête de chaque fichier de test.
 - Après une mutation côté front, appeler `notifyChange()` pour rafraîchir les composants qui écoutent (`useApi(url, { listen: true })`).

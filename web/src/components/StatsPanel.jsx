@@ -58,7 +58,7 @@ export default function StatsPanel({ projectId, project }) {
           {t('Calculé {when}', { when: dayjs(data.computed_at).fromNow() })}
         </Typography.Text>
         <Flex gap={8} style={{ marginLeft: 'auto' }}>
-          <Button icon={<TableOutlined />} onClick={() => setShowTable((v) => !v)}>{showTable ? t('Graphiques') : t('Tableau')}</Button>
+          <Button icon={<TableOutlined />} onClick={() => setShowTable((v) => !v)}>{showTable ? t('Graphiques') : t('Vue tableau')}</Button>
           <Tooltip title={t('Recalculer depuis la forge')}><Button icon={<ReloadOutlined spin={refreshing} />} onClick={refresh} disabled={refreshing} /></Tooltip>
         </Flex>
       </Flex>
