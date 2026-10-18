@@ -19,7 +19,7 @@ export default function Dashboard() {
     { title: 'Non lus', value: stats.unread, to: '/inbox', color: stats.unread ? '#ff4d4f' : undefined },
     { title: 'Bugs ouverts', value: stats.open_bugs, to: '/items' },
     { title: 'Issues ouvertes', value: stats.open_issues },
-    { title: 'PR / MR ouvertes', value: stats.open_prs },
+    { title: 'PR / MR', value: stats.open_prs },
     { title: 'CI en échec', value: stats.ci_failing, color: stats.ci_failing ? '#ff4d4f' : undefined },
     { title: 'Temps ce mois', value: formatMinutes(stats.minutes_this_month), to: '/time' },
   ]

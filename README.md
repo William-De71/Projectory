@@ -9,7 +9,14 @@
 
 Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 
+**Français** · [English](README.en.md)
+
 </div>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
+  <img src="docs/screenshots/dashboard.png" alt="Tableau de bord de Projectory : chiffres clés, CI en échec, projets épinglés, nouveautés et tâches prioritaires">
+</picture>
 
 ---
 
@@ -38,6 +45,19 @@ Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 | **Export** | JSON complet en un clic, ou copie du fichier `data/projectory.db`. |
 
 Thème clair/sombre, interface en français, utilisable sur mobile.
+
+### Aperçu
+
+| | |
+|---|---|
+| ![Liste des projets par catégorie, avec issues, PR, état de la CI et versions](docs/screenshots/projects.png) | ![Fiche projet : description, liens, dépôt, CI et versions à mettre à jour](docs/screenshots/project.png) |
+| **Projets** — catégories, compteurs, CI, mises à jour disponibles | **Fiche projet** — dépôt, CI, versions utilisée / publiée |
+| ![Bugs et tâches de tous les projets en tableau Kanban](docs/screenshots/board.png) | ![Boîte de réception : sujets du forum, CI en échec, review demandée, nouvelles versions](docs/screenshots/inbox.png) |
+| **Bugs & tâches** — liste ou Kanban, tous projets confondus | **Boîte de réception** — forum, dépôts, CI, versions, notifications perso |
+| ![Onglet Versions : jalons avec progression et éléments planifiés](docs/screenshots/versions.png) | ![Changelog Markdown généré pour une version](docs/screenshots/changelog.png) |
+| **Versions** — jalons, progression, éléments sans version | **Changelog** — généré à la publication, à copier ou télécharger |
+
+<sub>Captures réalisées avec des données de démonstration.</sub>
 
 > 💡 À la **première** synchro d'une source, l'existant est enregistré comme déjà lu : seules les nouveautés suivantes apparaissent en non lu.
 
@@ -100,9 +120,9 @@ Copie `data/projectory.db` (idéalement app arrêtée, ou via `sqlite3 data/proj
 Dans **Projets → Nouveau projet** :
 
 - **Catégorie** : Organisation — **Client** : Gladys
-- **Dépôt GitHub** : `GladysAssistant/Gladys`
+- **Dépôt** : GitHub, `GladysAssistant/Gladys`
 - **Version utilisée** : celle installée chez toi, ex. `4.45.0`
-- **Versions** : `GitHub release/tag` (vide = dépôt du projet) + `Image Docker Hub` → `gladysassistant/gladys`
+- **Versions** : « Releases du dépôt » + « Image Docker Hub » → `gladysassistant/gladys`
 - **Forum** : `Forum Discourse`, URL `https://community.gladysassistant.com`, puis au choix :
   - chemin vide → derniers sujets
   - chemin `c/<slug>/<id>` → une catégorie (l'URL de la catégorie sur le forum, sans le domaine)
