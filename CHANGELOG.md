@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.1 — 2026-10-18
+
+### 🔧 Autres changements
+
+- captures d'écran, README en anglais et petits correctifs d'affichage (#2) (2526ff1)
+
 ## v0.2.0 — 2026-10-18
 
 ### ✨ Nouveautés
