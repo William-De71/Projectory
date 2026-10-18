@@ -42,6 +42,13 @@ Self-hosted (Docker), single-user, all data in one SQLite file.
 | **Time tracking** | Quick entry per project, monthly and per-project totals (handy for freelance invoicing). |
 | **Inbox** | Everything new since the last sync, read/unread, filters by source and project. |
 | **Dashboard** | Key figures, what's new, high priority / upcoming due dates, available updates, recent PRs, sync errors. |
+| **Stale issues and PRs** | Issues without a reply for N days, PRs / MRs without activity for N days (adjustable thresholds): flagged on the dashboard and in the repository tab. |
+| **Weekly digest** | One ntfy notification a week (day and time of your choice): failing CI, waiting PRs, unanswered issues, high priority items, due dates in the next 14 days, updates, time spent. Preview and send now from the settings. |
+| **Statistics** | **Statistics** tab per project over 3, 6 or 12 months: commits, issues and PRs / MRs opened and closed per week, median resolution time, bugs & tasks, time spent — charts or table. |
+| **Calendar (ICS)** | Subscription link for Google Calendar, Apple Calendar, Thunderbird…: due dates of bugs & tasks, planned and released versions. Secret link, can be regenerated. |
+| **Command palette** | <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on Mac): go to a page or a project, search, create a bug, a note, a spec, sync, switch theme or language. |
+| **Installable app (PWA)** | "Install" from Chrome / Edge, or "Add to Home Screen" on iPhone: icon, full screen, shortcuts. |
+| **Automatic backups** | Daily copy of the database (without stopping the app), 7 days + 4 weeks rotation, downloadable from the settings. |
 | **Global search** | Projects, bugs, specs, notes, repository issues and PRs. |
 | **Export** | Full JSON export in one click, or copy the `data/projectory.db` file. |
 
@@ -101,11 +108,17 @@ Open http://localhost:3001. Data lives in `./data/projectory.db`.
 | `NTFY_SERVER`, `NTFY_TOPIC`, `NTFY_TOKEN` | `https://ntfy.sh`, —, — | Notification defaults; usually set in **Settings → Push notifications**. |
 | `APP_URL` | — | Projectory's address (e.g. `http://192.168.1.10:3001`), used for links in notifications. |
 | `APP_LANG` | `fr` | Default server language (`fr` or `en`) until one is chosen in the UI. |
+| `BACKUP_DIR` | `/data/backups` | Folder for automatic backups (e.g. a NAS share mounted in the container). |
 | `LOG_LEVEL` | `info` | Log level. |
 
 ### Backup
 
-Copy `data/projectory.db` (ideally with the app stopped, or with `sqlite3 data/projectory.db ".backup backup.db"`), or use **Settings → Export as JSON**.
+Projectory makes a daily copy of the database in `data/backups/` (time and retention in **Settings → Automatic backups**, "Back up now" button). To restore: stop the container, replace `data/projectory.db` with the chosen backup, restart. The JSON export is still available in **Settings → Data and export**.
+
+### Calendar and phone
+
+- **Calendar**: paste the link from **Settings → Calendar (ICS)** into your calendar app ("Subscribe to calendar" / "From URL"). Open Projectory through its network address (not `localhost`) to get a link that works elsewhere. The link works even with `APP_PASSWORD`: it carries its own secret key.
+- **Install the app**: PWA installation requires HTTPS (or `localhost`); behind a reverse proxy with a certificate, use "Install Projectory" in the browser.
 
 ---
 

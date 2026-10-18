@@ -41,6 +41,13 @@ Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 | **Temps passé** | Saisie rapide par projet, total du mois et par projet (pratique pour facturer le freelance). |
 | **Boîte de réception** | Tout ce qui est nouveau depuis la dernière synchro, lu/non lu, filtres par source et projet. |
 | **Tableau de bord** | Chiffres clés, nouveautés, prioritaire / échéances proches, mises à jour dispo, PR récentes, erreurs de synchro. |
+| **Issues et PR qui dorment** | Issues sans réponse depuis N jours, PR / MR sans activité depuis N jours (seuils réglables) : signalées au tableau de bord et dans l'onglet du dépôt. |
+| **Résumé hebdomadaire** | Une notification ntfy par semaine (jour et heure au choix) : CI en échec, PR en attente, issues sans réponse, prioritaires, échéances des 14 jours, mises à jour, temps passé. Aperçu et envoi immédiat dans les paramètres. |
+| **Statistiques** | Onglet **Statistiques** par projet sur 3, 6 ou 12 mois : commits, issues et PR / MR ouvertes et fermées par semaine, délai médian de résolution, bugs & tâches, temps passé — graphiques ou tableau. |
+| **Calendrier (ICS)** | Lien d'abonnement pour Google Agenda, Apple Calendrier, Thunderbird… : échéances des bugs & tâches, versions prévues et publiées. Lien secret régénérable. |
+| **Palette de commandes** | <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> sur Mac) : aller à une page ou un projet, chercher, créer un bug, une note, une spec, synchroniser, changer de thème ou de langue. |
+| **Application installable (PWA)** | « Installer » depuis Chrome / Edge, ou « Sur l'écran d'accueil » sur iPhone : icône, plein écran, raccourcis. |
+| **Sauvegardes automatiques** | Copie quotidienne de la base (sans arrêter l'app), rotation 7 jours + 4 semaines, téléchargeables depuis les paramètres. |
 | **Recherche globale** | Projets, bugs, specs, notes, issues et PR des dépôts. |
 | **Export** | JSON complet en un clic, ou copie du fichier `data/projectory.db`. |
 
@@ -102,11 +109,17 @@ Ouvre http://localhost:3001. Les données sont dans `./data/projectory.db`.
 | `NTFY_SERVER`, `NTFY_TOPIC`, `NTFY_TOKEN` | `https://ntfy.sh`, —, — | Valeurs par défaut des notifications ; se règlent plutôt dans **Paramètres → Notifications push**. |
 | `APP_URL` | — | Adresse de Projectory (ex. `http://192.168.1.10:3001`), utilisée par les liens des notifications. |
 | `APP_LANG` | `fr` | Langue par défaut côté serveur (`fr` ou `en`) tant qu'aucune n'a été choisie dans l'interface. |
+| `BACKUP_DIR` | `/data/backups` | Dossier des sauvegardes automatiques (ex. un partage NAS monté dans le conteneur). |
 | `LOG_LEVEL` | `info` | Niveau de logs. |
 
 ### Sauvegarde
 
-Copie `data/projectory.db` (idéalement app arrêtée, ou via `sqlite3 data/projectory.db ".backup backup.db"`), ou utilise **Paramètres → Exporter en JSON**.
+Projectory fait une copie quotidienne de la base dans `data/backups/` (heure et rétention dans **Paramètres → Sauvegardes automatiques**, bouton « Sauvegarder maintenant »). Pour restaurer : arrête le conteneur, remplace `data/projectory.db` par la sauvegarde choisie, redémarre. L'export JSON reste disponible dans **Paramètres → Données et export**.
+
+### Calendrier et téléphone
+
+- **Calendrier** : copie le lien de **Paramètres → Calendrier (ICS)** dans ton agenda (« S'abonner à un calendrier » / « À partir de l'URL »). Ouvre Projectory avec son adresse réseau (pas `localhost`) pour obtenir un lien utilisable ailleurs. Le lien fonctionne même avec `APP_PASSWORD` : il contient sa propre clé secrète.
+- **Installer l'app** : l'installation PWA demande HTTPS (ou `localhost`) ; derrière un reverse proxy avec certificat, utilise « Installer Projectory » dans le navigateur.
 
 ---
 

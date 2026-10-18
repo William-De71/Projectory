@@ -11,6 +11,7 @@ import ProjectForm from '../components/ProjectForm.jsx'
 import ItemsPanel from '../components/ItemsPanel.jsx'
 import GithubPanel from '../components/GithubPanel.jsx'
 import RoadmapPanel from '../components/RoadmapPanel.jsx'
+import StatsPanel from '../components/StatsPanel.jsx'
 import ForgeIcon from '../components/ForgeIcon.jsx'
 import DocsPanel from '../components/DocsPanel.jsx'
 import InboxList from '../components/InboxList.jsx'
@@ -149,6 +150,7 @@ export default function ProjectDetail() {
       ),
     },
     { key: 'time', label: t('Temps'), children: <TimePanel projectId={id} /> },
+    { key: 'stats', label: t('Statistiques'), children: <StatsPanel projectId={id} project={p} /> },
   ]
 
   return (

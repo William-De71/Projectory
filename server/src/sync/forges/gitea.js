@@ -82,6 +82,18 @@ export default function gitea({ url, token }) {
       return tag ? { version: tag.name, url: `${base}/${repo}/src/tag/${encodeURIComponent(tag.name)}` } : null
     },
 
+    async fetchActivity(repo, since) {
+      const page = (path) => paginate((n) => api(`/repos/${repo}${path}&limit=${LIMIT}&page=${n}`), LIMIT)
+      const [commits, issues] = await Promise.all([
+        page(`/commits?since=${since}&stat=false&verification=false&files=false`),
+        page(`/issues?state=all&since=${since}`),
+      ])
+      return {
+        commits: commits.map((c) => c.commit?.author?.date || c.created),
+        issues: issues.map((it) => ({ type: it.pull_request ? 'pr' : 'issue', created_at: it.created_at, closed_at: it.closed_at })),
+      }
+    },
+
     async createRelease(repo, { tag, name, body, target, draft, prerelease }) {
       const rel = await api(`/repos/${repo}/releases`, { method: 'POST', body: { tag_name: tag, name, body, target_commitish: target, draft: !!draft, prerelease: !!prerelease } })
       return { url: rel.html_url }

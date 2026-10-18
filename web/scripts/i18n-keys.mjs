@@ -18,7 +18,7 @@ const PATTERNS = [
 ]
 const unescape = (s) => s.replace(/\\(.)/g, '$1')
 // Not translatable: identifiers, URLs, paths, colours, versions.
-const isText = (s) => /[A-Za-zÀ-ÿ]/.test(s) && !/^(#|\/|https?:|repeat\(|[a-z]+(-[a-z]+)*$|[a-z]+[A-Za-z]*$|[\w.-]+\/[\w./-]+$|v?\d)/.test(s)
+const isText = (s) => /[A-Za-zÀ-ÿ]/.test(s) && !/^(#|\/|https?:|repeat\(|[a-z]+(-[a-z]+)*$|[a-z]+[A-Za-z]*$|[\w.-]+\/[\w./-]+$|-?v?\d)/.test(s)
 
 export function collectKeys() {
   const keys = new Set()
@@ -29,7 +29,8 @@ export function collectKeys() {
       if (i === 2 && !isConstFile) return
       for (const m of src.matchAll(re)) {
         const s = unescape(m[1] ?? m[2])
-        if (isText(s)) keys.add(s)
+        // Anything passed to t() is user-facing; constants are filtered.
+        if (i === 0 ? /[A-Za-zÀ-ÿ]/.test(s) : isText(s)) keys.add(s)
       }
     })
   }

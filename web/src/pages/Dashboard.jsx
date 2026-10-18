@@ -1,9 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Alert, Button, Card, Col, Empty, Flex, List, Row, Spin, Statistic, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Col, Empty, Flex, List, Row, Spin, Statistic, Tag, Tooltip, Typography } from 'antd'
 import { PullRequestOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useApi } from '../api/client.js'
-import { ITEM_KIND, PRIORITY, formatMinutes } from '../components/labels.js'
+import { ITEM_KIND, PRIORITY, formatMinutes, refLabel } from '../components/labels.js'
+import StaleTag from '../components/StaleTag.jsx'
 import { LabelTag } from '../components/Tags.jsx'
 import InboxList from '../components/InboxList.jsx'
 import ProjectCard, { latestVersion } from '../components/ProjectCard.jsx'
@@ -22,6 +23,7 @@ export default function Dashboard() {
     { title: t('Issues ouvertes'), value: stats.open_issues },
     { title: t('PR / MR'), value: stats.open_prs },
     { title: t('CI en échec'), value: stats.ci_failing, color: stats.ci_failing ? '#ff4d4f' : undefined },
+    { title: t('En attente'), value: stats.stale, tip: t('Issues sans réponse et PR / MR sans activité') },
     { title: t('Temps ce mois'), value: formatMinutes(stats.minutes_this_month), to: '/time' },
   ]
 
@@ -47,10 +49,10 @@ export default function Dashboard() {
       )}
 
       <Row gutter={[12, 12]}>
-        {tiles.map((t) => (
-          <Col key={t.title} xs={12} md={6} xl={3}>
-            <Card size="small" hoverable={!!t.to} onClick={() => t.to && navigate(t.to)}>
-              <Statistic title={t.title} value={t.value} valueStyle={{ color: t.color }} />
+        {tiles.map((tile) => (
+          <Col key={tile.title} xs={12} md={6} xl={3}>
+            <Card size="small" hoverable={!!tile.to} onClick={() => tile.to && navigate(tile.to)}>
+              <Statistic title={tile.tip ? <Tooltip title={tile.tip}>{tile.title}</Tooltip> : tile.title} value={tile.value} valueStyle={{ color: tile.color }} />
             </Card>
           </Col>
         ))}
@@ -106,6 +108,23 @@ export default function Dashboard() {
                         <LabelTag map={ITEM_KIND} value={it.kind} />
                         <LabelTag map={PRIORITY} value={it.priority} />
                         {it.due_date && <Tag color={dayjs(it.due_date).isBefore(dayjs(), 'day') ? 'red' : 'gold'}>{dayjs(it.due_date).format('D MMM')}</Tag>}
+                      </Flex>
+                    </Flex>
+                  </List.Item>
+                )}
+              />
+            </Card>
+            <Card size="small" title={t('En attente')} extra={<Link to="/settings">{t('Réglages')}</Link>}>
+              <List
+                dataSource={data.stale}
+                locale={{ emptyText: <Empty description={t('Rien ne dort 👌')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+                renderItem={(s) => (
+                  <List.Item>
+                    <Flex vertical gap={2} style={{ minWidth: 0, width: '100%' }}>
+                      <a href={s.url} target="_blank" rel="noreferrer"><Typography.Text ellipsis style={{ color: 'inherit' }}>{refLabel(s.forge, s.type, s.number)} {s.title}</Typography.Text></a>
+                      <Flex gap={4} wrap>
+                        <Tag>{s.project_name}</Tag>
+                        <StaleTag item={s} />
                       </Flex>
                     </Flex>
                   </List.Item>

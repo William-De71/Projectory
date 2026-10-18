@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Empty, Flex, Input, Segmented, Select, Spin, Typography } from 'antd'
 import { CloudDownloadOutlined, PlusOutlined } from '@ant-design/icons'
 import { useApi } from '../api/client.js'
@@ -13,9 +13,17 @@ export default function Projects() {
   const navigate = useNavigate()
   const [category, setCategory] = useState('all')
   const [status, setStatus] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [q, setQ] = useState('')
   const [creating, setCreating] = useState(null)
   const [importing, setImporting] = useState(false)
+
+  // Opened from the command palette: /projects?new=1 or ?import=1
+  useEffect(() => {
+    if (searchParams.get('new')) setCreating({})
+    if (searchParams.get('import')) setImporting(true)
+    if (searchParams.get('new') || searchParams.get('import')) setSearchParams({}, { replace: true })
+  }, [searchParams, setSearchParams])
   const { data: categories } = useApi('/categories', { listen: true })
   const query = new URLSearchParams()
   if (status) query.set('status', status)

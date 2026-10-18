@@ -73,6 +73,22 @@ export default function gitlab({ url = 'https://gitlab.com', token }) {
       return tag ? { version: tag.name, url: `${base}/${repo}/-/tags/${encodeURIComponent(tag.name)}` } : null
     },
 
+    async fetchActivity(repo, since) {
+      const page = (path) => paginate((n) => api(`/projects/${pid(repo)}${path}&per_page=100&page=${n}`), 100)
+      const [commits, issues, mrs] = await Promise.all([
+        page(`/repository/commits?since=${since}`),
+        page(`/issues?updated_after=${since}`),
+        page(`/merge_requests?updated_after=${since}`),
+      ])
+      return {
+        commits: commits.map((c) => c.committed_date || c.created_at),
+        issues: [
+          ...issues.map((it) => ({ type: 'issue', created_at: it.created_at, closed_at: it.closed_at })),
+          ...mrs.map((it) => ({ type: 'pr', created_at: it.created_at, closed_at: it.merged_at || it.closed_at })),
+        ],
+      }
+    },
+
     // GitLab has no draft releases; `ref` creates the tag when missing.
     async createRelease(repo, { tag, name, body, target }) {
       const rel = await api(`/projects/${pid(repo)}/releases`, { method: 'POST', body: { tag_name: tag, name, description: body, ref: target } })

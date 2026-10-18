@@ -7,13 +7,15 @@ import {
 } from '@ant-design/icons'
 import { api, notifyChange, useChangeListener } from '../api/client.js'
 import DocEditor from './DocEditor.jsx'
+import CommandPalette, { isPaletteShortcut } from './CommandPalette.jsx'
+import { ItemForm } from './ItemsPanel.jsx'
 import { t } from '../i18n/index.js'
 
 const { Sider, Header, Content } = Layout
 
 const SEARCH_TYPES = { project: 'Projet', item: 'Suivi', doc: 'Doc', github: 'GitHub' }
 
-function GlobalSearch() {
+function GlobalSearch({ onOpenPalette }) {
   const navigate = useNavigate()
   const [options, setOptions] = useState([])
   const [value, setValue] = useState('')
@@ -46,7 +48,12 @@ function GlobalSearch() {
 
   return (
     <AutoComplete value={value} options={options} onSearch={search} onSelect={select} style={{ flex: 1, maxWidth: 420, minWidth: 0 }} popupMatchSelectWidth={360}>
-      <Input prefix={<SearchOutlined />} placeholder={t('Rechercher projets, bugs, specs, notes…')} allowClear />
+      <Input
+        prefix={<SearchOutlined />}
+        placeholder={t('Rechercher projets, bugs, specs, notes…')}
+        allowClear
+        suffix={<Tooltip title={t('Palette de commandes')}><Tag style={{ cursor: 'pointer', marginInlineEnd: 0, fontSize: 11 }} onClick={onOpenPalette}>{navigator.platform?.startsWith('Mac') ? '⌘K' : 'Ctrl K'}</Tag></Tooltip>}
+      />
     </AutoComplete>
   )
 }
@@ -59,6 +66,18 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const [unread, setUnread] = useState(0)
   const [syncing, setSyncing] = useState(false)
   const [quickNote, setQuickNote] = useState(null)
+  const [newItem, setNewItem] = useState(null)
+  const [palette, setPalette] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!isPaletteShortcut(e)) return
+      e.preventDefault()
+      setPalette((open) => !open)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const screens = Grid.useBreakpoint()
   const mobile = !screens.lg
 
@@ -101,12 +120,12 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider breakpoint="lg" collapsedWidth="0" width={230} zeroWidthTriggerStyle={{ top: 12, zIndex: 20 }} theme={dark ? 'dark' : 'light'} style={{ borderRight: `1px solid ${token.colorBorderSecondary}` }}>
-        <div style={{ padding: '18px 20px', fontWeight: 700, fontSize: 18 }}>{t('🗂️ Projectory')}</div>
+        <div style={{ padding: '18px 20px', fontWeight: 700, fontSize: 18 }}><img src="/icons/icon.svg" alt="" width={24} height={24} style={{ verticalAlign: '-5px', marginRight: 8 }} />Projectory</div>
         <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={({ key }) => navigate(key)} style={{ borderInlineEnd: 0 }} />
       </Sider>
       <Layout>
-        <Header style={{ background: token.colorBgContainer, padding: mobile ? t('0 12px 0 56px') : t('0 16px'), lineHeight: 'normal', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <GlobalSearch />
+        <Header style={{ background: token.colorBgContainer, padding: mobile ? '0 12px 0 56px' : '0 16px', lineHeight: 'normal', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <GlobalSearch onOpenPalette={() => setPalette(true)} />
           <Flex gap={8} style={{ marginLeft: 'auto' }}>
             <Tooltip title={mobile ? t('Note rapide') : null}>
               <Button icon={<EditOutlined />} onClick={() => setQuickNote({ type: 'note' })}>{mobile ? null : t('Note rapide')}</Button>
@@ -125,6 +144,19 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
         </Content>
       </Layout>
       <DocEditor doc={quickNote} withProjectPicker onClose={() => setQuickNote(null)} onSaved={() => { setQuickNote(null); notifyChange() }} />
+      <ItemForm item={newItem} withProjectPicker onClose={() => setNewItem(null)} onSaved={() => { setNewItem(null); notifyChange() }} />
+      <CommandPalette
+        open={palette}
+        onClose={() => setPalette(false)}
+        actions={{
+          newItem: () => setNewItem({}),
+          quickNote: () => setQuickNote({ type: 'note' }),
+          newSpec: () => setQuickNote({ type: 'spec' }),
+          sync: syncAll,
+          toggleDark: onToggleDark,
+          toggleLang: () => onChangeLang(lang === 'fr' ? 'en' : 'fr'),
+        }}
+      />
     </Layout>
   )
 }

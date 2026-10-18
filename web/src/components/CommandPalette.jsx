@@ -1,0 +1,141 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Empty, Flex, Input, Modal, Tag, theme, Typography } from 'antd'
+import {
+  AppstoreOutlined, BugOutlined, ClockCircleOutlined, CloudDownloadOutlined, DashboardOutlined, EditOutlined, FileTextOutlined,
+  GlobalOutlined, InboxOutlined, MoonOutlined, PlusOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SyncOutlined,
+} from '@ant-design/icons'
+import { api } from '../api/client.js'
+import { t } from '../i18n/index.js'
+
+const SEARCH_TYPES = { project: 'Projet', item: 'Suivi', doc: 'Doc', github: 'GitHub' }
+const normalize = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+export const isPaletteShortcut = (e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'
+
+// Ctrl+K / ⌘K: jump to a page or a project, search, or run an action.
+export default function CommandPalette({ open, onClose, actions }) {
+  const navigate = useNavigate()
+  const { token } = theme.useToken()
+  const [q, setQ] = useState('')
+  const [projects, setProjects] = useState([])
+  const [results, setResults] = useState([])
+  const [active, setActive] = useState(0)
+  const listRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    setQ('')
+    setResults([])
+    setActive(0)
+    api.get('/projects').then(setProjects).catch(() => {})
+  }, [open])
+
+  // Debounced full-text search once two characters are typed.
+  useEffect(() => {
+    if (q.trim().length < 2) return setResults([])
+    const timer = setTimeout(() => api.get(`/search?q=${encodeURIComponent(q.trim())}`).then(setResults).catch(() => {}), 150)
+    return () => clearTimeout(timer)
+  }, [q])
+
+  const entries = useMemo(() => {
+    const needle = normalize(q.trim())
+    const match = (text) => !needle || normalize(text).includes(needle)
+    const pages = [
+      { label: t('Tableau de bord'), icon: <DashboardOutlined />, run: () => navigate('/') },
+      { label: t('Projets'), icon: <AppstoreOutlined />, run: () => navigate('/projects') },
+      { label: t('Boîte de réception'), icon: <InboxOutlined />, run: () => navigate('/inbox') },
+      { label: t('Bugs & tâches'), icon: <BugOutlined />, run: () => navigate('/items') },
+      { label: t('Notes & specs'), icon: <ReadOutlined />, run: () => navigate('/notes') },
+      { label: t('Temps passé'), icon: <ClockCircleOutlined />, run: () => navigate('/time') },
+      { label: t('Paramètres'), icon: <SettingOutlined />, run: () => navigate('/settings') },
+    ].map((e) => ({ ...e, group: t('Aller à') }))
+    const commands = [
+      { label: t('Nouveau bug / tâche'), icon: <PlusOutlined />, run: actions.newItem },
+      { label: t('Note rapide'), icon: <EditOutlined />, run: actions.quickNote },
+      { label: t('Nouvelle spécification'), icon: <FileTextOutlined />, run: actions.newSpec },
+      { label: t('Nouveau projet'), icon: <PlusOutlined />, run: () => navigate('/projects?new=1') },
+      { label: t('Importer des dépôts'), icon: <CloudDownloadOutlined />, run: () => navigate('/projects?import=1') },
+      { label: t('Synchroniser GitHub, versions et forums'), icon: <SyncOutlined />, run: actions.sync },
+      { label: t('Changer de thème (clair / sombre)'), icon: <MoonOutlined />, run: actions.toggleDark },
+      { label: t('Passer en anglais / français'), icon: <GlobalOutlined />, run: actions.toggleLang, keywords: 'language langue english français' },
+    ].map((e) => ({ ...e, group: t('Actions') }))
+    const projectEntries = projects.map((p) => ({ label: p.name, hint: p.client || p.category_name, icon: <AppstoreOutlined />, group: t('Projets'), run: () => navigate(`/projects/${p.id}`) }))
+    const searchEntries = results.filter((r) => r.type !== 'project').map((r) => ({
+      label: r.title,
+      hint: r.project_name,
+      tag: t(SEARCH_TYPES[r.type]),
+      icon: <SearchOutlined />,
+      group: t('Résultats'),
+      always: true,
+      run: () => {
+        if (r.type === 'github') return window.open(r.url, '_blank', 'noopener')
+        if (r.type === 'item') return navigate(`/projects/${r.project_id}/items`)
+        if (r.type === 'doc') return navigate(r.project_id ? `/projects/${r.project_id}/${r.kind === 'spec' ? 'specs' : 'notes'}?doc=${r.id}` : `/notes?doc=${r.id}`)
+      },
+    }))
+    const filtered = [...commands, ...pages, ...projectEntries].filter((e) => match(`${e.label} ${e.hint || ''} ${e.keywords || ''}`))
+    return [...filtered.slice(0, needle ? 12 : 8 + 7), ...searchEntries.slice(0, 10)]
+  }, [q, projects, results, actions, navigate])
+
+  useEffect(() => setActive(0), [q])
+  useEffect(() => {
+    listRef.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [active])
+
+  const run = (entry) => {
+    if (!entry) return
+    onClose()
+    entry.run?.()
+  }
+
+  const onKeyDown = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(a + 1, entries.length - 1)) }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)) }
+    if (e.key === 'Enter') { e.preventDefault(); run(entries[active]) }
+  }
+
+  let lastGroup = null
+  return (
+    <Modal open={open} onCancel={onClose} footer={null} closable={false} width={620} style={{ top: 80 }} styles={{ body: { padding: 0 } }} destroyOnHidden>
+      <Input
+        autoFocus
+        size="large"
+        variant="borderless"
+        prefix={<SearchOutlined style={{ opacity: 0.5 }} />}
+        placeholder={t('Aller à, chercher, créer… (↑ ↓ pour choisir, Entrée pour valider)')}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={onKeyDown}
+        style={{ padding: '12px 16px', borderBottom: `1px solid ${token.colorBorderSecondary}` }}
+      />
+      <div ref={listRef} role="listbox" style={{ maxHeight: 420, overflowY: 'auto', padding: 6 }}>
+        {!entries.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('Aucun résultat')} />}
+        {entries.map((e, i) => {
+          const header = e.group !== lastGroup ? e.group : null
+          lastGroup = e.group
+          return (
+            <div key={`${e.group}-${e.label}-${i}`}>
+              {header && <Typography.Text type="secondary" style={{ display: 'block', fontSize: 11, padding: '8px 10px 2px', textTransform: 'uppercase', letterSpacing: 0.4 }}>{header}</Typography.Text>}
+              <Flex
+                role="option"
+                aria-selected={i === active}
+                data-index={i}
+                gap={10}
+                align="center"
+                onMouseMove={() => setActive(i)}
+                onClick={() => run(e)}
+                style={{ padding: '8px 10px', borderRadius: 6, cursor: 'pointer', background: i === active ? token.colorPrimaryBg : 'transparent' }}
+              >
+                <span style={{ opacity: 0.65 }}>{e.icon}</span>
+                <Typography.Text ellipsis style={{ flex: 1 }}>{e.label}</Typography.Text>
+                {e.tag && <Tag style={{ marginInlineEnd: 0 }}>{e.tag}</Tag>}
+                {e.hint && <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{e.hint}</Typography.Text>}
+              </Flex>
+            </div>
+          )
+        })}
+      </div>
+    </Modal>
+  )
+}

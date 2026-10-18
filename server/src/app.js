@@ -10,6 +10,7 @@ import integrationRoutes from './routes/integrations.js'
 import milestoneRoutes from './routes/milestones.js'
 import { tr } from './i18n.js'
 import { loadLocale } from './i18n.js'
+import insightRoutes from './routes/insights.js'
 
 // Set by the Docker build (release tag or dev-<sha>); package.json otherwise.
 export const APP_VERSION = process.env.APP_VERSION || JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version
@@ -30,7 +31,8 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
   const password = process.env.APP_PASSWORD
   if (password) {
     app.addHook('onRequest', async (req, reply) => {
-      if (req.url === '/api/health') return
+      // Calendar apps cannot authenticate: that route checks its own secret token.
+      if (req.url === '/api/health' || req.url.startsWith('/api/calendar.ics?')) return
       if (!checkPassword(req.headers.authorization, password)) {
         return reply.code(401).header('WWW-Authenticate', 'Basic realm="projectory"').send({ error: tr('Authentification requise') })
       }
@@ -50,6 +52,7 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
   await app.register(overviewRoutes, { prefix: '/api', db })
   await app.register(integrationRoutes, { prefix: '/api', db })
   await app.register(milestoneRoutes, { prefix: '/api', db })
+  await app.register(insightRoutes, { prefix: '/api', db })
 
   // In production the built front-end is served by the same process.
   if (webDist && existsSync(webDist)) {

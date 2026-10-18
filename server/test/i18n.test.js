@@ -21,7 +21,7 @@ export function serverKeys() {
   for (const file of files(SRC)) {
     const src = readFileSync(file, 'utf8')
     for (const m of src.matchAll(new RegExp(String.raw`\btr\(\s*(?:${STRING})`, 'g'))) keys.add(unescape(m[1] ?? m[2]))
-    for (const table of ['NOTIFY_EVENTS', 'GH_NOTIFICATION_REASONS', 'SECTIONS']) {
+    for (const table of ['NOTIFY_EVENTS', 'GH_NOTIFICATION_REASONS', 'SECTIONS', 'PRIORITIES']) {
       const block = src.match(new RegExp(String.raw`(?:const|export const) ${table} = [\[{]([\s\S]*?)\n[\]}]`))
       if (!block) continue
       for (const m of block[1].matchAll(new RegExp(String.raw`(?:\w+|title):\s*(?:${STRING})`, 'g'))) keys.add(unescape(m[1] ?? m[2]))

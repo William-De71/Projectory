@@ -1,5 +1,5 @@
 import { fetchJson } from '../http.js'
-import { ciConclusion } from './common.js'
+import { ciConclusion, paginate } from './common.js'
 import { tr } from '../../i18n.js'
 
 // GitHub (github.com, or GitHub Enterprise through GITHUB_API_URL).
@@ -78,6 +78,16 @@ export default function github({ token }) {
       const tags = await gh(`/repos/${repo}/tags?per_page=1`)
       if (!tags.length) return null
       return { version: tags[0].name, url: `https://github.com/${repo}/releases/tag/${encodeURIComponent(tags[0].name)}` }
+    },
+
+    // Commits and issues / PRs active since `since` (ISO date), for statistics.
+    async fetchActivity(repo, since) {
+      const commits = await paginate((page) => gh(`/repos/${repo}/commits?since=${since}&per_page=100&page=${page}`), 100)
+      const issues = await paginate((page) => gh(`/repos/${repo}/issues?state=all&since=${since}&per_page=100&page=${page}`), 100)
+      return {
+        commits: commits.map((c) => c.commit?.author?.date || c.commit?.committer?.date).filter(Boolean),
+        issues: issues.map((it) => ({ type: it.pull_request ? 'pr' : 'issue', created_at: it.created_at, closed_at: it.closed_at })),
+      }
     },
 
     // Creates the tag on `target` too when it does not exist yet.
