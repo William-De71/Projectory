@@ -16,6 +16,17 @@ export const api = {
   post: (url, body = {}) => request('POST', url, body),
   put: (url, body) => request('PUT', url, body),
   del: (url) => request('DELETE', url),
+  // Sends the file as the raw body; resolves to { file, url, size, image }.
+  upload: async (file) => {
+    const res = await fetch(`/api/uploads?name=${encodeURIComponent(file.name || '')}`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`)
+    return data
+  },
 }
 
 // Lets any page tell the others (menu badge, dashboard...) that data changed.

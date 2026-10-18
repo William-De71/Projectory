@@ -20,8 +20,8 @@ function markBaselined(db, key) {
 // Returns true when the entry is new and unread (i.e. worth a notification).
 function pushInbox(db, entry, { asRead, fresh }) {
   const { changes } = db.prepare(
-    `INSERT OR IGNORE INTO inbox (project_id, source, kind, title, url, excerpt, external_key, created_at, read_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, coalesce(?, datetime('now')), ${asRead ? "datetime('now')" : 'NULL'})`
+    `INSERT OR IGNORE INTO inbox (project_id, source, kind, title, url, excerpt, external_key, reason, created_at, read_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, coalesce(?, datetime('now')), ${asRead ? "datetime('now')" : 'NULL'})`
   ).run(
     entry.project_id,
     entry.source,
@@ -30,6 +30,7 @@ function pushInbox(db, entry, { asRead, fresh }) {
     entry.url || '',
     entry.excerpt || '',
     entry.external_key,
+    entry.reason ?? null,
     entry.created_at ? new Date(entry.created_at).toISOString().replace('T', ' ').slice(0, 19) : null
   )
   const isFresh = Number(changes) > 0 && !asRead
@@ -282,6 +283,7 @@ export async function syncGithubNotifications(db, log = console) {
       url: t.url,
       excerpt: `${tr(GH_NOTIFICATION_REASONS[t.reason] || t.reason)} · ${t.repo}`,
       external_key: `ghnotif:${t.id}:${t.updated_at}`,
+      reason: t.reason,
       created_at: t.updated_at,
     }, { asRead, fresh })
   }

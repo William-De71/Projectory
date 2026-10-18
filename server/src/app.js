@@ -11,6 +11,7 @@ import milestoneRoutes from './routes/milestones.js'
 import { tr } from './i18n.js'
 import { loadLocale } from './i18n.js'
 import insightRoutes from './routes/insights.js'
+import uploadRoutes from './routes/uploads.js'
 
 // Set by the Docker build (release tag or dev-<sha>); package.json otherwise.
 export const APP_VERSION = process.env.APP_VERSION || JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version
@@ -53,6 +54,7 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
   await app.register(integrationRoutes, { prefix: '/api', db })
   await app.register(milestoneRoutes, { prefix: '/api', db })
   await app.register(insightRoutes, { prefix: '/api', db })
+  await app.register(uploadRoutes, { prefix: '/api', db })
 
   // In production the built front-end is served by the same process.
   if (webDist && existsSync(webDist)) {

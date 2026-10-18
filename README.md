@@ -35,6 +35,8 @@ Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 | **Notifications push ntfy** | Nouveautés envoyées sur ton téléphone via [ntfy](https://ntfy.sh) (serveur public ou auto-hébergé, token supporté), choix des événements, regroupement au-delà de 3 nouveautés, projets rendus muets individuellement. |
 | **Veille des versions** | Dernière release/tag du dépôt (toute forge), d'un autre dépôt GitHub, d'un paquet npm ou d'une image Docker Hub, comparée à la version que *tu* utilises/déploies → badge « mise à jour disponible » et notification. |
 | **Bugs remontés par un forum** | Forums **Discourse** (ex. [forum Gladys](https://community.gladysassistant.com) : catégorie, tag ou recherche) et **flux RSS/Atom** (filtre par mots-clés). Un clic transforme un sujet en bug suivi. |
+| **Vue « Aujourd'hui »** | Choisis 3 à 5 bugs ou tâches pour la journée (☀ dans les listes, ou depuis la vue) et coche-les au fil de l'eau ; ce qui n'est pas fini est reporté au lendemain. À côté : échéances dépassées ou du jour, reviews GitHub demandées, suggestions (en cours, prioritaires), CI en échec, temps passé. |
+| **Captures et pièces jointes** | Colle (<kbd>Ctrl</kbd>+<kbd>V</kbd>) ou glisse une capture d'écran ou un fichier dans la description d'un bug, une note ou une spec : il est enregistré dans `data/uploads/` et inséré en Markdown (image affichée, autres fichiers en lien). 25 Mo maximum par fichier. |
 | **Bugs & tâches manuels** | Bug / fonctionnalité / tâche / question, priorité, statut, échéance, version cible, lien externe. Vue liste ou tableau Kanban (glisser-déposer). |
 | **Spécifications** | Documents Markdown par projet avec modèle prérempli (contexte, objectifs, critères d'acceptation…) et statut brouillon / à relire / validée. |
 | **Notes** | Notes Markdown par projet ou globales, bouton « Note rapide » partout dans l'app. |
@@ -109,12 +111,13 @@ Ouvre http://localhost:3001. Les données sont dans `./data/projectory.db`.
 | `NTFY_SERVER`, `NTFY_TOPIC`, `NTFY_TOKEN` | `https://ntfy.sh`, —, — | Valeurs par défaut des notifications ; se règlent plutôt dans **Paramètres → Notifications push**. |
 | `APP_URL` | — | Adresse de Projectory (ex. `http://192.168.1.10:3001`), utilisée par les liens des notifications. |
 | `APP_LANG` | `fr` | Langue par défaut côté serveur (`fr` ou `en`) tant qu'aucune n'a été choisie dans l'interface. |
+| `UPLOADS_DIR` | `/data/uploads` | Dossier des captures et pièces jointes. |
 | `BACKUP_DIR` | `/data/backups` | Dossier des sauvegardes automatiques (ex. un partage NAS monté dans le conteneur). |
 | `LOG_LEVEL` | `info` | Niveau de logs. |
 
 ### Sauvegarde
 
-Projectory fait une copie quotidienne de la base dans `data/backups/` (heure et rétention dans **Paramètres → Sauvegardes automatiques**, bouton « Sauvegarder maintenant »). Pour restaurer : arrête le conteneur, remplace `data/projectory.db` par la sauvegarde choisie, redémarre. L'export JSON reste disponible dans **Paramètres → Données et export**.
+Projectory fait une copie quotidienne de la base dans `data/backups/` (les pièces jointes sont copiées dans `data/backups/uploads/`) (heure et rétention dans **Paramètres → Sauvegardes automatiques**, bouton « Sauvegarder maintenant »). Pour restaurer : arrête le conteneur, remplace `data/projectory.db` par la sauvegarde choisie (et recopie `backups/uploads/` dans `uploads/` si besoin), redémarre. Les pièces jointes qui ne sont plus utilisées nulle part sont supprimées après 24 h. L'export JSON reste disponible dans **Paramètres → Données et export**.
 
 ### Calendrier et téléphone
 

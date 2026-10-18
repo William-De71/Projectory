@@ -4,6 +4,7 @@ import { FORGE_LABELS, forgeAccounts, forgeContext, forgeFor, normalizeRepo } fr
 import { NOTIFY_EVENTS, ntfyConfig, sendNtfy } from '../sync/notify.js'
 import { GH_NOTIFICATION_REASONS, ghNotificationConfig, syncAll } from '../sync/index.js'
 import { LANGS, getLocale, saveLocale, tr } from '../i18n.js'
+import { externalizeUploads } from '../uploads.js'
 
 function forgeError(err, owner) {
   const hint = {
@@ -85,7 +86,7 @@ export default async function integrationRoutes(app, { db }) {
     if (!item.repo) return reply.code(400).send({ error: tr("Ce projet n'a pas de dépôt configuré") })
     if (item.issue_url) return reply.code(409).send({ error: tr('Une issue existe déjà : {url}', { url: item.issue_url }) })
     const body = [
-      item.body,
+      externalizeUploads(item.body, ntfyConfig(db).app_url),
       item.external_url && tr('Signalé ici : {url}', { url: item.external_url }),
       item.target_version && tr('Version cible : {v}', { v: item.target_version }),
     ].filter(Boolean).join('\n\n')
