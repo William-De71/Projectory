@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.0 — 2026-10-18
+
+### ✨ Nouveautés
+
+- release sur la forge et interface en anglais (#3) (7869e14)
+
 ## v0.2.1 — 2026-10-18
 
 ### 🔧 Autres changements
