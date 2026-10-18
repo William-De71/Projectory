@@ -9,6 +9,8 @@
 
 Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 
+**Français** · [English](README.en.md)
+
 </div>
 
 <picture>
@@ -118,9 +120,9 @@ Copie `data/projectory.db` (idéalement app arrêtée, ou via `sqlite3 data/proj
 Dans **Projets → Nouveau projet** :
 
 - **Catégorie** : Organisation — **Client** : Gladys
-- **Dépôt GitHub** : `GladysAssistant/Gladys`
+- **Dépôt** : GitHub, `GladysAssistant/Gladys`
 - **Version utilisée** : celle installée chez toi, ex. `4.45.0`
-- **Versions** : `GitHub release/tag` (vide = dépôt du projet) + `Image Docker Hub` → `gladysassistant/gladys`
+- **Versions** : « Releases du dépôt » + « Image Docker Hub » → `gladysassistant/gladys`
 - **Forum** : `Forum Discourse`, URL `https://community.gladysassistant.com`, puis au choix :
   - chemin vide → derniers sujets
   - chemin `c/<slug>/<id>` → une catégorie (l'URL de la catégorie sur le forum, sans le domaine)
