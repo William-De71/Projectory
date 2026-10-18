@@ -1,6 +1,7 @@
 import { decode, insertRow, updateRow } from '../db.js'
 import { compareVersions } from '../sync/http.js'
 import { forgeFor, normalizeRepo } from '../sync/forges/index.js'
+import { tr } from '../i18n.js'
 
 const FIELDS = ['project_id', 'version', 'title', 'description', 'due_date', 'status', 'released_at']
 const DONE = ['done', 'wontfix']
@@ -8,7 +9,7 @@ const SECTIONS = [
   { title: '✨ Nouveautés', kinds: ['feature'] },
   { title: '🐛 Corrections', kinds: ['bug'] },
   { title: '🔧 Autres changements', kinds: ['task', 'question'] },
-]
+] // titles translated with tr() when rendered
 
 // Markdown changelog of one version: finished items grouped by kind.
 export function changelog(db, projectId, version) {
@@ -21,20 +22,20 @@ export function changelog(db, projectId, version) {
   for (const section of SECTIONS) {
     const list = items.filter((it) => section.kinds.includes(it.kind))
     if (!list.length) continue
-    lines.push('', `### ${section.title}`, '')
+    lines.push('', `### ${tr(section.title)}`, '')
     for (const it of list) {
-      const link = it.issue_url ? ` ([#${it.issue_number ?? 'issue'}](${it.issue_url}))` : it.external_url ? ` ([lien](${it.external_url}))` : ''
+      const link = it.issue_url ? ` ([#${it.issue_number ?? 'issue'}](${it.issue_url}))` : it.external_url ? ` ([${tr('lien')}](${it.external_url}))` : ''
       lines.push(`- ${it.title}${link}`)
     }
   }
-  if (!items.length) lines.push('', '_Aucun élément terminé pour cette version._')
+  if (!items.length) lines.push('', `_${tr('Aucun élément terminé pour cette version.')}_`)
   return lines.join('\n')
 }
 
 // Creates the release (and its tag) on the project's forge with the version's changelog.
 async function publishOnForge(db, projectId, version, { tag, draft, prerelease } = {}) {
   const project = decode(db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId))
-  if (!project?.repo) throw Object.assign(new Error("Ce projet n'a pas de dépôt configuré"), { statusCode: 400 })
+  if (!project?.repo) throw Object.assign(new Error(tr("Ce projet n'a pas de dépôt configuré")), { statusCode: 400 })
   const tagName = String(tag || (/^v/i.test(version) ? version : `v${version}`)).trim()
   // The forge shows the release name as title: drop the changelog heading.
   const body = changelog(db, projectId, version).split('\n').slice(2).join('\n')
@@ -86,9 +87,9 @@ export default async function milestoneRoutes(app, { db }) {
 
   app.post('/milestones', async (req, reply) => {
     const { project_id, version } = req.body || {}
-    if (!project_id || !version?.trim()) return reply.code(400).send({ error: 'Projet et version obligatoires' })
+    if (!project_id || !version?.trim()) return reply.code(400).send({ error: tr('Projet et version obligatoires') })
     if (db.prepare('SELECT 1 FROM milestones WHERE project_id = ? AND version = ?').get(project_id, version.trim())) {
-      return reply.code(409).send({ error: `La version ${version} existe déjà` })
+      return reply.code(409).send({ error: tr('La version {v} existe déjà', { v: version }) })
     }
     const id = insertRow(db, 'milestones', { ...req.body, version: version.trim() }, FIELDS)
     return reply.code(201).send(db.prepare('SELECT * FROM milestones WHERE id = ?').get(id))
@@ -97,7 +98,7 @@ export default async function milestoneRoutes(app, { db }) {
   app.put('/milestones/:id', async (req, reply) => {
     const id = Number(req.params.id)
     const before = db.prepare('SELECT * FROM milestones WHERE id = ?').get(id)
-    if (!before) return reply.code(404).send({ error: 'Version introuvable' })
+    if (!before) return reply.code(404).send({ error: tr('Version introuvable') })
     const body = { ...req.body }
     if (body.version !== undefined) body.version = body.version.trim()
     if (body.status === 'released' && !before.released_at && !body.released_at) body.released_at = new Date().toISOString().slice(0, 10)
@@ -112,7 +113,7 @@ export default async function milestoneRoutes(app, { db }) {
       db.exec('COMMIT')
     } catch (err) {
       db.exec('ROLLBACK')
-      if (String(err.message).includes('UNIQUE')) return reply.code(409).send({ error: `La version ${body.version} existe déjà` })
+      if (String(err.message).includes('UNIQUE')) return reply.code(409).send({ error: tr('La version {v} existe déjà', { v: body.version }) })
       throw err
     }
     return db.prepare('SELECT * FROM milestones WHERE id = ?').get(id)
@@ -128,7 +129,7 @@ export default async function milestoneRoutes(app, { db }) {
   app.post('/projects/:id/release', async (req, reply) => {
     const projectId = Number(req.params.id)
     const version = String(req.body?.version || '').trim()
-    if (!version) return reply.code(400).send({ error: 'Version obligatoire' })
+    if (!version) return reply.code(400).send({ error: tr('Version obligatoire') })
     const today = new Date().toISOString().slice(0, 10)
     db.prepare(
       `INSERT INTO milestones (project_id, version, status, released_at) VALUES (?, ?, 'released', ?)
@@ -157,9 +158,9 @@ export default async function milestoneRoutes(app, { db }) {
 
   app.post('/milestones/:id/forge-release', async (req, reply) => {
     const m = db.prepare('SELECT * FROM milestones WHERE id = ?').get(Number(req.params.id))
-    if (!m) return reply.code(404).send({ error: 'Version introuvable' })
-    if (m.status !== 'released') return reply.code(400).send({ error: "Publie d'abord la version dans Projectory" })
-    if (m.release_url) return reply.code(409).send({ error: `Release déjà créée : ${m.release_url}` })
+    if (!m) return reply.code(404).send({ error: tr('Version introuvable') })
+    if (m.status !== 'released') return reply.code(400).send({ error: tr("Publie d'abord la version dans Projectory") })
+    if (m.release_url) return reply.code(409).send({ error: tr('Release déjà créée : {url}', { url: m.release_url }) })
     try {
       await publishOnForge(db, m.project_id, m.version, req.body || {})
     } catch (err) {

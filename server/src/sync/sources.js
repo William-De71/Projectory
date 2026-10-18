@@ -1,5 +1,6 @@
 import { XMLParser } from 'fast-xml-parser'
 import { fetchJson, fetchText, looksLikeVersion } from './http.js'
+import { tr } from '../i18n.js'
 
 // ---- Versions -------------------------------------------------------------
 
@@ -9,10 +10,10 @@ export async function latestVersion(source, { repo, forges }) {
   const ref = (source.ref || '').trim()
   switch (source.type) {
     case 'repo':
-      if (!repo) throw new Error('Aucun dépôt configuré pour ce projet')
+      if (!repo) throw new Error(tr('Aucun dépôt configuré pour ce projet'))
       return forges.project.latestRelease(repo)
     case 'github':
-      if (!ref && !repo) throw new Error('Indique owner/repo')
+      if (!ref && !repo) throw new Error(tr('Indique owner/repo'))
       return (ref ? forges.github : forges.project).latestRelease(ref || repo)
     case 'npm': {
       const data = await fetchJson(`https://registry.npmjs.org/${ref.replace('/', '%2F')}/latest`)
@@ -26,7 +27,7 @@ export async function latestVersion(source, { repo, forges }) {
       return { version: tag.name, url: `https://hub.docker.com/r/${repo.replace(/^library\//, '_/')}/tags`, published_at: tag.last_updated }
     }
     default:
-      throw new Error(`Type de source de version inconnu : ${source.type}`)
+      throw new Error(tr('Type de source de version inconnu : {type}', { type: source.type }))
   }
 }
 
@@ -40,7 +41,7 @@ export function forumSourceKey(source) {
 export async function fetchForum(source) {
   if (source.type === 'discourse') return fetchDiscourse(source)
   if (source.type === 'rss') return fetchRss(source)
-  throw new Error(`Type de forum inconnu : ${source.type}`)
+  throw new Error(tr('Type de forum inconnu : {type}', { type: source.type }))
 }
 
 async function fetchDiscourse({ url, path, query }) {
@@ -89,7 +90,7 @@ async function fetchRss({ url, query }) {
       }
     })
   } else {
-    throw new Error("Le flux n'est ni RSS ni Atom")
+    throw new Error(tr("Le flux n'est ni RSS ni Atom"))
   }
   const words = (query || '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean)
   if (!words.length) return entries

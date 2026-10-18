@@ -2,6 +2,7 @@ import { getConfig } from '../../db.js'
 import github from './github.js'
 import gitlab from './gitlab.js'
 import gitea from './gitea.js'
+import { tr } from '../../i18n.js'
 
 export { ciConclusion, failedRun } from './common.js'
 
@@ -30,7 +31,7 @@ export function forgeContext(db, type, url) {
 // Adapter bound to a project's forge (or to an explicit { forge, forge_url }).
 export function forgeFor(db, { forge = 'github', forge_url = '' } = {}) {
   const make = ADAPTERS[forge]
-  if (!make) throw new Error(`Forge inconnue : ${forge}`)
+  if (!make) throw new Error(tr('Forge inconnue : {forge}', { forge }))
   return make(forgeContext(db, forge, forge_url))
 }
 

@@ -1,7 +1,8 @@
 # Projectory — notes pour Claude
 
 - Mono-repo : `server/` (Fastify 5, ESM, `node:sqlite`, aucune dépendance native) et `web/` (React 19, Vite, Ant Design 6). Une seule image Docker : le serveur sert `web/dist`.
-- UI et messages d'erreur en français ; commentaires de code en anglais.
+- UI bilingue FR / EN : le texte français est la source et sert de clé. Front : `t('Texte {var}', { var })` (`web/src/i18n/`, dictionnaire `en.js`) ; serveur : `tr()` (`server/src/i18n.js`, dictionnaire `i18n-en.js`) pour les erreurs, le changelog, ntfy et les entrées de la boîte de réception. Libellés dans des constantes : traduire au rendu, jamais au chargement du module. Toute nouvelle chaîne doit être ajoutée au dictionnaire anglais : `node web/scripts/i18n-keys.mjs --check` et le test serveur `i18n.test.js` le vérifient.
+- Commentaires de code en anglais.
 - Schéma : ajouter une migration en fin de tableau `MIGRATIONS` dans `server/src/db.js`, ne jamais modifier une migration existante.
 - Colonnes JSON (tags, links, version_sources, forum_sources, github, versions, labels) : stockées en texte, décodées par `decode()` ; `pickUpdate()` les sérialise.
 - node:sqlite refuse `undefined` et les booléens : passer `null` / `0|1`.

@@ -8,6 +8,7 @@ import { DOC_STATUS } from './labels.js'
 import { LabelTag } from './Tags.jsx'
 import DocEditor from './DocEditor.jsx'
 import Markdown from './Markdown.jsx'
+import { t } from '../i18n/index.js'
 
 // Specs / notes for a project, or global notes when projectId is absent.
 export default function DocsPanel({ projectId, type, allowTypeFilter = false }) {
@@ -42,15 +43,15 @@ export default function DocsPanel({ projectId, type, allowTypeFilter = false }) 
           <Segmented
             value={filterType}
             onChange={setFilterType}
-            options={[{ value: 'all', label: 'Tout' }, { value: 'global', label: 'Notes globales' }, { value: 'note', label: 'Notes' }, { value: 'spec', label: 'Specs' }]}
+            options={[{ value: 'all', label: t('Tout') }, { value: 'global', label: t('Notes globales') }, { value: 'note', label: t('Notes') }, { value: 'spec', label: t('Specs') }]}
           />
         )}
-        <Input.Search placeholder="Filtrer…" allowClear onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />
+        <Input.Search placeholder={t('Filtrer…')} allowClear onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />
         <Button type="primary" icon={<PlusOutlined />} style={{ marginLeft: 'auto' }} onClick={() => setEditing({ type: newType, project_id: projectId ? Number(projectId) : null })}>
-          {newType === 'spec' ? 'Nouvelle spec' : 'Nouvelle note'}
+          {newType === 'spec' ? t('Nouvelle spec') : t('Nouvelle note')}
         </Button>
       </Flex>
-      {!loading && !docs.length && <Empty description={type === 'spec' ? 'Aucune spécification' : 'Aucune note'} />}
+      {!loading && !docs.length && <Empty description={type === 'spec' ? t('Aucune spécification') : t('Aucune note')} />}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
         {docs.map((d) => (
           <Card
@@ -65,8 +66,8 @@ export default function DocsPanel({ projectId, type, allowTypeFilter = false }) 
               <Markdown>{d.content}</Markdown>
             </div>
             <Flex justify="space-between" style={{ marginTop: 8, fontSize: 12 }}>
-              <Typography.Text type="secondary">{dayjs.utc(d.updated_at).local().format('DD/MM/YYYY HH:mm')}</Typography.Text>
-              {!projectId && <Tag>{d.project_name || 'Global'}{d.type === 'spec' ? ' · spec' : ''}</Tag>}
+              <Typography.Text type="secondary">{dayjs.utc(d.updated_at).local().format('L LT')}</Typography.Text>
+              {!projectId && <Tag>{d.project_name || t('Global')}{d.type === 'spec' ? t(' · spec') : ''}</Tag>}
             </Flex>
           </Card>
         ))}

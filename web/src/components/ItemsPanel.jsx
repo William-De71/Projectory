@@ -8,6 +8,7 @@ import { ITEM_KIND, ITEM_STATUS, PRIORITY, SOURCE, options } from './labels.js'
 import { LabelTag } from './Tags.jsx'
 import Markdown from './Markdown.jsx'
 import ProjectSelect from './ProjectSelect.jsx'
+import { t } from '../i18n/index.js'
 
 // Opens an issue on the project's forge; the issue link then lives on the item.
 function IssueLink({ item, onLinked }) {
@@ -21,8 +22,10 @@ function IssueLink({ item, onLinked }) {
         showIcon
         icon={<IssuesCloseOutlined />}
         style={{ marginBottom: 16 }}
-        message={<>Issue liée : <a href={item.issue_url} target="_blank" rel="noreferrer">{item.issue_number ? `#${item.issue_number}` : item.issue_url}</a></>}
-        description="Quand l'issue est fermée sur la forge, cet élément passe automatiquement à « Terminé » à la synchro suivante."
+        message={<>{t('Issue liée :') + ' '}<a href={item.issue_url} target="_blank" rel="noreferrer">{item.issue_number ? `#${item.issue_number}` : item.issue_url}</a></>}
+        description={t(
+          'Quand l\'issue est fermée sur la forge, cet élément passe automatiquement à « Terminé » à la synchro suivante.'
+        )}
       />
     )
   }
@@ -30,7 +33,7 @@ function IssueLink({ item, onLinked }) {
     setCreating(true)
     try {
       const updated = await api.post(`/items/${item.id}/issue`, { labels: item.kind === 'bug' ? ['bug'] : item.kind === 'feature' ? ['enhancement'] : [] })
-      message.success(`Issue #${updated.issue_number} créée`)
+      message.success(t('Issue #{n} créée', { n: updated.issue_number }))
       notifyChange()
       onLinked(updated)
     } catch (err) {
@@ -41,11 +44,13 @@ function IssueLink({ item, onLinked }) {
   }
   return (
     <Popconfirm
-      title="Créer l'issue sur le dépôt du projet ?"
-      description="Titre et description sont repris, avec le lien du forum et la version cible. Les modifications non enregistrées ne sont pas incluses."
+      title={t('Créer l\'issue sur le dépôt du projet ?')}
+      description={t(
+        'Titre et description sont repris, avec le lien du forum et la version cible. Les modifications non enregistrées ne sont pas incluses.'
+      )}
       onConfirm={create}
     >
-      <Button icon={<IssuesCloseOutlined />} loading={creating} style={{ marginBottom: 16 }}>Créer l'issue sur le dépôt</Button>
+      <Button icon={<IssuesCloseOutlined />} loading={creating} style={{ marginBottom: 16 }}>{t('Créer l\'issue sur le dépôt')}</Button>
     </Popconfirm>
   )
 }
@@ -90,39 +95,39 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
       open={!!item}
       onClose={onClose}
       size={Math.min(640, window.innerWidth)}
-      title={item?.id ? 'Modifier' : 'Nouveau bug / tâche'}
+      title={item?.id ? t('Modifier') : t('Nouveau bug / tâche')}
       destroyOnHidden
       extra={
         <Flex gap={8}>
-          {item?.id && <Popconfirm title="Supprimer ?" onConfirm={remove}><Button danger>Supprimer</Button></Popconfirm>}
-          <Button type="primary" loading={saving} onClick={save}>Enregistrer</Button>
+          {item?.id && <Popconfirm title={t('Supprimer ?')} onConfirm={remove}><Button danger>{t('Supprimer')}</Button></Popconfirm>}
+          <Button type="primary" loading={saving} onClick={save}>{t('Enregistrer')}</Button>
         </Flex>
       }
     >
       <IssueLink item={current} onLinked={setLinked} />
       <Form form={form} layout="vertical">
         {withProjectPicker && (
-          <Form.Item name="project_id" label="Projet" rules={[{ required: true, message: 'Projet obligatoire' }]}>
+          <Form.Item name="project_id" label={t('Projet')} rules={[{ required: true, message: t('Projet obligatoire') }]}>
             <ProjectSelect />
           </Form.Item>
         )}
-        <Form.Item name="title" label="Titre" rules={[{ required: true, message: 'Titre obligatoire' }]}>
+        <Form.Item name="title" label={t('Titre')} rules={[{ required: true, message: t('Titre obligatoire') }]}>
           <Input autoFocus />
         </Form.Item>
         <Flex gap={12} wrap>
-          <Form.Item name="kind" label="Type" style={{ minWidth: 150, flex: 1 }}><Select options={options(ITEM_KIND)} /></Form.Item>
-          <Form.Item name="status" label="Statut" style={{ minWidth: 150, flex: 1 }}><Select options={options(ITEM_STATUS)} /></Form.Item>
-          <Form.Item name="priority" label="Priorité" style={{ minWidth: 150, flex: 1 }}><Select options={options(PRIORITY)} /></Form.Item>
+          <Form.Item name="kind" label={t('Type')} style={{ minWidth: 150, flex: 1 }}><Select options={options(ITEM_KIND)} /></Form.Item>
+          <Form.Item name="status" label={t('Statut')} style={{ minWidth: 150, flex: 1 }}><Select options={options(ITEM_STATUS)} /></Form.Item>
+          <Form.Item name="priority" label={t('Priorité')} style={{ minWidth: 150, flex: 1 }}><Select options={options(PRIORITY)} /></Form.Item>
         </Flex>
         <Flex gap={12} wrap>
-          <Form.Item name="source" label="Source" style={{ minWidth: 150, flex: 1 }}>
+          <Form.Item name="source" label={t('Source')} style={{ minWidth: 150, flex: 1 }}>
             <Select options={options(SOURCE).filter((o) => o.value !== 'version')} />
           </Form.Item>
-          <Form.Item name="target_version" label="Version cible" style={{ minWidth: 120, flex: 1 }}><Input placeholder="ex. 1.3.0" /></Form.Item>
-          <Form.Item name="due_date" label="Échéance" style={{ minWidth: 150, flex: 1 }}><DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="target_version" label={t('Version cible')} style={{ minWidth: 120, flex: 1 }}><Input placeholder={t('ex. 1.3.0')} /></Form.Item>
+          <Form.Item name="due_date" label={t('Échéance')} style={{ minWidth: 150, flex: 1 }}><DatePicker format="L" style={{ width: '100%' }} /></Form.Item>
         </Flex>
-        <Form.Item name="external_url" label="Lien (post du forum, issue, mail…)"><Input placeholder="https://…" /></Form.Item>
-        <Form.Item name="body" label="Description / étapes de reproduction" className="md-editor">
+        <Form.Item name="external_url" label={t('Lien (post du forum, issue, mail…)')}><Input placeholder="https://…" /></Form.Item>
+        <Form.Item name="body" label={t('Description / étapes de reproduction')} className="md-editor">
           <Input.TextArea autoSize={{ minRows: 6, maxRows: 24 }} placeholder={'1. Aller sur…\n2. Cliquer sur…\n\nAttendu : …\nObtenu : …\nVersion : …'} />
         </Form.Item>
       </Form>
@@ -141,7 +146,7 @@ function Board({ items, onOpen, onMove }) {
           <Card
             key={status}
             size="small"
-            title={<>{ITEM_STATUS[status].label} <Tag>{col.length}</Tag></>}
+            title={<>{t(ITEM_STATUS[status].label)} <Tag>{col.length}</Tag></>}
             style={{ flex: 1, minWidth: 260 }}
             styles={{ body: { display: 'flex', flexDirection: 'column', gap: 8, minHeight: 80 } }}
             onDragOver={(e) => e.preventDefault()}
@@ -195,14 +200,14 @@ export default function ItemsPanel({ projectId }) {
 
   const columns = [
     {
-      title: 'Titre',
+      title: t('Titre'),
       dataIndex: 'title',
       render: (title, it) => (
         <Flex vertical gap={2}>
           <Flex gap={6} align="center">
             <Typography.Link onClick={() => setEditing(it)} delete={it.status === 'wontfix'}>{title}</Typography.Link>
             {it.issue_url && (
-              <Tooltip title="Issue sur le dépôt">
+              <Tooltip title={t('Issue sur le dépôt')}>
                 <a href={it.issue_url} target="_blank" rel="noreferrer"><Tag style={{ marginInlineEnd: 0 }}>{it.issue_number ? `#${it.issue_number}` : 'issue'}</Tag></a>
               </Tooltip>
             )}
@@ -212,22 +217,22 @@ export default function ItemsPanel({ projectId }) {
         </Flex>
       ),
     },
-    { title: 'Type', dataIndex: 'kind', width: 130, render: (v) => <LabelTag map={ITEM_KIND} value={v} /> },
-    { title: 'Priorité', dataIndex: 'priority', width: 110, render: (v) => <LabelTag map={PRIORITY} value={v} /> },
+    { title: t('Type'), dataIndex: 'kind', width: 130, render: (v) => <LabelTag map={ITEM_KIND} value={v} /> },
+    { title: t('Priorité'), dataIndex: 'priority', width: 110, render: (v) => <LabelTag map={PRIORITY} value={v} /> },
     {
-      title: 'Statut',
+      title: t('Statut'),
       dataIndex: 'status',
       width: 150,
       render: (v, it) => <Select size="small" value={v} options={options(ITEM_STATUS)} onChange={(s) => updateStatus(it.id, s)} variant="borderless" style={{ width: 130 }} />,
     },
-    { title: 'Source', dataIndex: 'source', width: 100, responsive: ['md'], render: (v) => <LabelTag map={SOURCE} value={v} /> },
-    { title: 'Version', dataIndex: 'target_version', width: 90, responsive: ['lg'] },
+    { title: t('Source'), dataIndex: 'source', width: 100, responsive: ['md'], render: (v) => <LabelTag map={SOURCE} value={v} /> },
+    { title: t('Version'), dataIndex: 'target_version', width: 90, responsive: ['lg'] },
     {
-      title: 'Échéance / maj',
+      title: t('Échéance / maj'),
       width: 130,
       responsive: ['md'],
       render: (_, it) => it.due_date
-        ? <Tag color={dayjs(it.due_date).isBefore(dayjs(), 'day') && ['todo', 'in_progress'].includes(it.status) ? 'red' : 'default'}>{dayjs(it.due_date).format('DD/MM/YYYY')}</Tag>
+        ? <Tag color={dayjs(it.due_date).isBefore(dayjs(), 'day') && ['todo', 'in_progress'].includes(it.status) ? 'red' : 'default'}>{dayjs(it.due_date).format('L')}</Tag>
         : <span style={{ opacity: 0.6 }}>{dayjs.utc(it.updated_at).local().fromNow()}</span>,
     },
   ]
@@ -235,18 +240,16 @@ export default function ItemsPanel({ projectId }) {
   return (
     <Flex vertical gap={12}>
       <Flex gap={8} wrap align="center">
-        <Segmented value={view} onChange={setView} options={[{ value: 'table', label: 'Liste' }, { value: 'board', label: 'Tableau' }]} />
+        <Segmented value={view} onChange={setView} options={[{ value: 'table', label: t('Liste') }, { value: 'board', label: t('Tableau') }]} />
         {view === 'table' && (
-          <Segmented value={filters.scope} onChange={(scope) => setFilters((f) => ({ ...f, scope }))} options={[{ value: 'open', label: 'Ouverts' }, { value: 'all', label: 'Tous' }]} />
+          <Segmented value={filters.scope} onChange={(scope) => setFilters((f) => ({ ...f, scope }))} options={[{ value: 'open', label: t('Ouverts') }, { value: 'all', label: t('Tous') }]} />
         )}
-        <Select allowClear placeholder="Type" style={{ width: 150 }} value={filters.kind} onChange={(kind) => setFilters((f) => ({ ...f, kind }))} options={options(ITEM_KIND)} />
-        <Select allowClear placeholder="Priorité" style={{ width: 130 }} value={filters.priority} onChange={(priority) => setFilters((f) => ({ ...f, priority }))} options={options(PRIORITY)} />
-        <Button type="primary" icon={<PlusOutlined />} style={{ marginLeft: 'auto' }} onClick={() => setEditing({ project_id: projectId })}>
-          Bug / tâche
-        </Button>
+        <Select allowClear placeholder={t('Type')} style={{ width: 150 }} value={filters.kind} onChange={(kind) => setFilters((f) => ({ ...f, kind }))} options={options(ITEM_KIND)} />
+        <Select allowClear placeholder={t('Priorité')} style={{ width: 130 }} value={filters.priority} onChange={(priority) => setFilters((f) => ({ ...f, priority }))} options={options(PRIORITY)} />
+        <Button type="primary" icon={<PlusOutlined />} style={{ marginLeft: 'auto' }} onClick={() => setEditing({ project_id: projectId })}>{t('Bug / tâche')}</Button>
       </Flex>
       {view === 'board' ? (
-        items.length ? <Board items={items} onOpen={setEditing} onMove={updateStatus} /> : <Empty description="Rien à suivre pour l'instant" />
+        items.length ? <Board items={items} onOpen={setEditing} onMove={updateStatus} /> : <Empty description={t('Rien à suivre pour l\'instant')} />
       ) : (
         <Table
           rowKey="id"
@@ -261,7 +264,7 @@ export default function ItemsPanel({ projectId }) {
             rowExpandable: (it) => !!it.body,
             expandedRowRender: (it) => <Markdown>{it.body}</Markdown>,
           }}
-          locale={{ emptyText: <Empty description="Aucun bug ni tâche ouverts 🎉" /> }}
+          locale={{ emptyText: <Empty description={t('Aucun bug ni tâche ouverts 🎉')} /> }}
         />
       )}
       <ItemForm item={editing} withProjectPicker={!projectId} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload() }} />

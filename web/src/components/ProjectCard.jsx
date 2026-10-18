@@ -5,6 +5,7 @@ import ForgeIcon from './ForgeIcon.jsx'
 import { PROJECT_STATUS } from './labels.js'
 import { CategoryTag, LabelTag } from './Tags.jsx'
 import CiStatus from './CiStatus.jsx'
+import { t } from '../i18n/index.js'
 
 const stripMarkdown = (md) => md.replace(/[*_`#>~]|\[([^\]]*)\]\([^)]*\)/g, (m, label) => label ?? '')
 
@@ -36,12 +37,12 @@ export default function ProjectCard({ project: p }) {
           </Flex>
           {p.description && <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ marginBottom: 0, fontSize: 13 }}>{stripMarkdown(p.description)}</Typography.Paragraph>}
           <Flex gap={14} wrap style={{ fontSize: 13 }}>
-            <Tooltip title="Bugs / tâches ouverts"><span><BugOutlined /> {p.open_items}</span></Tooltip>
-            {p.repo && <Tooltip title="Issues ouvertes sur le dépôt"><span><ForgeIcon forge={p.forge} /> {p.open_issues}</span></Tooltip>}
-            {p.repo && <Tooltip title={p.forge === 'gitlab' ? 'MR ouvertes' : 'PR ouvertes'}><span><PullRequestOutlined /> {p.open_prs}</span></Tooltip>}
+            <Tooltip title={t('Bugs / tâches ouverts')}><span><BugOutlined /> {p.open_items}</span></Tooltip>
+            {p.repo && <Tooltip title={t('Issues ouvertes sur le dépôt')}><span><ForgeIcon forge={p.forge} /> {p.open_issues}</span></Tooltip>}
+            {p.repo && <Tooltip title={p.forge === 'gitlab' ? t('MR ouvertes') : t('PR ouvertes')}><span><PullRequestOutlined /> {p.open_prs}</span></Tooltip>}
             <CiStatus ci={p.github?.ci} />
             {(latest || p.deployed_version) && (
-              <Tooltip title={p.deployed_version ? `Utilisée : ${p.deployed_version} — dernière : ${latest || '?'}` : 'Dernière version publiée'}>
+              <Tooltip title={p.deployed_version ? t('Utilisée : {used} — dernière : {latest}', { used: p.deployed_version, latest: latest || '?' }) : t('Dernière version publiée')}>
                 <Tag color={p.outdated ? 'orange' : 'default'} style={{ marginInlineEnd: 0 }}>
                   {p.outdated && <WarningOutlined />} {versionLabel(p.deployed_version, latest)}
                 </Tag>

@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { FORGES, PROJECT_STATUS, options } from './labels.js'
 import ForgeIcon from './ForgeIcon.jsx'
+import { t } from '../i18n/index.js'
 
 // Bulk-creates projects from the repositories of a user / organisation / group on any forge.
 export default function GithubImport({ open, onClose }) {
@@ -52,7 +53,9 @@ export default function GithubImport({ open, onClose }) {
     try {
       const chosen = result.repos.filter((r) => selected.includes(r.full_name))
       const res = await api.post('/forges/import', { forge, forge_url: forgeUrl, repos: chosen, category_id: categoryId, status, track_releases: trackReleases })
-      message.success(`${res.created} projet(s) créé(s)${res.skipped ? `, ${res.skipped} déjà suivi(s)` : ''} — première synchro lancée en arrière-plan`)
+      message.success(res.skipped
+        ? t('{created} projet(s) créé(s), {skipped} déjà suivi(s) — première synchro lancée en arrière-plan', res)
+        : t('{created} projet(s) créé(s) — première synchro lancée en arrière-plan', res))
       notifyChange()
       onClose()
       setResult(null)
@@ -68,8 +71,8 @@ export default function GithubImport({ open, onClose }) {
       open={open}
       onCancel={onClose}
       width={Math.min(980, window.innerWidth - 32)}
-      title={<><ForgeIcon forge={forge} /> Importer des dépôts</>}
-      okText={selected.length ? `Importer ${selected.length} dépôt${selected.length > 1 ? 's' : ''}` : 'Importer'}
+      title={<><ForgeIcon forge={forge} />{' ' + t('Importer des dépôts')}</>}
+      okText={selected.length ? (selected.length > 1 ? t('Importer {n} dépôts', { n: selected.length }) : t('Importer {n} dépôt', { n: selected.length })) : t('Importer')}
       okButtonProps={{ disabled: !selected.length, loading: importing }}
       onOk={doImport}
       afterOpenChange={async (visible) => {
@@ -94,14 +97,14 @@ export default function GithubImport({ open, onClose }) {
             value={owner}
             onChange={(e) => setOwner(e.target.value)}
             onSearch={(v) => load(v)}
-            placeholder={forge === 'gitlab' ? 'Utilisateur ou groupe (vide = propriétaire du token)' : 'Utilisateur ou organisation (vide = propriétaire du token)'}
+            placeholder={forge === 'gitlab' ? t('Utilisateur ou groupe (vide = propriétaire du token)') : t('Utilisateur ou organisation (vide = propriétaire du token)')}
             enterButton="Charger"
             loading={loading}
             style={{ maxWidth: 420 }}
           />
-          <Input placeholder="Filtrer (ex. gladys-)" allowClear value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: 200 }} />
-          <Checkbox checked={showForks} onChange={(e) => setShowForks(e.target.checked)}>Forks</Checkbox>
-          <Checkbox checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)}>Archivés</Checkbox>
+          <Input placeholder={t('Filtrer (ex. gladys-)')} allowClear value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: 200 }} />
+          <Checkbox checked={showForks} onChange={(e) => setShowForks(e.target.checked)}>{t('Forks')}</Checkbox>
+          <Checkbox checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)}>{t('Archivés')}</Checkbox>
         </Flex>
         {error && <Alert type="error" showIcon message={error} />}
         <Table
@@ -118,30 +121,30 @@ export default function GithubImport({ open, onClose }) {
           }}
           columns={[
             {
-              title: 'Dépôt',
+              title: t('Dépôt'),
               dataIndex: 'name',
               render: (name, r) => (
                 <Flex vertical>
                   <Flex gap={6} align="center">
                     <Typography.Text strong>{name}</Typography.Text>
                     {r.private && <LockOutlined />}
-                    {r.fork && <Tag>fork</Tag>}
-                    {r.archived && <Tag>archivé</Tag>}
-                    {r.tracked && <Tag color="green">déjà suivi</Tag>}
+                    {r.fork && <Tag>{t('fork')}</Tag>}
+                    {r.archived && <Tag>{t('archivé')}</Tag>}
+                    {r.tracked && <Tag color="green">{t('déjà suivi')}</Tag>}
                   </Flex>
                   {r.description && <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{r.description}</Typography.Text>}
                 </Flex>
               ),
             },
-            { title: 'Langage', dataIndex: 'language', width: 110, responsive: ['md'] },
-            { title: 'Dernier push', dataIndex: 'pushed_at', width: 130, responsive: ['md'], render: (d) => (d ? dayjs(d).fromNow() : '—') },
+            { title: t('Langage'), dataIndex: 'language', width: 110, responsive: ['md'] },
+            { title: t('Dernier push'), dataIndex: 'pushed_at', width: 130, responsive: ['md'], render: (d) => (d ? dayjs(d).fromNow() : '—') },
           ]}
         />
         <Flex gap={12} wrap align="center">
-          <Typography.Text>Pour les projets créés :</Typography.Text>
-          <Select allowClear placeholder="Catégorie" style={{ width: 180 }} value={categoryId} onChange={setCategoryId} options={(categories || []).map((c) => ({ value: c.id, label: c.name }))} />
+          <Typography.Text>{t('Pour les projets créés :')}</Typography.Text>
+          <Select allowClear placeholder={t('Catégorie')} style={{ width: 180 }} value={categoryId} onChange={setCategoryId} options={(categories || []).map((c) => ({ value: c.id, label: c.name }))} />
           <Select style={{ width: 150 }} value={status} onChange={setStatus} options={options(PROJECT_STATUS)} />
-          <Checkbox checked={trackReleases} onChange={(e) => setTrackReleases(e.target.checked)}>Surveiller les releases</Checkbox>
+          <Checkbox checked={trackReleases} onChange={(e) => setTrackReleases(e.target.checked)}>{t('Surveiller les releases')}</Checkbox>
         </Flex>
       </Flex>
     </Modal>

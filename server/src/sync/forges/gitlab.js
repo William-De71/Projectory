@@ -1,5 +1,6 @@
 import { fetchJson } from '../http.js'
 import { ciConclusion, paginate } from './common.js'
+import { tr } from '../../i18n.js'
 
 const PIPELINE_STATE = {
   success: ['completed', 'success'],
@@ -88,7 +89,7 @@ export default function gitlab({ url = 'https://gitlab.com', token }) {
       const page = (path) => paginate((n) => api(`${path}${path.includes('?') ? '&' : '?'}per_page=100&page=${n}`), 100)
       let projects
       if (!owner) {
-        if (!token) throw new Error('Indique un utilisateur ou un groupe (ou configure un token)')
+        if (!token) throw new Error(tr('Indique un utilisateur ou un groupe (ou configure un token)'))
         projects = await page('/projects?owned=true&order_by=last_activity_at')
         owner = projects[0]?.namespace?.full_path || ''
       } else {

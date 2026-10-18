@@ -1,5 +1,6 @@
 import { fetchJson } from '../http.js'
 import { ciConclusion } from './common.js'
+import { tr } from '../../i18n.js'
 
 // GitHub (github.com, or GitHub Enterprise through GITHUB_API_URL).
 export default function github({ token }) {
@@ -100,7 +101,7 @@ export default function github({ token }) {
           path = '/user/repos?affiliation=owner&sort=pushed'
         }
       }
-      if (!owner) throw new Error('Indique un utilisateur ou une organisation (ou configure un token)')
+      if (!owner) throw new Error(tr('Indique un utilisateur ou une organisation (ou configure un token)'))
       path ??= `/users/${encodeURIComponent(owner)}/repos?type=owner&sort=pushed`
       const repos = []
       for (let page = 1; page <= 10; page++) {

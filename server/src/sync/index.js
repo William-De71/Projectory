@@ -2,6 +2,7 @@ import { decode, getConfig } from '../db.js'
 import { failedRun, forgeFor, normalizeRepo } from './forges/index.js'
 import { fetchForum, forumSourceKey, latestVersion } from './sources.js'
 import { notifyProject } from './notify.js'
+import { tr } from '../i18n.js'
 
 export const syncState = { running: false, last_run_at: null, last_duration_ms: null, errors: [], notify_error: null }
 
@@ -79,7 +80,7 @@ async function syncForge(db, project, fresh, errors) {
           kind: it.type === 'pr' ? 'pr' : 'issue',
           title: `${it.type === 'pr' && source === 'gitlab' ? '!' : '#'}${it.number} ${it.title}`,
           url: it.url,
-          excerpt: it.author ? `par ${it.author} — ${it.excerpt}` : it.excerpt,
+          excerpt: it.author ? tr('par {author} — {text}', { author: it.author, text: it.excerpt }) : it.excerpt,
           external_key: `${baseKey}:${it.type}:${it.number}`,
           created_at: it.created_at,
         }, { asRead, fresh })
@@ -128,9 +129,11 @@ function pushCiTransition(db, project, baseKey, ci, { asRead, fresh }) {
       project_id: project.id,
       source: project.forge,
       kind: 'ci_failed',
-      title: `CI en échec : ${run.name}`,
+      title: tr('CI en échec : {name}', { name: run.name }),
       url: run.url,
-      excerpt: `Branche ${project.github?.default_branch || 'principale'}${run.sha ? `, commit ${run.sha}` : ''}`,
+      excerpt: run.sha
+        ? tr('Branche {branch}, commit {sha}', { branch: project.github?.default_branch || tr('principale'), sha: run.sha })
+        : tr('Branche {branch}', { branch: project.github?.default_branch || tr('principale') }),
       external_key: `${baseKey}:ci:${run.id}`,
     }, { asRead, fresh })
   } else if (ci.conclusion === 'success' && before === 'failure') {
@@ -139,7 +142,7 @@ function pushCiTransition(db, project, baseKey, ci, { asRead, fresh }) {
       project_id: project.id,
       source: project.forge,
       kind: 'ci_fixed',
-      title: 'CI de nouveau au vert',
+      title: tr('CI de nouveau au vert'),
       url: run.url,
       excerpt: ci.runs.map((r) => r.name).join(', '),
       external_key: `${baseKey}:ci-fixed:${run.id}`,
@@ -165,14 +168,16 @@ async function syncVersions(db, project, errors, fresh) {
           project_id: project.id,
           source: 'version',
           kind: 'release',
-          title: `Nouvelle version ${latest.version} (${source.type === 'repo' ? 'dépôt' : source.type}${source.ref ? ` ${source.ref}` : ''})`,
+          title: tr('Nouvelle version {v} ({source})', { v: latest.version, source: `${source.type === 'repo' ? tr('dépôt') : source.type}${source.ref ? ` ${source.ref}` : ''}` }),
           url: latest.url,
-          excerpt: `Précédente : ${prev.version}${project.deployed_version ? ` — déployée chez toi : ${project.deployed_version}` : ''}`,
+          excerpt: project.deployed_version
+            ? tr('Précédente : {prev} — déployée chez toi : {used}', { prev: prev.version, used: project.deployed_version })
+            : tr('Précédente : {prev}', { prev: prev.version }),
           external_key: `p${project.id}:version:${key}:${latest.version}`,
         }, { asRead: false, fresh })
       }
     } catch (err) {
-      errors.push(`Version ${key} : ${err.message}`)
+      errors.push(tr('Version {key} : {error}', { key, error: err.message }))
       results.push({ ...(prev || { type: source.type, ref: source.ref || '' }), error: err.message })
     }
   }
@@ -199,7 +204,7 @@ async function syncForums(db, project, errors, fresh) {
       }
       markBaselined(db, baseKey)
     } catch (err) {
-      errors.push(`Forum ${source.label || source.url} : ${err.message}`)
+      errors.push(tr('Forum {name} : {error}', { name: source.label || source.url, error: err.message }))
     }
   }
 }
@@ -217,7 +222,7 @@ async function notify(db, project, fresh, log) {
 
 export async function syncProject(db, id, log = console) {
   const project = decode(db.prepare('SELECT * FROM projects WHERE id = ?').get(id))
-  if (!project) throw new Error('Projet introuvable')
+  if (!project) throw new Error(tr('Projet introuvable'))
   const errors = []
   const fresh = []
   if (project.repo) {
@@ -251,6 +256,7 @@ export const GH_NOTIFICATION_REASONS = {
 }
 export const DEFAULT_GH_REASONS = ['review_requested', 'approval_requested', 'mention', 'team_mention', 'assign', 'author', 'comment', 'security_alert', 'invitation']
 
+// Reason labels are French source texts; tr() translates them when used.
 export function ghNotificationConfig(db) {
   const stored = getConfig(db, 'github_notifications')
   return { enabled: !!stored.enabled, reasons: stored.reasons || DEFAULT_GH_REASONS }
@@ -274,7 +280,7 @@ export async function syncGithubNotifications(db, log = console) {
       kind: 'gh_notification',
       title: t.title,
       url: t.url,
-      excerpt: `${GH_NOTIFICATION_REASONS[t.reason] || t.reason} · ${t.repo}`,
+      excerpt: `${tr(GH_NOTIFICATION_REASONS[t.reason] || t.reason)} · ${t.repo}`,
       external_key: `ghnotif:${t.id}:${t.updated_at}`,
       created_at: t.updated_at,
     }, { asRead, fresh })
@@ -299,7 +305,7 @@ export async function syncAll(db, log = console) {
     try {
       await syncGithubNotifications(db, log)
     } catch (err) {
-      errors.push(`Notifications GitHub : ${err.status === 403 || err.status === 401 ? 'accès refusé — il faut un token classique avec le scope « notifications »' : err.message}`)
+      errors.push(tr('Notifications GitHub : {error}', { error: err.status === 403 || err.status === 401 ? tr('accès refusé — il faut un token classique avec le scope « notifications »') : err.message }))
     }
   } finally {
     syncState.running = false

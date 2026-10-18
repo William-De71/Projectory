@@ -2,6 +2,7 @@ import { decode, insertRow, updateRow } from '../db.js'
 import { compareVersions } from '../sync/http.js'
 import { normalizeRepo } from '../sync/forges/index.js'
 import { syncProject } from '../sync/index.js'
+import { tr } from '../i18n.js'
 
 const FIELDS = [
   'name', 'description', 'category_id', 'status', 'tags', 'client', 'repo', 'homepage', 'links',
@@ -56,19 +57,19 @@ export default async function projectRoutes(app, { db }) {
 
   app.get('/projects/:id', async (req, reply) => {
     const [p] = listProjects(db, { where: ['p.id = ?'], params: [Number(req.params.id)] })
-    if (!p) return reply.code(404).send({ error: 'Projet introuvable' })
+    if (!p) return reply.code(404).send({ error: tr('Projet introuvable') })
     return p
   })
 
   app.post('/projects', async (req, reply) => {
-    if (!req.body?.name?.trim()) return reply.code(400).send({ error: 'Le nom est obligatoire' })
+    if (!req.body?.name?.trim()) return reply.code(400).send({ error: tr('Le nom est obligatoire') })
     const id = insertRow(db, 'projects', clean(req.body), FIELDS)
     return reply.code(201).send(listProjects(db, { where: ['p.id = ?'], params: [id] })[0])
   })
 
   app.put('/projects/:id', async (req, reply) => {
     const id = Number(req.params.id)
-    if (!updateRow(db, 'projects', id, clean(req.body || {}), FIELDS)) return reply.code(404).send({ error: 'Projet introuvable' })
+    if (!updateRow(db, 'projects', id, clean(req.body || {}), FIELDS)) return reply.code(404).send({ error: tr('Projet introuvable') })
     return listProjects(db, { where: ['p.id = ?'], params: [id] })[0]
   })
 
