@@ -3,6 +3,7 @@ import { Alert, App, Button, Card, Checkbox, Flex, Input, Select, Switch, Table,
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { FORGES } from './labels.js'
+import { t } from '../i18n/index.js'
 
 // Tokens per forge instance. The server never sends tokens back: an empty
 // field keeps the stored one.
@@ -18,7 +19,7 @@ export function ForgeAccounts() {
     setSaving(true)
     try {
       setData(await api.put('/settings/forges', { accounts: rows.map(({ token_set, ...a }) => a) }))
-      message.success('Comptes enregistrés')
+      message.success(t('Comptes enregistrés'))
       notifyChange()
     } catch (err) {
       message.error(err.message)
@@ -28,34 +29,33 @@ export function ForgeAccounts() {
   }
 
   return (
-    <Card size="small" title="Forges et tokens" extra={<Typography.Text type="secondary">GitHub, GitLab, Gitea / Forgejo</Typography.Text>}>
-      <Typography.Paragraph type="secondary">
-        Un token par instance. Pour GitHub, la variable <code>GITHUB_TOKEN</code> reste prise en compte si aucun compte n'est saisi ici.
-        Droits conseillés : lecture du dépôt, des issues, des PR/MR et de la CI ; <b>écriture des issues</b> pour créer une issue depuis un bug suivi.
-      </Typography.Paragraph>
+    <Card size="small" title={t('Forges et tokens')} extra={<Typography.Text type="secondary">{t('GitHub, GitLab, Gitea / Forgejo')}</Typography.Text>}>
+      <Typography.Paragraph type="secondary">{t('Un token par instance. Pour GitHub, la variable') + ' '}<code>GITHUB_TOKEN</code>{' ' + t(
+        'reste prise en compte si aucun compte n\'est saisi ici. Droits conseillés : lecture du dépôt, des issues, des PR/MR et de la CI ;'
+      ) + ' '}<b>{t('écriture des issues')}</b>{' ' + t('pour créer une issue depuis un bug suivi.')}</Typography.Paragraph>
       <Table
         rowKey={(r, i) => r.id || `new-${i}`}
         size="small"
         pagination={false}
         dataSource={rows}
-        locale={{ emptyText: 'Aucun compte' }}
+        locale={{ emptyText: t('Aucun compte') }}
         columns={[
           {
-            title: 'Forge', width: 170,
+            title: t('Forge'), width: 170,
             render: (_, r, i) => <Select size="small" value={r.type} style={{ width: 150 }} options={Object.entries(FORGES).map(([value, f]) => ({ value, label: f.label }))} onChange={(type) => update(i, { type, url: FORGES[type].defaultUrl === 'https://github.com' ? '' : FORGES[type].defaultUrl })} />,
           },
           {
-            title: 'Adresse',
+            title: t('Adresse'),
             render: (_, r, i) => r.type === 'github'
-              ? <Typography.Text type="secondary">github.com</Typography.Text>
+              ? <Typography.Text type="secondary">{'github.com'}</Typography.Text>
               : <Input size="small" value={r.url} placeholder="https://git.mondomaine.fr" onChange={(e) => update(i, { url: e.target.value })} />,
           },
           {
-            title: 'Token',
+            title: t('Token'),
             render: (_, r, i) => (
               <Flex gap={6} align="center">
-                <Input.Password size="small" value={r.token} placeholder={r.token_set ? '•••••••• (inchangé)' : 'Coller le token'} autoComplete="new-password" onChange={(e) => update(i, { token: e.target.value })} />
-                {r.token_set && <Tag color="green">enregistré</Tag>}
+                <Input.Password size="small" value={r.token} placeholder={r.token_set ? t('•••••••• (inchangé)') : t('Coller le token')} autoComplete="new-password" onChange={(e) => update(i, { token: e.target.value })} />
+                {r.token_set && <Tag color="green">{t('enregistré')}</Tag>}
               </Flex>
             ),
           },
@@ -63,8 +63,8 @@ export function ForgeAccounts() {
         ]}
       />
       <Flex gap={8} style={{ marginTop: 12 }}>
-        <Button icon={<PlusOutlined />} onClick={() => setRows((r) => [...r, { type: 'gitea', url: '', token: '' }])}>Ajouter un compte</Button>
-        <Button type="primary" onClick={save} loading={saving}>Enregistrer</Button>
+        <Button icon={<PlusOutlined />} onClick={() => setRows((r) => [...r, { type: 'gitea', url: '', token: '' }])}>{t('Ajouter un compte')}</Button>
+        <Button type="primary" onClick={save} loading={saving}>{t('Enregistrer')}</Button>
       </Flex>
     </Card>
   )
@@ -82,20 +82,21 @@ export function GithubNotificationSettings() {
     }
   }
   return (
-    <Card size="small" title="Notifications GitHub personnelles">
-      <Typography.Paragraph type="secondary">
-        Reviews demandées, mentions, réponses sur tes PR (par exemple vers GladysAssistant/Gladys) : elles arrivent dans la boîte de réception,
-        rattachées au projet correspondant s'il est suivi, et partent sur ntfy si l'événement est coché.
-      </Typography.Paragraph>
+    <Card size="small" title={t('Notifications GitHub personnelles')}>
+      <Typography.Paragraph type="secondary">{t(
+        'Reviews demandées, mentions, réponses sur tes PR (par exemple vers GladysAssistant/Gladys) : elles arrivent dans la boîte de réception, rattachées au projet correspondant s\'il est suivi, et partent sur ntfy si l\'événement est coché.'
+      )}</Typography.Paragraph>
       <Alert
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message="L'API des notifications GitHub n'accepte que les tokens « classiques » avec le scope notifications (les tokens fine-grained sont refusés)."
+        message={t(
+          'L\'API des notifications GitHub n\'accepte que les tokens « classiques » avec le scope notifications (les tokens fine-grained sont refusés).'
+        )}
       />
-      {!data.token_set && <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="Aucun token GitHub configuré." />}
+      {!data.token_set && <Alert type="warning" showIcon style={{ marginBottom: 12 }} message={t('Aucun token GitHub configuré.')} />}
       <Flex vertical gap={12}>
-        <Flex gap={8} align="center"><Switch checked={data.enabled} onChange={(enabled) => update({ enabled })} /> Activées</Flex>
+        <Flex gap={8} align="center"><Switch checked={data.enabled} onChange={(enabled) => update({ enabled })} />{' ' + t('Activées')}</Flex>
         <Checkbox.Group
           value={data.reasons}
           onChange={(reasons) => update({ reasons })}

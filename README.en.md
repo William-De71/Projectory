@@ -18,7 +18,6 @@ Self-hosted (Docker), single-user, all data in one SQLite file.
   <img src="docs/screenshots/dashboard.png" alt="Projectory dashboard: key figures, failing CI, pinned projects, what's new and high-priority tasks">
 </picture>
 
-> The user interface is in French. UI labels quoted below are given in French with their English meaning.
 
 ---
 
@@ -27,26 +26,26 @@ Self-hosted (Docker), single-user, all data in one SQLite file.
 | | |
 |---|---|
 | **Projects grouped by category** | Freelance, Personal, Organisation (e.g. Gladys), Other — editable categories with colours. Status (idea, active, maintenance, paused, archived), client, tags, links, pinning. |
-| **GitHub, GitLab, Gitea / Forgejo** | Each project points to a repository on github.com, gitlab.com or a self-hosted instance (GitLab, Gitea, Forgejo). One token per instance in **Paramètres → Forges et tokens** (Settings → Forges and tokens). |
+| **GitHub, GitLab, Gitea / Forgejo** | Each project points to a repository on github.com, gitlab.com or a self-hosted instance (GitLab, Gitea, Forgejo). One token per instance in **Settings → Forges and tokens**. |
 | **Bulk repository import** | Lists the repositories of a user, organisation or group (filter, forks, archived) and creates the projects in one go, with category, status and release tracking. Repositories already tracked are skipped. |
-| **Repository tracking** | Open issues and PRs / MRs, stars, last activity. **New** ones land in the inbox; a "Suivre" (Follow) button adds them to your bugs & tasks. |
+| **Repository tracking** | Open issues and PRs / MRs, stars, last activity. **New** ones land in the inbox; a "Track" button adds them to your bugs & tasks. |
 | **Create an issue from a bug** | A bug reported on a forum becomes an issue on the repository (title, description, forum link, target version, label). Linked both ways: when the issue is closed, the bug is marked as done. |
 | **CI status** | GitHub Actions (latest run of each workflow), GitLab pipelines, Gitea/Forgejo commit statuses (Actions, Woodpecker, Drone) on the default branch: green/red badge, dashboard alert, notification when CI breaks and when it is green again. |
 | **Personal GitHub notifications** | Review requests, mentions, assignments, replies on your issues/PRs (e.g. to GladysAssistant/Gladys), attached to the matching tracked project. Requires a classic token with the `notifications` scope. |
-| **Versions & changelog** | **Versions** tab per project: milestones (1.2.0, 1.3.0…) with due date, progress, planned and unplanned items. **Publishing** a version generates its Markdown changelog (features / fixes / other) to copy, download or keep as a note; full project changelog in one click. |
+| **Versions & changelog** | **Versions** tab per project: milestones (1.2.0, 1.3.0…) with due date, progress, planned and unplanned items. **Publishing** a version generates its Markdown changelog (features / fixes / other) to copy, download or keep as a note, and can directly create the **release on GitHub, GitLab or Gitea / Forgejo** (tag, draft, pre-release) with that changelog as description; full project changelog in one click. |
 | **ntfy push notifications** | What's new is pushed to your phone through [ntfy](https://ntfy.sh) (public or self-hosted server, token supported), choice of events, grouped above 3 entries, per-project mute. |
 | **Upstream version watch** | Latest release/tag of the repository (any forge), of another GitHub repository, of an npm package or a Docker Hub image, compared with the version *you* use/deploy → "update available" badge and notification. |
 | **Bugs reported on forums** | **Discourse** forums (e.g. the [Gladys forum](https://community.gladysassistant.com): category, tag or search) and **RSS/Atom feeds** (keyword filter). One click turns a topic into a tracked bug. |
 | **Manual bugs & tasks** | Bug / feature / task / question, priority, status, due date, target version, external link. List or Kanban board (drag and drop). |
 | **Specifications** | Markdown documents per project with a pre-filled template (context, goals, acceptance criteria…) and draft / in review / approved status. |
-| **Notes** | Markdown notes per project or global, "Note rapide" (quick note) button everywhere in the app. |
+| **Notes** | Markdown notes per project or global, "Quick note" button everywhere in the app. |
 | **Time tracking** | Quick entry per project, monthly and per-project totals (handy for freelance invoicing). |
 | **Inbox** | Everything new since the last sync, read/unread, filters by source and project. |
 | **Dashboard** | Key figures, what's new, high priority / upcoming due dates, available updates, recent PRs, sync errors. |
 | **Global search** | Projects, bugs, specs, notes, repository issues and PRs. |
 | **Export** | Full JSON export in one click, or copy the `data/projectory.db` file. |
 
-Light/dark theme, mobile friendly.
+Light/dark theme, **English or French** user interface (FR / EN switch at the top right; changelogs, notifications and messages follow the chosen language), mobile friendly.
 
 ### Screenshots
 
@@ -92,38 +91,39 @@ Open http://localhost:3001. Data lives in `./data/projectory.db`.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GITHUB_TOKEN` | — | GitHub token (accounts entered in **Paramètres → Forges et tokens** take precedence). Without a token: 60 requests/hour and public repositories only. *Fine-grained*: Metadata, Contents, Pull requests, Actions read + Issues write. For personal notifications: a **classic** token with the `repo` and `notifications` scopes. |
+| `GITHUB_TOKEN` | — | GitHub token (accounts entered in **Settings → Forges and tokens** take precedence). Without a token: 60 requests/hour and public repositories only. *Fine-grained*: Metadata, Contents, Pull requests, Actions read + Issues write. For personal notifications: a **classic** token with the `repo` and `notifications` scopes. |
 | `GITLAB_TOKEN` | — | Default GitLab token (`api` scope, or `read_api` without issue creation). |
 | `GITEA_URL`, `GITEA_TOKEN` | — | Default Gitea / Forgejo instance and its token (repository + issue permissions). |
 | `PROJECTORY_TAG` | `latest` | Docker image tag used by `docker-compose.yml`. |
 | `SYNC_INTERVAL_MINUTES` | `30` | Automatic sync (0 = only with the 🔄 button). |
 | `APP_PASSWORD` | — | Enables HTTP basic authentication (any username). Set it if the app is reachable outside your network. |
 | `PROJECTORY_PORT` | `3001` | Port exposed on the host. |
-| `NTFY_SERVER`, `NTFY_TOPIC`, `NTFY_TOKEN` | `https://ntfy.sh`, —, — | Notification defaults; usually set in **Paramètres → Notifications push**. |
+| `NTFY_SERVER`, `NTFY_TOPIC`, `NTFY_TOKEN` | `https://ntfy.sh`, —, — | Notification defaults; usually set in **Settings → Push notifications**. |
 | `APP_URL` | — | Projectory's address (e.g. `http://192.168.1.10:3001`), used for links in notifications. |
+| `APP_LANG` | `fr` | Default server language (`fr` or `en`) until one is chosen in the UI. |
 | `LOG_LEVEL` | `info` | Log level. |
 
 ### Backup
 
-Copy `data/projectory.db` (ideally with the app stopped, or with `sqlite3 data/projectory.db ".backup backup.db"`), or use **Paramètres → Exporter en JSON** (Settings → Export as JSON).
+Copy `data/projectory.db` (ideally with the app stopped, or with `sqlite3 data/projectory.db ".backup backup.db"`), or use **Settings → Export as JSON**.
 
 ---
 
 ## Quick start with your repositories
 
-1. **Projets → Importer des dépôts** (Projects → Import repositories): pick the forge, leave the field empty to list the token owner's repositories (or type a user / organisation), filter (e.g. `gladys-`), tick, choose the category, then **Importer**.
+1. **Projects → Import repositories**: pick the forge, leave the field empty to list the token owner's repositories (or type a user / organisation), filter (e.g. `gladys-`), tick, choose the category, then **Import**.
 2. The first sync starts in the background. It records what already exists as read, so there is no flood of notifications.
-3. **Paramètres → Notifications push**: install the ntfy app on your phone, subscribe to a hard-to-guess topic, enter it here, then send a test.
+3. **Settings → Push notifications**: install the ntfy app on your phone, subscribe to a hard-to-guess topic, enter it here, then send a test.
 
 ## Example: following Gladys
 
-In **Projets → Nouveau projet** (Projects → New project):
+In **Projects → New project**:
 
 - **Category**: Organisation — **Client**: Gladys
 - **Repository**: GitHub, `GladysAssistant/Gladys`
 - **Version in use**: the one installed at home, e.g. `4.45.0`
-- **Versions**: "Releases du dépôt" (the project's repository releases) + "Image Docker Hub" → `gladysassistant/gladys`
-- **Forum**: "Forum Discourse", URL `https://community.gladysassistant.com`, then either:
+- **Versions**: "Repository releases" + "Docker Hub image" → `gladysassistant/gladys`
+- **Forum**: "Discourse forum", URL `https://community.gladysassistant.com`, then either:
   - empty path → latest topics
   - path `c/<slug>/<id>` → a category (the category URL on the forum, without the domain)
   - path `tag/zigbee` → a tag
@@ -181,13 +181,3 @@ projectory/
 ```
 
 Loosely inspired by [portfolio-manager](https://github.com/AymericLeFeyer/portfolio-manager) (Fastify + React/Ant Design, drawer-based CRUD, docker-compose), but written from scratch.
-
----
-
-## Ideas
-
-- Personal notifications for GitLab (to-dos) and Gitea / Forgejo
-- Invoicing: hourly rate per freelance project, CSV export of time spent
-- Publish the release on the forge directly from the Versions tab
-- Import notes from a plain-text notepad (paste → split into notes)
-- English user interface

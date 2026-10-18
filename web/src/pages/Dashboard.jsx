@@ -7,6 +7,7 @@ import { ITEM_KIND, PRIORITY, formatMinutes } from '../components/labels.js'
 import { LabelTag } from '../components/Tags.jsx'
 import InboxList from '../components/InboxList.jsx'
 import ProjectCard, { latestVersion } from '../components/ProjectCard.jsx'
+import { t } from '../i18n/index.js'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -15,21 +16,21 @@ export default function Dashboard() {
   const { stats } = data
 
   const tiles = [
-    { title: 'Projets actifs', value: `${stats.active} / ${stats.projects}`, to: '/projects' },
-    { title: 'Non lus', value: stats.unread, to: '/inbox', color: stats.unread ? '#ff4d4f' : undefined },
-    { title: 'Bugs ouverts', value: stats.open_bugs, to: '/items' },
-    { title: 'Issues ouvertes', value: stats.open_issues },
-    { title: 'PR / MR', value: stats.open_prs },
-    { title: 'CI en échec', value: stats.ci_failing, color: stats.ci_failing ? '#ff4d4f' : undefined },
-    { title: 'Temps ce mois', value: formatMinutes(stats.minutes_this_month), to: '/time' },
+    { title: t('Projets actifs'), value: `${stats.active} / ${stats.projects}`, to: '/projects' },
+    { title: t('Non lus'), value: stats.unread, to: '/inbox', color: stats.unread ? '#ff4d4f' : undefined },
+    { title: t('Bugs ouverts'), value: stats.open_bugs, to: '/items' },
+    { title: t('Issues ouvertes'), value: stats.open_issues },
+    { title: t('PR / MR'), value: stats.open_prs },
+    { title: t('CI en échec'), value: stats.ci_failing, color: stats.ci_failing ? '#ff4d4f' : undefined },
+    { title: t('Temps ce mois'), value: formatMinutes(stats.minutes_this_month), to: '/time' },
   ]
 
   return (
     <Flex vertical gap={16}>
       <Flex align="baseline" gap={12} wrap>
-        <Typography.Title level={3} style={{ margin: 0 }}>Tableau de bord</Typography.Title>
+        <Typography.Title level={3} style={{ margin: 0 }}>{t('Tableau de bord')}</Typography.Title>
         <Typography.Text type="secondary">
-          {data.sync.running ? 'Synchronisation en cours…' : data.sync.last_run_at ? `Dernière synchro ${dayjs(data.sync.last_run_at).fromNow()}` : 'Pas encore synchronisé'}
+          {data.sync.running ? t('Synchronisation en cours…') : data.sync.last_run_at ? t('Dernière synchro {when}', { when: dayjs(data.sync.last_run_at).fromNow() }) : t('Pas encore synchronisé')}
         </Typography.Text>
       </Flex>
 
@@ -37,9 +38,11 @@ export default function Dashboard() {
         <Alert
           type="info"
           showIcon
-          message="Bienvenue !"
-          description="Commence par créer un projet : renseigne son dépôt GitHub, les versions à surveiller et éventuellement un forum. La synchro tourne ensuite automatiquement."
-          action={<Button type="primary" onClick={() => navigate('/projects')}>Créer un projet</Button>}
+          message={t('Bienvenue !')}
+          description={t(
+            'Commence par créer un projet : renseigne son dépôt GitHub, les versions à surveiller et éventuellement un forum. La synchro tourne ensuite automatiquement.'
+          )}
+          action={<Button type="primary" onClick={() => navigate('/projects')}>{t('Créer un projet')}</Button>}
         />
       )}
 
@@ -57,7 +60,7 @@ export default function Dashboard() {
         <Alert
           type="error"
           showIcon
-          message="CI en échec"
+          message={t('CI en échec')}
           description={data.ci_failing.map((p) => (
             <div key={p.id}>
               <Link to={`/projects/${p.id}`}>{p.name}</Link>
@@ -71,7 +74,7 @@ export default function Dashboard() {
         <Alert
           type="warning"
           showIcon
-          message="Certaines synchros ont échoué"
+          message={t('Certaines synchros ont échoué')}
           description={data.with_errors.map((p) => <div key={p.id}><Link to={`/projects/${p.id}`}>{p.name}</Link> : {p.sync_error.split('\n')[0]}</div>)}
         />
       )}
@@ -84,16 +87,16 @@ export default function Dashboard() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={14}>
-          <Card size="small" title="Nouveautés" extra={<Link to="/inbox">Tout voir</Link>}>
+          <Card size="small" title={t('Nouveautés')} extra={<Link to="/inbox">{t('Tout voir')}</Link>}>
             <InboxList entries={data.inbox} onChange={reload} />
           </Card>
         </Col>
         <Col xs={24} xl={10}>
           <Flex vertical gap={16}>
-            <Card size="small" title="Prioritaire / échéance proche" extra={<Link to="/items">Tout voir</Link>}>
+            <Card size="small" title={t('Prioritaire / échéance proche')} extra={<Link to="/items">{t('Tout voir')}</Link>}>
               <List
                 dataSource={data.urgent}
-                locale={{ emptyText: <Empty description="Rien d'urgent" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+                locale={{ emptyText: <Empty description={t('Rien d\'urgent')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
                 renderItem={(it) => (
                   <List.Item className="clickable" onClick={() => navigate(`/projects/${it.project_id}/items`)}>
                     <Flex vertical gap={2} style={{ width: '100%' }}>
@@ -102,17 +105,17 @@ export default function Dashboard() {
                         <Tag>{it.project_name}</Tag>
                         <LabelTag map={ITEM_KIND} value={it.kind} />
                         <LabelTag map={PRIORITY} value={it.priority} />
-                        {it.due_date && <Tag color={dayjs(it.due_date).isBefore(dayjs(), 'day') ? 'red' : 'gold'}>{dayjs(it.due_date).format('DD/MM')}</Tag>}
+                        {it.due_date && <Tag color={dayjs(it.due_date).isBefore(dayjs(), 'day') ? 'red' : 'gold'}>{dayjs(it.due_date).format('D MMM')}</Tag>}
                       </Flex>
                     </Flex>
                   </List.Item>
                 )}
               />
             </Card>
-            <Card size="small" title="Mises à jour disponibles">
+            <Card size="small" title={t('Mises à jour disponibles')}>
               <List
                 dataSource={data.outdated}
-                locale={{ emptyText: <Empty description="Tout est à jour" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+                locale={{ emptyText: <Empty description={t('Tout est à jour')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
                 renderItem={(p) => (
                   <List.Item className="clickable" onClick={() => navigate(`/projects/${p.id}`)}>
                     <Typography.Text>{p.name}</Typography.Text>
@@ -121,10 +124,10 @@ export default function Dashboard() {
                 )}
               />
             </Card>
-            <Card size="small" title="PR récentes">
+            <Card size="small" title={t('PR récentes')}>
               <List
                 dataSource={data.recent_prs}
-                locale={{ emptyText: <Empty description="Aucune PR ouverte" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+                locale={{ emptyText: <Empty description={t('Aucune PR ouverte')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
                 renderItem={(pr) => (
                   <List.Item>
                     <Flex vertical gap={2} style={{ minWidth: 0 }}>

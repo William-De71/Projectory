@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { App, Button, Card, Checkbox, DatePicker, Empty, Flex, Form, Input, List, Modal, Popconfirm, Progress, Select, Tabs, Tag, Typography } from 'antd'
-import { CopyOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, FileTextOutlined, PlusOutlined, RocketOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, ExportOutlined, FileTextOutlined, PlusOutlined, RocketOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
-import { ITEM_KIND, ITEM_STATUS, MILESTONE_STATUS } from './labels.js'
+import { FORGES, ITEM_KIND, ITEM_STATUS, MILESTONE_STATUS } from './labels.js'
 import { LabelTag } from './Tags.jsx'
 import { ItemForm } from './ItemsPanel.jsx'
 import Markdown from './Markdown.jsx'
 import { compareVersions } from './versions.js'
+import { t } from '../i18n/index.js'
 
 function bump(version, part) {
   const [major = 0, minor = 0, patch = 0] = String(version || '0.0.0').replace(/^v/, '').split(/[.-]/).map((n) => parseInt(n, 10) || 0)
@@ -33,10 +34,10 @@ function MilestoneModal({ milestone, latest, onClose, onSaved }) {
     }
   }
   return (
-    <Modal open={!!milestone} title={milestone?.id ? `Modifier ${milestone.version}` : 'Nouvelle version'} onCancel={onClose} onOk={save} okText="Enregistrer" destroyOnHidden
+    <Modal open={!!milestone} title={milestone?.id ? t('Modifier {name}', { name: milestone.version }) : t('Nouvelle version')} onCancel={onClose} onOk={save} okText={t('Enregistrer')} destroyOnHidden
       afterOpenChange={(open) => open && form.setFieldsValue({ ...milestone, due_date: milestone.due_date ? dayjs(milestone.due_date) : null })}>
       <Form form={form} layout="vertical" preserve={false}>
-        <Form.Item name="version" label="Version" rules={[{ required: true, message: 'Version obligatoire' }]}
+        <Form.Item name="version" label={t('Version')} rules={[{ required: true, message: t('Version obligatoire') }]}
           extra={!milestone?.id && (
             <Flex gap={6} style={{ marginTop: 6 }}>
               {['patch', 'minor', 'major'].map((part) => (
@@ -46,9 +47,9 @@ function MilestoneModal({ milestone, latest, onClose, onSaved }) {
           )}>
           <Input placeholder="1.2.0" autoFocus />
         </Form.Item>
-        <Form.Item name="title" label="Nom / thème"><Input placeholder="ex. Exports et partage" /></Form.Item>
-        <Form.Item name="due_date" label="Date prévue"><DatePicker format="DD/MM/YYYY" /></Form.Item>
-        <Form.Item name="description" label="Notes (reprises en tête du changelog)"><Input.TextArea autoSize={{ minRows: 2, maxRows: 8 }} /></Form.Item>
+        <Form.Item name="title" label={t('Nom / thème')}><Input placeholder={t('ex. Exports et partage')} /></Form.Item>
+        <Form.Item name="due_date" label={t('Date prévue')}><DatePicker format="L" /></Form.Item>
+        <Form.Item name="description" label={t('Notes (reprises en tête du changelog)')}><Input.TextArea autoSize={{ minRows: 2, maxRows: 8 }} /></Form.Item>
       </Form>
     </Modal>
   )
@@ -59,9 +60,9 @@ function ChangelogModal({ state, onClose }) {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(state.markdown)
-      message.success('Copié')
+      message.success(t('Copié'))
     } catch {
-      message.error('Copie impossible — sélectionne le texte dans l’onglet Markdown')
+      message.error(t('Copie impossible — sélectionne le texte dans l’onglet Markdown'))
     }
   }
   const download = () => {
@@ -72,55 +73,109 @@ function ChangelogModal({ state, onClose }) {
   }
   return (
     <Modal open={!!state} title={state?.title} onCancel={onClose} width={Math.min(820, window.innerWidth - 32)}
-      footer={[<Button key="d" icon={<DownloadOutlined />} onClick={download}>Télécharger</Button>, <Button key="c" type="primary" icon={<CopyOutlined />} onClick={copy}>Copier le Markdown</Button>]}>
+      footer={[<Button key="d" icon={<DownloadOutlined />} onClick={download}>{t('Télécharger')}</Button>, <Button key="c" type="primary" icon={<CopyOutlined />} onClick={copy}>{t('Copier le Markdown')}</Button>]}>
       {state && (
         <Tabs items={[
-          { key: 'preview', label: 'Aperçu', children: <Markdown>{state.markdown}</Markdown> },
-          { key: 'md', label: 'Markdown', children: <Input.TextArea value={state.markdown} readOnly autoSize={{ minRows: 10, maxRows: 30 }} className="md-editor" /> },
+          { key: 'preview', label: t('Aperçu'), children: <Markdown>{state.markdown}</Markdown> },
+          { key: 'md', label: t('Markdown'), children: <Input.TextArea value={state.markdown} readOnly autoSize={{ minRows: 10, maxRows: 30 }} className="md-editor" /> },
         ]} />
       )}
     </Modal>
   )
 }
 
-function ReleaseButton({ projectId, milestone, onDone }) {
+// Publishes a version in Projectory and/or as a release on the project's forge.
+// mode "release": full publication; mode "forge": forge release of an already published version.
+function ReleaseModal({ state, project, onClose, onDone }) {
   const { message } = App.useApp()
-  const [closeItems, setCloseItems] = useState(true)
-  const [saveNote, setSaveNote] = useState(true)
-  const release = async () => {
+  const [form] = Form.useForm()
+  const [busy, setBusy] = useState(false)
+  const toForge = Form.useWatch('to_forge', form)
+  const forgeLabel = FORGES[project?.forge || 'github']?.label
+  const milestone = state?.milestone
+
+  const submit = async () => {
+    const v = await form.validateFields()
+    const forge = v.to_forge ? { tag: v.tag, draft: v.draft, prerelease: v.prerelease } : null
+    setBusy(true)
     try {
-      const res = await api.post(`/projects/${projectId}/release`, { version: milestone.version, close_items: closeItems, save_note: saveNote })
-      message.success(`Version ${milestone.version} publiée`)
-      notifyChange()
-      onDone(res)
+      if (state.mode === 'forge') {
+        await api.post(`/milestones/${milestone.id}/forge-release`, forge)
+        message.success(t('Release créée sur {forge}', { forge: forgeLabel }))
+        notifyChange()
+        onDone(null)
+      } else {
+        const res = await api.post(`/projects/${project.id}/release`, { version: milestone.version, close_items: v.close_items, save_note: v.save_note, forge })
+        if (res.forge_error) message.warning(t('Version publiée, mais la release {forge} a échoué : {error}', { forge: forgeLabel, error: res.forge_error }), 8)
+        else message.success(forge ? t('Version {v} publiée et release créée sur {forge}', { v: milestone.version, forge: forgeLabel }) : t('Version {v} publiée', { v: milestone.version }))
+        notifyChange()
+        onDone(res)
+      }
     } catch (err) {
       message.error(err.message)
+    } finally {
+      setBusy(false)
     }
   }
+
   return (
-    <Popconfirm
-      title={`Publier ${milestone.version} ?`}
-      description={
-        <Flex vertical gap={4}>
-          <Checkbox checked={closeItems} onChange={(e) => setCloseItems(e.target.checked)}>Passer les éléments « en cours » à « terminé »</Checkbox>
-          <Checkbox checked={saveNote} onChange={(e) => setSaveNote(e.target.checked)}>Enregistrer le changelog dans les notes</Checkbox>
-        </Flex>
-      }
-      onConfirm={release}
-      okText="Publier"
+    <Modal
+      open={!!state}
+      title={state?.mode === 'forge' ? t('Release {forge} pour {v}', { forge: forgeLabel, v: milestone?.version }) : t('Publier {v}', { v: milestone?.version })}
+      okText={state?.mode === 'forge' ? t('Créer la release') : t('Publier')}
+      okButtonProps={{ loading: busy }}
+      onOk={submit}
+      onCancel={onClose}
+      destroyOnHidden
+      afterOpenChange={(open) => open && form.setFieldsValue({
+        close_items: true,
+        save_note: true,
+        to_forge: !!project?.repo,
+        tag: /^v/i.test(milestone.version) ? milestone.version : `v${milestone.version}`,
+        draft: false,
+        prerelease: false,
+      })}
     >
-      <Button size="small" type="primary" icon={<RocketOutlined />}>Publier</Button>
-    </Popconfirm>
+      <Form form={form} layout="vertical" preserve={false}>
+        {state?.mode !== 'forge' && (
+          <>
+            <Form.Item name="close_items" valuePropName="checked" style={{ marginBottom: 4 }}>
+              <Checkbox>{t('Passer les éléments « en cours » à « terminé »')}</Checkbox>
+            </Form.Item>
+            <Form.Item name="save_note" valuePropName="checked" style={{ marginBottom: 4 }}>
+              <Checkbox>{t('Enregistrer le changelog dans les notes')}</Checkbox>
+            </Form.Item>
+            <Form.Item name="to_forge" valuePropName="checked">
+              <Checkbox disabled={!project?.repo}>
+                {project?.repo ? t('Créer la release sur {forge} ({repo})', { forge: forgeLabel, repo: project.repo }) : t('Créer la release sur la forge (aucun dépôt configuré)')}
+              </Checkbox>
+            </Form.Item>
+          </>
+        )}
+        {(state?.mode === 'forge' || toForge) && (
+          <Flex vertical style={{ padding: 12, border: '1px dashed rgba(127,127,127,.35)', borderRadius: 8 }}>
+            <Form.Item name="tag" label={t('Tag')} rules={[{ required: true, message: t('Tag obligatoire') }]} extra={t("Créé sur la branche {branch} s'il n'existe pas encore ; le changelog sert de description.", { branch: project?.github?.default_branch || 'main' })}>
+              <Input />
+            </Form.Item>
+            <Flex gap={16}>
+              {project?.forge !== 'gitlab' && <Form.Item name="draft" valuePropName="checked" style={{ marginBottom: 0 }}><Checkbox>{t('Brouillon')}</Checkbox></Form.Item>}
+              <Form.Item name="prerelease" valuePropName="checked" style={{ marginBottom: 0 }}><Checkbox>{t('Pré-version')}</Checkbox></Form.Item>
+            </Flex>
+          </Flex>
+        )}
+      </Form>
+    </Modal>
   )
 }
 
 // Versions of a project: progress, items, release and changelog.
-export default function RoadmapPanel({ projectId }) {
+export default function RoadmapPanel({ projectId, project }) {
   const { message } = App.useApp()
   const { data, loading, reload } = useApi(`/projects/${projectId}/roadmap`, { listen: true })
   const [editing, setEditing] = useState(null)
   const [changelog, setChangelog] = useState(null)
   const [item, setItem] = useState(null)
+  const [releasing, setReleasing] = useState(null)
 
   const versions = data?.versions || []
   const latest = [...versions].map((v) => v.version).sort((a, b) => compareVersions(b, a))[0]
@@ -128,7 +183,7 @@ export default function RoadmapPanel({ projectId }) {
 
   const showChangelog = async (version) => {
     const res = await api.get(`/projects/${projectId}/changelog${version ? `?version=${encodeURIComponent(version)}` : ''}`)
-    setChangelog({ title: version ? `Changelog ${version}` : 'Changelog complet', markdown: res.markdown, filename: version ? `CHANGELOG-${version}.md` : 'CHANGELOG.md' })
+    setChangelog({ title: version ? `Changelog ${version}` : t('Changelog complet'), markdown: res.markdown, filename: version ? `CHANGELOG-${version}.md` : 'CHANGELOG.md' })
   }
 
   const remove = async (m) => {
@@ -148,14 +203,14 @@ export default function RoadmapPanel({ projectId }) {
   return (
     <Flex vertical gap={16}>
       <Flex gap={8} wrap>
-        <Typography.Text type="secondary" style={{ flex: 1, minWidth: 260 }}>
-          Une version regroupe les bugs et tâches dont la « version cible » correspond. Publier une version génère son changelog.
-        </Typography.Text>
-        <Button icon={<FileTextOutlined />} onClick={() => showChangelog()}>Changelog complet</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing({ project_id: Number(projectId), version: bump(latest, 'minor') })}>Nouvelle version</Button>
+        <Typography.Text type="secondary" style={{ flex: 1, minWidth: 260 }}>{t(
+          'Une version regroupe les bugs et tâches dont la « version cible » correspond. Publier une version génère son changelog.'
+        )}</Typography.Text>
+        <Button icon={<FileTextOutlined />} onClick={() => showChangelog()}>{t('Changelog complet')}</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing({ project_id: Number(projectId), version: bump(latest, 'minor') })}>{t('Nouvelle version')}</Button>
       </Flex>
 
-      {!loading && !versions.length && <Empty description="Aucune version planifiée" />}
+      {!loading && !versions.length && <Empty description={t('Aucune version planifiée')} />}
 
       {versions.map((m) => (
         <Card
@@ -166,22 +221,26 @@ export default function RoadmapPanel({ projectId }) {
               <Typography.Text strong style={{ fontSize: 15 }}>{m.version}</Typography.Text>
               {m.title && <Typography.Text type="secondary">{m.title}</Typography.Text>}
               <LabelTag map={MILESTONE_STATUS} value={m.status} />
-              {m.status === 'released' && m.released_at && <Tag>{dayjs(m.released_at).format('DD/MM/YYYY')}</Tag>}
-              {m.status === 'planned' && m.due_date && <Tag color={dayjs(m.due_date).isBefore(dayjs(), 'day') ? 'red' : 'default'}>prévue le {dayjs(m.due_date).format('DD/MM/YYYY')}</Tag>}
+              {m.status === 'released' && m.released_at && <Tag>{dayjs(m.released_at).format('L')}</Tag>}
+              {m.status === 'planned' && m.due_date && <Tag color={dayjs(m.due_date).isBefore(dayjs(), 'day') ? 'red' : 'default'}>{t('prévue le') + ' '}{dayjs(m.due_date).format('L')}</Tag>}
             </Flex>
           }
           extra={
             <Flex gap={6}>
-              <Button size="small" icon={<FileTextOutlined />} onClick={() => showChangelog(m.version)}>Changelog</Button>
-              {m.status === 'planned' && <ReleaseButton projectId={projectId} milestone={m} onDone={(res) => setChangelog({ title: `Changelog ${m.version}`, markdown: res.markdown, filename: `CHANGELOG-${m.version}.md` })} />}
+              <Button size="small" icon={<FileTextOutlined />} onClick={() => showChangelog(m.version)}>{t('Changelog')}</Button>
+              {m.status === 'planned' && <Button size="small" type="primary" icon={<RocketOutlined />} onClick={() => setReleasing({ mode: 'release', milestone: m })}>{t('Publier')}</Button>}
+              {m.release_url && <Button size="small" icon={<ExportOutlined />} href={m.release_url} target="_blank">{t('Release')}</Button>}
+              {m.status === 'released' && m.id && !m.release_url && project?.repo && (
+                <Button size="small" icon={<RocketOutlined />} onClick={() => setReleasing({ mode: 'forge', milestone: m })}>{t('Sur') + ' '}{FORGES[project.forge]?.label}</Button>
+              )}
               <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(m.id ? m : { project_id: Number(projectId), version: m.version })} />
-              {m.id && <Popconfirm title="Supprimer cette version ? Les éléments gardent leur version cible." onConfirm={() => remove(m)}><Button size="small" icon={<DeleteOutlined />} /></Popconfirm>}
+              {m.id && <Popconfirm title={t('Supprimer cette version ? Les éléments gardent leur version cible.')} onConfirm={() => remove(m)}><Button size="small" icon={<DeleteOutlined />} /></Popconfirm>}
             </Flex>
           }
         >
           {m.total > 0
             ? <Progress percent={Math.round((m.done / m.total) * 100)} format={() => `${m.done} / ${m.total}`} status={m.status === 'released' ? 'success' : 'active'} />
-            : <Typography.Text type="secondary">Aucun élément rattaché à cette version.</Typography.Text>}
+            : <Typography.Text type="secondary">{t('Aucun élément rattaché à cette version.')}</Typography.Text>}
           {m.description && <Typography.Paragraph type="secondary" style={{ marginTop: 8 }}>{m.description}</Typography.Paragraph>}
           {!!m.items.length && (
             <List
@@ -202,14 +261,14 @@ export default function RoadmapPanel({ projectId }) {
       ))}
 
       {!!data?.unplanned.length && (
-        <Card size="small" title={`Sans version (${data.unplanned.length})`}>
+        <Card size="small" title={t('Sans version ({n})', { n: data.unplanned.length })}>
           <List
             size="small"
             dataSource={data.unplanned}
             renderItem={(it) => (
               <List.Item
                 actions={[
-                  <Select key="v" size="small" placeholder="Planifier dans…" style={{ width: 150 }} disabled={!planned.length}
+                  <Select key="v" size="small" placeholder={t('Planifier dans…')} style={{ width: 150 }} disabled={!planned.length}
                     options={planned.map((v) => ({ value: v.version, label: v.version }))} onChange={(v) => assign(it, v)} />,
                 ]}
               >
@@ -225,6 +284,17 @@ export default function RoadmapPanel({ projectId }) {
 
       <MilestoneModal milestone={editing} latest={latest} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload() }} />
       <ChangelogModal state={changelog} onClose={() => setChangelog(null)} />
+      <ReleaseModal
+        state={releasing}
+        project={project}
+        onClose={() => setReleasing(null)}
+        onDone={(res) => {
+          const m = releasing.milestone
+          setReleasing(null)
+          reload()
+          if (res) setChangelog({ title: `Changelog ${m.version}`, markdown: res.markdown, filename: `CHANGELOG-${m.version}.md` })
+        }}
+      />
       <ItemForm item={item} onClose={() => setItem(null)} onSaved={() => { setItem(null); reload() }} />
     </Flex>
   )

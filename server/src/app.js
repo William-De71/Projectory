@@ -8,6 +8,8 @@ import contentRoutes from './routes/content.js'
 import overviewRoutes from './routes/overview.js'
 import integrationRoutes from './routes/integrations.js'
 import milestoneRoutes from './routes/milestones.js'
+import { tr } from './i18n.js'
+import { loadLocale } from './i18n.js'
 
 // Set by the Docker build (release tag or dev-<sha>); package.json otherwise.
 export const APP_VERSION = process.env.APP_VERSION || JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version
@@ -21,6 +23,7 @@ function checkPassword(header, password) {
 }
 
 export async function buildApp({ db, logger = true, webDist = process.env.WEB_DIST } = {}) {
+  loadLocale(db)
   const app = Fastify({ logger: logger && { level: process.env.LOG_LEVEL || 'info' }, disableRequestLogging: true })
 
   // Optional single-user protection, handy when exposed beyond localhost.
@@ -29,7 +32,7 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
     app.addHook('onRequest', async (req, reply) => {
       if (req.url === '/api/health') return
       if (!checkPassword(req.headers.authorization, password)) {
-        return reply.code(401).header('WWW-Authenticate', 'Basic realm="projectory"').send({ error: 'Authentification requise' })
+        return reply.code(401).header('WWW-Authenticate', 'Basic realm="projectory"').send({ error: tr('Authentification requise') })
       }
     })
   }
@@ -52,7 +55,7 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
   if (webDist && existsSync(webDist)) {
     await app.register(fastifyStatic, { root: webDist })
     app.setNotFoundHandler((req, reply) => {
-      if (req.url.startsWith('/api/')) return reply.code(404).send({ error: 'Route inconnue' })
+      if (req.url.startsWith('/api/')) return reply.code(404).send({ error: tr('Route inconnue') })
       return reply.sendFile('index.html')
     })
   }

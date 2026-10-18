@@ -1,4 +1,5 @@
 import { decode, insertRow, updateRow } from '../db.js'
+import { tr } from '../i18n.js'
 
 const ITEM_FIELDS = ['project_id', 'kind', 'title', 'body', 'status', 'priority', 'source', 'external_url', 'target_version', 'due_date', 'issue_number', 'issue_url']
 const DOC_FIELDS = ['project_id', 'type', 'title', 'content', 'status', 'pinned']
@@ -24,7 +25,7 @@ export default async function contentRoutes(app, { db }) {
   })
 
   app.post('/items', async (req, reply) => {
-    if (!req.body?.title?.trim() || !req.body?.project_id) return reply.code(400).send({ error: 'Titre et projet obligatoires' })
+    if (!req.body?.title?.trim() || !req.body?.project_id) return reply.code(400).send({ error: tr('Titre et projet obligatoires') })
     const id = insertRow(db, 'items', req.body, ITEM_FIELDS)
     db.prepare("UPDATE projects SET updated_at = datetime('now') WHERE id = ?").run(req.body.project_id)
     return reply.code(201).send(db.prepare('SELECT * FROM items WHERE id = ?').get(id))
@@ -32,7 +33,7 @@ export default async function contentRoutes(app, { db }) {
 
   app.put('/items/:id', async (req, reply) => {
     const id = Number(req.params.id)
-    if (!updateRow(db, 'items', id, req.body || {}, ITEM_FIELDS)) return reply.code(404).send({ error: 'Élément introuvable' })
+    if (!updateRow(db, 'items', id, req.body || {}, ITEM_FIELDS)) return reply.code(404).send({ error: tr('Élément introuvable') })
     return db.prepare('SELECT * FROM items WHERE id = ?').get(id)
   })
 
@@ -57,18 +58,18 @@ export default async function contentRoutes(app, { db }) {
 
   app.get('/docs/:id', async (req, reply) => {
     const doc = db.prepare('SELECT * FROM docs WHERE id = ?').get(Number(req.params.id))
-    return doc ? decode(doc) : reply.code(404).send({ error: 'Document introuvable' })
+    return doc ? decode(doc) : reply.code(404).send({ error: tr('Document introuvable') })
   })
 
   app.post('/docs', async (req, reply) => {
-    if (!req.body?.title?.trim()) return reply.code(400).send({ error: 'Le titre est obligatoire' })
+    if (!req.body?.title?.trim()) return reply.code(400).send({ error: tr('Le titre est obligatoire') })
     const id = insertRow(db, 'docs', req.body, DOC_FIELDS)
     return reply.code(201).send(decode(db.prepare('SELECT * FROM docs WHERE id = ?').get(id)))
   })
 
   app.put('/docs/:id', async (req, reply) => {
     const id = Number(req.params.id)
-    if (!updateRow(db, 'docs', id, req.body || {}, DOC_FIELDS)) return reply.code(404).send({ error: 'Document introuvable' })
+    if (!updateRow(db, 'docs', id, req.body || {}, DOC_FIELDS)) return reply.code(404).send({ error: tr('Document introuvable') })
     return decode(db.prepare('SELECT * FROM docs WHERE id = ?').get(id))
   })
 
@@ -86,7 +87,7 @@ export default async function contentRoutes(app, { db }) {
   )
 
   app.post('/categories', async (req, reply) => {
-    if (!req.body?.name?.trim()) return reply.code(400).send({ error: 'Le nom est obligatoire' })
+    if (!req.body?.name?.trim()) return reply.code(400).send({ error: tr('Le nom est obligatoire') })
     const id = insertRow(db, 'categories', req.body, CATEGORY_FIELDS)
     return reply.code(201).send(db.prepare('SELECT * FROM categories WHERE id = ?').get(id))
   })
@@ -118,7 +119,7 @@ export default async function contentRoutes(app, { db }) {
 
   app.post('/time', async (req, reply) => {
     const { project_id, date, minutes } = req.body || {}
-    if (!project_id || !date || !(minutes > 0)) return reply.code(400).send({ error: 'Projet, date et durée obligatoires' })
+    if (!project_id || !date || !(minutes > 0)) return reply.code(400).send({ error: tr('Projet, date et durée obligatoires') })
     const id = insertRow(db, 'time_entries', req.body, ['project_id', 'date', 'minutes', 'note'])
     return reply.code(201).send(db.prepare('SELECT * FROM time_entries WHERE id = ?').get(id))
   })

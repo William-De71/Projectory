@@ -5,6 +5,7 @@ import { BellOutlined, BugOutlined, CheckOutlined, CloseCircleOutlined, CheckCir
 import dayjs from 'dayjs'
 import { api, notifyChange } from '../api/client.js'
 import { ITEM_KIND, PRIORITY, options } from './labels.js'
+import { t } from '../i18n/index.js'
 
 const ICONS = {
   issue: <GithubOutlined />,
@@ -25,7 +26,7 @@ function ConvertModal({ entry, onClose, onDone }) {
   const convert = async () => {
     try {
       await api.post(`/inbox/${entry.id}/to-item`, { kind, priority })
-      message.success('Ajouté au suivi du projet')
+      message.success(t('Ajouté au suivi du projet'))
       notifyChange()
       onDone()
     } catch (err) {
@@ -33,7 +34,7 @@ function ConvertModal({ entry, onClose, onDone }) {
     }
   }
   return (
-    <Modal open={!!entry} title="Ajouter au suivi" onCancel={onClose} onOk={convert} okText="Ajouter" destroyOnHidden>
+    <Modal open={!!entry} title={t('Ajouter au suivi')} onCancel={onClose} onOk={convert} okText={t('Ajouter')} destroyOnHidden>
       <Typography.Paragraph strong>{entry?.title}</Typography.Paragraph>
       <Flex gap={8}>
         <Select value={kind} onChange={setKind} options={options(ITEM_KIND)} style={{ flex: 1 }} />
@@ -57,16 +58,16 @@ export default function InboxList({ entries, loading, onChange, showProject = tr
       <List
         loading={loading}
         dataSource={entries || []}
-        locale={{ emptyText: <Empty description="Rien de nouveau" /> }}
+        locale={{ emptyText: <Empty description={t('Rien de nouveau')} /> }}
         renderItem={(entry) => (
           <List.Item
             actions={[
               entry.item_id ? (
-                <Tag key="tracked" color="green">Suivi</Tag>
+                <Tag key="tracked" color="green">{t('Suivi')}</Tag>
               ) : !['release', 'ci_fixed', 'gh_notification'].includes(entry.kind) && entry.project_id ? (
-                <Tooltip key="convert" title="Transformer en bug / tâche"><Button size="small" icon={<BugOutlined />} onClick={() => setConverting(entry)} /></Tooltip>
+                <Tooltip key="convert" title={t('Transformer en bug / tâche')}><Button size="small" icon={<BugOutlined />} onClick={() => setConverting(entry)} /></Tooltip>
               ) : null,
-              <Tooltip key="read" title={entry.read_at ? 'Marquer non lu' : 'Marquer lu'}>
+              <Tooltip key="read" title={entry.read_at ? t('Marquer non lu') : t('Marquer lu')}>
                 <Button size="small" icon={entry.read_at ? <UndoOutlined /> : <CheckOutlined />} onClick={() => toggleRead(entry)} />
               </Tooltip>,
             ].filter(Boolean)}
@@ -75,7 +76,7 @@ export default function InboxList({ entries, loading, onChange, showProject = tr
               avatar={<span style={{ fontSize: 18, opacity: entry.read_at ? 0.45 : 1 }}>{ICONS[entry.kind] || <MessageOutlined />}</span>}
               title={
                 <Flex gap={6} wrap align="center" className={entry.read_at ? '' : 'unread-row'}>
-                  <Tag>{KIND_LABELS[entry.kind] || entry.kind}</Tag>
+                  <Tag>{t(KIND_LABELS[entry.kind] || entry.kind)}</Tag>
                   {entry.url ? (
                     <a href={entry.url} target="_blank" rel="noreferrer" onClick={() => !entry.read_at && toggleRead(entry)}>{entry.title}</a>
                   ) : entry.title}

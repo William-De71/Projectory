@@ -25,8 +25,9 @@ before(() => {
     if (url.startsWith(`${gl}/issues?`)) return json([{ iid: 3, title: 'GL bug', author: { username: 'ann' }, web_url: 'https://gitlab.test/i/3', labels: ['bug'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }])
     if (url.startsWith(`${gl}/merge_requests?`)) return json([{ iid: 7, title: 'GL MR', draft: true, author: { username: 'bob' }, web_url: 'https://gitlab.test/mr/7', labels: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }])
     if (url.startsWith(`${gl}/pipelines?ref=main`)) return json([{ id: 99, status: 'failed', web_url: 'https://gitlab.test/p/99', sha: 'deadbeef00', updated_at: '2026-01-01T00:00:00Z' }])
-    if (url.startsWith(`${gl}/releases`)) return json([{ tag_name: 'v2.0.0', released_at: '2026-01-01T00:00:00Z', _links: { self: 'https://gitlab.test/rel' } }])
+    if (url.startsWith(`${gl}/releases`) && init.method !== 'POST') return json([{ tag_name: 'v2.0.0', released_at: '2026-01-01T00:00:00Z', _links: { self: 'https://gitlab.test/rel' } }])
     if (url === `${gl}/issues` && init.method === 'POST') return json({ iid: 4, web_url: 'https://gitlab.test/i/4' })
+    if (url === `${gl}/releases` && init.method === 'POST') return json({ _links: { self: `https://gitlab.test/rel/${JSON.parse(init.body).tag_name}` } }, 201)
 
     // Gitea: repo "me/tool"
     const gt = 'https://git.home.test/api/v1/repos/me/tool'
@@ -52,6 +53,7 @@ before(() => {
       state.ghIssues.push(issue)
       return json(issue, 201)
     }
+    if (url === `${gh}/releases` && init.method === 'POST') return json({ html_url: `https://github.com/will/app/releases/tag/${JSON.parse(init.body).tag_name}` }, 201)
     if (url.startsWith('https://api.github.com/notifications')) return json(state.notifications)
     return new Response('not found', { status: 404 })
   }
@@ -196,4 +198,32 @@ test('milestones: roadmap, rename cascade, release and changelog', async () => {
   const full = (await call('GET', `/api/projects/${p.id}/changelog`)).body.markdown
   assert.match(full, /^# Changelog\n\n## 1\.1\.0/)
   assert.doesNotMatch(full, /2\.0\.0/)
+})
+
+test('publishing a version creates the release on the forge', async () => {
+  const { body: p } = await call('POST', '/api/projects', { name: 'Rel', repo: 'will/app' })
+  await call('POST', '/api/items', { project_id: p.id, title: 'Export CSV', kind: 'feature', target_version: '2.0.0', status: 'done' })
+  const res = (await call('POST', `/api/projects/${p.id}/release`, { version: '2.0.0', forge: { draft: true } })).body
+  assert.equal(res.forge_error, null)
+  assert.equal(res.milestone.release_url, 'https://github.com/will/app/releases/tag/v2.0.0')
+  const sent = lastCall((c) => c.url.endsWith('/repos/will/app/releases') && c.method === 'POST').body
+  assert.deepEqual([sent.tag_name, sent.name, sent.draft, sent.target_commitish], ['v2.0.0', 'v2.0.0', true, 'main'])
+  assert.match(sent.body, /^### ✨ Nouveautés\n\n- Export CSV/)
+  assert.equal((await call('POST', `/api/milestones/${res.milestone.id}/forge-release`)).status, 409)
+
+  // Forge failure: the local release stands and can be retried.
+  const { body: q } = await call('POST', '/api/projects', { name: 'Rel2', repo: 'will/broken' })
+  const failed = (await call('POST', `/api/projects/${q.id}/release`, { version: '1.0.0', forge: {} })).body
+  assert.equal(failed.milestone.status, 'released')
+  assert.match(failed.forge_error, /404/)
+  assert.equal((await call('POST', `/api/milestones/${failed.milestone.id}/forge-release`, { tag: 'release-1' })).status, 502)
+})
+
+test('GitLab releases use ref and the release link', async () => {
+  const [p] = (await call('GET', '/api/projects?q=GL')).body
+  const res = (await call('POST', `/api/projects/${p.id}/release`, { version: 'v3.0.0', forge: {} })).body
+  assert.equal(res.forge_error, null)
+  const sent = lastCall((c) => c.url.endsWith('/releases') && c.url.includes('gitlab.test') && c.method === 'POST').body
+  assert.deepEqual([sent.tag_name, sent.ref], ['v3.0.0', 'main'])
+  assert.equal(res.milestone.release_url, 'https://gitlab.test/rel/v3.0.0')
 })

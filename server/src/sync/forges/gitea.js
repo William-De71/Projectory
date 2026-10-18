@@ -1,5 +1,6 @@
 import { fetchJson } from '../http.js'
 import { ciConclusion, paginate } from './common.js'
+import { tr } from '../../i18n.js'
 
 const STATUS_STATE = {
   success: ['completed', 'success'],
@@ -11,7 +12,7 @@ const STATUS_STATE = {
 // Gitea and Forgejo (same API, v1). CI comes from commit statuses, which
 // Gitea/Forgejo Actions, Woodpecker and Drone all report.
 export default function gitea({ url, token }) {
-  if (!url) throw new Error("Adresse de l'instance Gitea / Forgejo manquante")
+  if (!url) throw new Error(tr("Adresse de l'instance Gitea / Forgejo manquante"))
   const base = url.replace(/\/+$/, '')
   const headers = token ? { Authorization: `token ${token}` } : {}
   const api = (path, options = {}) => fetchJson(`${base}/api/v1${path}`, { ...options, headers })
@@ -81,6 +82,11 @@ export default function gitea({ url, token }) {
       return tag ? { version: tag.name, url: `${base}/${repo}/src/tag/${encodeURIComponent(tag.name)}` } : null
     },
 
+    async createRelease(repo, { tag, name, body, target, draft, prerelease }) {
+      const rel = await api(`/repos/${repo}/releases`, { method: 'POST', body: { tag_name: tag, name, body, target_commitish: target, draft: !!draft, prerelease: !!prerelease } })
+      return { url: rel.html_url }
+    },
+
     async createIssue(repo, { title, body }) {
       const it = await api(`/repos/${repo}/issues`, { method: 'POST', body: { title, body } })
       return { number: it.number, url: it.html_url }
@@ -89,7 +95,7 @@ export default function gitea({ url, token }) {
     async listOwnerRepos(owner) {
       let path
       if (!owner) {
-        if (!token) throw new Error('Indique un utilisateur ou une organisation (ou configure un token)')
+        if (!token) throw new Error(tr('Indique un utilisateur ou une organisation (ou configure un token)'))
         const me = await api('/user')
         owner = me.login
         path = '/user/repos'

@@ -3,15 +3,18 @@ import { getConfig, insertRow, setConfig } from '../db.js'
 import { FORGE_LABELS, forgeAccounts, forgeContext, forgeFor, normalizeRepo } from '../sync/forges/index.js'
 import { NOTIFY_EVENTS, ntfyConfig, sendNtfy } from '../sync/notify.js'
 import { GH_NOTIFICATION_REASONS, ghNotificationConfig, syncAll } from '../sync/index.js'
+import { LANGS, getLocale, saveLocale, tr } from '../i18n.js'
 
 function forgeError(err, owner) {
   const hint = {
-    401: 'La forge refuse le token (invalide ou expiré)',
-    403: "La forge refuse l'accès (droits du token insuffisants ou limite de requêtes atteinte)",
-    404: owner ? `Utilisateur, organisation ou groupe « ${owner} » introuvable` : 'Ressource introuvable',
+    401: tr('La forge refuse le token (invalide ou expiré)'),
+    403: tr("La forge refuse l'accès (droits du token insuffisants ou limite de requêtes atteinte)"),
+    404: owner ? tr('Utilisateur, organisation ou groupe « {owner} » introuvable', { owner }) : tr('Ressource introuvable'),
   }[err.status]
-  return hint ? `${hint}. Détail : ${err.message}` : err.message
+  return hint ? tr('{hint}. Détail : {detail}', { hint, detail: err.message }) : err.message
 }
+
+const translated = (labels) => Object.fromEntries(Object.entries(labels).map(([k, v]) => [k, tr(v)]))
 
 const publicAccounts = (db) => forgeAccounts(db).map(({ token, ...a }) => ({ ...a, token_set: !!token }))
 
@@ -42,7 +45,7 @@ export default async function integrationRoutes(app, { db }) {
   app.post('/forges/import', async (req, reply) => {
     const { forge = 'github', repos = [], category_id = null, status = 'active', track_releases = true, extra_tags = [] } = req.body || {}
     const forgeUrl = forge === 'github' ? '' : String(req.body?.forge_url || '').replace(/\/+$/, '')
-    if (!repos.length) return reply.code(400).send({ error: 'Aucun dépôt sélectionné' })
+    if (!repos.length) return reply.code(400).send({ error: tr('Aucun dépôt sélectionné') })
     const tracked = trackedRepos(forge, forgeUrl)
     const created = []
     let skipped = 0
@@ -78,13 +81,13 @@ export default async function integrationRoutes(app, { db }) {
   // Opens an issue on the project's forge from a tracked item and links both.
   app.post('/items/:id/issue', async (req, reply) => {
     const item = db.prepare('SELECT i.*, p.repo, p.forge, p.forge_url FROM items i JOIN projects p ON p.id = i.project_id WHERE i.id = ?').get(Number(req.params.id))
-    if (!item) return reply.code(404).send({ error: 'Élément introuvable' })
-    if (!item.repo) return reply.code(400).send({ error: "Ce projet n'a pas de dépôt configuré" })
-    if (item.issue_url) return reply.code(409).send({ error: `Une issue existe déjà : ${item.issue_url}` })
+    if (!item) return reply.code(404).send({ error: tr('Élément introuvable') })
+    if (!item.repo) return reply.code(400).send({ error: tr("Ce projet n'a pas de dépôt configuré") })
+    if (item.issue_url) return reply.code(409).send({ error: tr('Une issue existe déjà : {url}', { url: item.issue_url }) })
     const body = [
       item.body,
-      item.external_url && `Signalé ici : ${item.external_url}`,
-      item.target_version && `Version cible : ${item.target_version}`,
+      item.external_url && tr('Signalé ici : {url}', { url: item.external_url }),
+      item.target_version && tr('Version cible : {v}', { v: item.target_version }),
     ].filter(Boolean).join('\n\n')
     let issue
     try {
@@ -99,7 +102,7 @@ export default async function integrationRoutes(app, { db }) {
   // The other way round: follow an existing forge issue / PR as a tracked item.
   app.post('/github-items/:id/track', async (req, reply) => {
     const g = db.prepare('SELECT * FROM github_items WHERE id = ?').get(Number(req.params.id))
-    if (!g) return reply.code(404).send({ error: 'Issue introuvable' })
+    if (!g) return reply.code(404).send({ error: tr('Issue introuvable') })
     const existing = db.prepare('SELECT * FROM items WHERE project_id = ? AND issue_url = ?').get(g.project_id, g.url)
     if (existing) return existing
     const id = insertRow(db, 'items', {
@@ -121,8 +124,8 @@ export default async function integrationRoutes(app, { db }) {
     const previous = new Map(forgeAccounts(db).map((a) => [a.id, a]))
     const accounts = []
     for (const a of req.body?.accounts || []) {
-      if (!FORGE_LABELS[a.type]) return reply.code(400).send({ error: `Forge inconnue : ${a.type}` })
-      if (a.type !== 'github' && !/^https?:\/\//.test(a.url || '')) return reply.code(400).send({ error: `Adresse manquante pour ${FORGE_LABELS[a.type]}` })
+      if (!FORGE_LABELS[a.type]) return reply.code(400).send({ error: tr('Forge inconnue : {forge}', { forge: a.type }) })
+      if (a.type !== 'github' && !/^https?:\/\//.test(a.url || '')) return reply.code(400).send({ error: tr('Adresse manquante pour {forge}', { forge: FORGE_LABELS[a.type] }) })
       const id = a.id || randomUUID()
       accounts.push({
         id,
@@ -137,19 +140,27 @@ export default async function integrationRoutes(app, { db }) {
   })
 
   // ---- Personal GitHub notifications ----
-  app.get('/settings/github-notifications', async () => ({ ...ghNotificationConfig(db), available_reasons: GH_NOTIFICATION_REASONS, token_set: !!forgeContext(db, 'github').token }))
+  app.get('/settings/github-notifications', async () => ({ ...ghNotificationConfig(db), available_reasons: translated(GH_NOTIFICATION_REASONS), token_set: !!forgeContext(db, 'github').token }))
 
   app.put('/settings/github-notifications', async (req) => {
     const next = { ...getConfig(db, 'github_notifications') }
     for (const key of ['enabled', 'reasons']) if (key in (req.body || {})) next[key] = req.body[key]
     setConfig(db, 'github_notifications', next)
-    return { ...ghNotificationConfig(db), available_reasons: GH_NOTIFICATION_REASONS, token_set: !!forgeContext(db, 'github').token }
+    return { ...ghNotificationConfig(db), available_reasons: translated(GH_NOTIFICATION_REASONS), token_set: !!forgeContext(db, 'github').token }
+  })
+
+  // ---- Language (UI choice, also used for changelogs, notifications and errors) ----
+  app.get('/settings/locale', async () => ({ lang: getLocale() }))
+
+  app.put('/settings/locale', async (req, reply) => {
+    if (!LANGS.includes(req.body?.lang)) return reply.code(400).send({ error: tr('Langue inconnue') })
+    return { lang: saveLocale(db, req.body.lang) }
   })
 
   // ---- ntfy ----
   app.get('/settings/ntfy', async () => {
     const { token, ...config } = ntfyConfig(db)
-    return { ...config, token_set: !!token, available_events: NOTIFY_EVENTS }
+    return { ...config, token_set: !!token, available_events: translated(NOTIFY_EVENTS) }
   })
 
   app.put('/settings/ntfy', async (req) => {
@@ -162,14 +173,14 @@ export default async function integrationRoutes(app, { db }) {
     if (body.clear_token) delete next.token
     setConfig(db, 'ntfy', next)
     const { token, ...config } = ntfyConfig(db)
-    return { ...config, token_set: !!token, available_events: NOTIFY_EVENTS }
+    return { ...config, token_set: !!token, available_events: translated(NOTIFY_EVENTS) }
   })
 
   app.post('/settings/ntfy/test', async (req, reply) => {
     try {
       await sendNtfy(ntfyConfig(db), {
         title: 'Projectory',
-        message: 'Notification de test : tout fonctionne 🎉',
+        message: tr('Notification de test : tout fonctionne 🎉'),
         tags: ['white_check_mark'],
       })
       return { ok: true }

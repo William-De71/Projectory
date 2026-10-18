@@ -1,5 +1,6 @@
 import { Tag, Tooltip } from 'antd'
 import { CheckCircleFilled, CloseCircleFilled, MinusCircleFilled, SyncOutlined } from '@ant-design/icons'
+import { t } from '../i18n/index.js'
 
 export const CI = {
   success: { label: 'CI OK', color: 'success', icon: <CheckCircleFilled style={{ color: '#52c41a' }} /> },
@@ -16,9 +17,9 @@ export default function CiStatus({ ci, variant = 'icon' }) {
   if (variant === 'tag') {
     return (
       <Tooltip title={detail}>
-        <Tag color={entry.color} icon={entry.icon}>{entry.label}</Tag>
+        <Tag color={entry.color} icon={entry.icon}>{t(entry.label)}</Tag>
       </Tooltip>
     )
   }
-  return <Tooltip title={`${entry.label} — ${detail}`}>{entry.icon}</Tooltip>
+  return <Tooltip title={`${t(entry.label)} — ${detail}`}>{entry.icon}</Tooltip>
 }

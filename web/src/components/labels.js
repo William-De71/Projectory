@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js'
+
 export const PROJECT_STATUS = {
   idea: { label: 'Idée', color: 'purple' },
   active: { label: 'Actif', color: 'green' },
@@ -42,7 +44,8 @@ export const DOC_STATUS = {
   validated: { label: 'Validée', color: 'green' },
 }
 
-export const options = (map) => Object.entries(map).map(([value, { label }]) => ({ value, label }))
+// Labels are French source texts, translated when rendered (never at module load).
+export const options = (map) => Object.entries(map).map(([value, { label }]) => ({ value, label: t(label) }))
 
 export function formatMinutes(min) {
   const h = Math.floor(min / 60)

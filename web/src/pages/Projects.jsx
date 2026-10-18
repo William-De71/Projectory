@@ -7,6 +7,7 @@ import { PROJECT_STATUS, options } from '../components/labels.js'
 import ProjectCard from '../components/ProjectCard.jsx'
 import ProjectForm from '../components/ProjectForm.jsx'
 import GithubImport from '../components/GithubImport.jsx'
+import { t } from '../i18n/index.js'
 
 export default function Projects() {
   const navigate = useNavigate()
@@ -28,21 +29,21 @@ export default function Projects() {
   return (
     <Flex vertical gap={16}>
       <Flex align="center" gap={12} wrap>
-        <Typography.Title level={3} style={{ margin: 0 }}>Projets</Typography.Title>
-        <Button icon={<CloudDownloadOutlined />} style={{ marginLeft: 'auto' }} onClick={() => setImporting(true)}>Importer des dépôts</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreating({})}>Nouveau projet</Button>
+        <Typography.Title level={3} style={{ margin: 0 }}>{t('Projets')}</Typography.Title>
+        <Button icon={<CloudDownloadOutlined />} style={{ marginLeft: 'auto' }} onClick={() => setImporting(true)}>{t('Importer des dépôts')}</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreating({})}>{t('Nouveau projet')}</Button>
       </Flex>
       <Flex gap={8} wrap align="center">
         <Segmented
           value={category}
           onChange={setCategory}
           options={[
-            { value: 'all', label: `Tous (${data?.length ?? 0})` },
+            { value: 'all', label: t('Tous ({n})', { n: data?.length ?? 0 }) },
             ...(categories || []).map((c) => ({ value: String(c.id), label: <span><span style={{ color: c.color }}>●</span> {c.name}</span> })),
           ]}
         />
-        <Select allowClear placeholder="Statut (hors archivés)" style={{ width: 200 }} value={status} onChange={setStatus} options={options(PROJECT_STATUS)} />
-        <Input.Search placeholder="Filtrer par nom, client, tag…" allowClear onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 280 }} />
+        <Select allowClear placeholder={t('Statut (hors archivés)')} style={{ width: 200 }} value={status} onChange={setStatus} options={options(PROJECT_STATUS)} />
+        <Input.Search placeholder={t('Filtrer par nom, client, tag…')} allowClear onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 280 }} />
       </Flex>
       <Spin spinning={loading}>
         {projects.length ? (
@@ -50,7 +51,7 @@ export default function Projects() {
             {projects.map((p) => <ProjectCard key={p.id} project={p} />)}
           </div>
         ) : (
-          !loading && <Empty description="Aucun projet ici"><Button type="primary" onClick={() => setCreating({})}>Créer un projet</Button></Empty>
+          !loading && <Empty description={t('Aucun projet ici')}><Button type="primary" onClick={() => setCreating({})}>{t('Créer un projet')}</Button></Empty>
         )}
       </Spin>
       <GithubImport open={importing} onClose={() => setImporting(false)} />

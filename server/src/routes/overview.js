@@ -2,6 +2,7 @@ import { decode } from '../db.js'
 import { listProjects } from './projects.js'
 import { syncAll, syncState } from '../sync/index.js'
 import { forgeContext } from '../sync/forges/index.js'
+import { tr } from '../i18n.js'
 
 const REPO_SOURCES = "'github', 'gitlab', 'gitea'"
 const INBOX_SQL = `SELECT x.*, p.name AS project_name FROM inbox x LEFT JOIN projects p ON p.id = x.project_id`
@@ -39,9 +40,9 @@ export default async function overviewRoutes(app, { db }) {
   // Turns a notification (forum topic, issue...) into a tracked item.
   app.post('/inbox/:id/to-item', async (req, reply) => {
     const entry = db.prepare('SELECT * FROM inbox WHERE id = ?').get(Number(req.params.id))
-    if (!entry) return reply.code(404).send({ error: 'Notification introuvable' })
+    if (!entry) return reply.code(404).send({ error: tr('Notification introuvable') })
     const projectId = req.body?.project_id || entry.project_id
-    if (!projectId) return reply.code(400).send({ error: 'Choisis un projet' })
+    if (!projectId) return reply.code(400).send({ error: tr('Choisis un projet') })
     const { lastInsertRowid } = db.prepare(
       `INSERT INTO items (project_id, kind, title, body, priority, source, external_url) VALUES (?, ?, ?, ?, ?, ?, ?)`
     ).run(projectId, req.body?.kind || 'bug', entry.title, entry.excerpt, req.body?.priority || 'normal', entry.source, entry.url)

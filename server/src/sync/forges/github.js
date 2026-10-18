@@ -1,5 +1,6 @@
 import { fetchJson } from '../http.js'
 import { ciConclusion } from './common.js'
+import { tr } from '../../i18n.js'
 
 // GitHub (github.com, or GitHub Enterprise through GITHUB_API_URL).
 export default function github({ token }) {
@@ -79,6 +80,12 @@ export default function github({ token }) {
       return { version: tags[0].name, url: `https://github.com/${repo}/releases/tag/${encodeURIComponent(tags[0].name)}` }
     },
 
+    // Creates the tag on `target` too when it does not exist yet.
+    async createRelease(repo, { tag, name, body, target, draft, prerelease }) {
+      const rel = await gh(`/repos/${repo}/releases`, { method: 'POST', body: { tag_name: tag, name, body, target_commitish: target, draft: !!draft, prerelease: !!prerelease } })
+      return { url: rel.html_url }
+    },
+
     async createIssue(repo, { title, body, labels }) {
       const it = await gh(`/repos/${repo}/issues`, { method: 'POST', body: { title, body, ...(labels?.length ? { labels } : {}) } })
       return { number: it.number, url: it.html_url }
@@ -94,7 +101,7 @@ export default function github({ token }) {
           path = '/user/repos?affiliation=owner&sort=pushed'
         }
       }
-      if (!owner) throw new Error('Indique un utilisateur ou une organisation (ou configure un token)')
+      if (!owner) throw new Error(tr('Indique un utilisateur ou une organisation (ou configure un token)'))
       path ??= `/users/${encodeURIComponent(owner)}/repos?type=owner&sort=pushed`
       const repos = []
       for (let page = 1; page <= 10; page++) {

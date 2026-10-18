@@ -3,6 +3,7 @@ import { Button, Flex, Segmented, Typography } from 'antd'
 import { api, notifyChange, useApi } from '../api/client.js'
 import InboxList from '../components/InboxList.jsx'
 import ProjectSelect from '../components/ProjectSelect.jsx'
+import { t } from '../i18n/index.js'
 
 export default function Inbox() {
   const [scope, setScope] = useState('unread')
@@ -22,20 +23,20 @@ export default function Inbox() {
   return (
     <Flex vertical gap={16}>
       <Flex align="center" gap={12} wrap>
-        <Typography.Title level={3} style={{ margin: 0 }}>Boîte de réception</Typography.Title>
-        <Button style={{ marginLeft: 'auto' }} onClick={markAll} disabled={!data?.some((x) => !x.read_at)}>Tout marquer comme lu</Button>
+        <Typography.Title level={3} style={{ margin: 0 }}>{t('Boîte de réception')}</Typography.Title>
+        <Button style={{ marginLeft: 'auto' }} onClick={markAll} disabled={!data?.some((x) => !x.read_at)}>{t('Tout marquer comme lu')}</Button>
       </Flex>
-      <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-        Nouvelles issues et PR/MR, CI, notifications GitHub perso, nouvelles versions publiées et nouveaux sujets de forum détectés à chaque synchro.
-      </Typography.Paragraph>
+      <Typography.Paragraph type="secondary" style={{ margin: 0 }}>{t(
+        'Nouvelles issues et PR/MR, CI, notifications GitHub perso, nouvelles versions publiées et nouveaux sujets de forum détectés à chaque synchro.'
+      )}</Typography.Paragraph>
       <Flex gap={8} wrap>
-        <Segmented value={scope} onChange={setScope} options={[{ value: 'unread', label: 'Non lus' }, { value: 'all', label: 'Tout' }]} />
+        <Segmented value={scope} onChange={setScope} options={[{ value: 'unread', label: t('Non lus') }, { value: 'all', label: t('Tout') }]} />
         <Segmented
           value={source}
           onChange={setSource}
-          options={[{ value: 'all', label: 'Toutes sources' }, { value: 'repo', label: 'Dépôts' }, { value: 'forum', label: 'Forums' }, { value: 'version', label: 'Versions' }]}
+          options={[{ value: 'all', label: t('Toutes sources') }, { value: 'repo', label: t('Dépôts') }, { value: 'forum', label: t('Forums') }, { value: 'version', label: t('Versions') }]}
         />
-        <ProjectSelect allowClear value={projectId} onChange={setProjectId} style={{ width: 220 }} placeholder="Tous les projets" />
+        <ProjectSelect allowClear value={projectId} onChange={setProjectId} style={{ width: 220 }} placeholder={t('Tous les projets')} />
       </Flex>
       <InboxList entries={data} loading={loading} onChange={reload} />
     </Flex>

@@ -31,7 +31,7 @@ Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 | **Créer une issue depuis un bug** | Un bug remonté par le forum devient une issue sur le dépôt (titre, description, lien du forum, version cible, label). Lien dans les deux sens : quand l'issue est fermée, le bug passe à « Terminé ». |
 | **État de la CI** | GitHub Actions (dernier run de chaque workflow), pipelines GitLab, statuts de commit Gitea/Forgejo (Actions, Woodpecker, Drone) sur la branche principale : pastille verte/rouge, alerte au tableau de bord, notification quand la CI casse puis repasse au vert. |
 | **Notifications GitHub perso** | Reviews demandées, mentions, assignations, réponses sur tes issues/PR (ex. vers GladysAssistant/Gladys), rattachées au projet suivi correspondant. Nécessite un token classique avec le scope `notifications`. |
-| **Versions & changelog** | Onglet **Versions** par projet : jalons (1.2.0, 1.3.0…) avec date prévue, progression, éléments planifiés et non planifiés. **Publier** une version génère son changelog Markdown (nouveautés / corrections / autres) à copier, télécharger ou garder en note ; changelog complet du projet en un clic. |
+| **Versions & changelog** | Onglet **Versions** par projet : jalons (1.2.0, 1.3.0…) avec date prévue, progression, éléments planifiés et non planifiés. **Publier** une version génère son changelog Markdown (nouveautés / corrections / autres) à copier, télécharger ou garder en note, et peut créer directement la **release sur GitHub, GitLab ou Gitea / Forgejo** (tag, brouillon, pré-version) avec ce changelog en description ; changelog complet du projet en un clic. |
 | **Notifications push ntfy** | Nouveautés envoyées sur ton téléphone via [ntfy](https://ntfy.sh) (serveur public ou auto-hébergé, token supporté), choix des événements, regroupement au-delà de 3 nouveautés, projets rendus muets individuellement. |
 | **Veille des versions** | Dernière release/tag du dépôt (toute forge), d'un autre dépôt GitHub, d'un paquet npm ou d'une image Docker Hub, comparée à la version que *tu* utilises/déploies → badge « mise à jour disponible » et notification. |
 | **Bugs remontés par un forum** | Forums **Discourse** (ex. [forum Gladys](https://community.gladysassistant.com) : catégorie, tag ou recherche) et **flux RSS/Atom** (filtre par mots-clés). Un clic transforme un sujet en bug suivi. |
@@ -44,7 +44,7 @@ Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 | **Recherche globale** | Projets, bugs, specs, notes, issues et PR des dépôts. |
 | **Export** | JSON complet en un clic, ou copie du fichier `data/projectory.db`. |
 
-Thème clair/sombre, interface en français, utilisable sur mobile.
+Thème clair/sombre, interface **en français ou en anglais** (bouton FR / EN en haut à droite ; le changelog, les notifications et les messages suivent la langue choisie), utilisable sur mobile.
 
 ### Aperçu
 
@@ -101,6 +101,7 @@ Ouvre http://localhost:3001. Les données sont dans `./data/projectory.db`.
 | `PROJECTORY_PORT` | `3001` | Port exposé sur l'hôte. |
 | `NTFY_SERVER`, `NTFY_TOPIC`, `NTFY_TOKEN` | `https://ntfy.sh`, —, — | Valeurs par défaut des notifications ; se règlent plutôt dans **Paramètres → Notifications push**. |
 | `APP_URL` | — | Adresse de Projectory (ex. `http://192.168.1.10:3001`), utilisée par les liens des notifications. |
+| `APP_LANG` | `fr` | Langue par défaut côté serveur (`fr` ou `en`) tant qu'aucune n'a été choisie dans l'interface. |
 | `LOG_LEVEL` | `info` | Niveau de logs. |
 
 ### Sauvegarde
@@ -181,12 +182,3 @@ projectory/
 ```
 
 Inspiré dans l'esprit de [portfolio-manager](https://github.com/AymericLeFeyer/portfolio-manager) (Fastify + React/Ant Design, CRUD en tiroirs, docker-compose), mais écrit de zéro.
-
----
-
-## Idées pour la suite
-
-- Notifications perso GitLab (todos) et Gitea / Forgejo
-- Facturation : taux horaire par projet freelance, export CSV du temps passé
-- Publier la release sur la forge directement depuis l'onglet Versions
-- Import des notes depuis le bloc-notes (copier-coller → découpage en notes)

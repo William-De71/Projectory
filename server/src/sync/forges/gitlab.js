@@ -1,5 +1,6 @@
 import { fetchJson } from '../http.js'
 import { ciConclusion, paginate } from './common.js'
+import { tr } from '../../i18n.js'
 
 const PIPELINE_STATE = {
   success: ['completed', 'success'],
@@ -72,6 +73,12 @@ export default function gitlab({ url = 'https://gitlab.com', token }) {
       return tag ? { version: tag.name, url: `${base}/${repo}/-/tags/${encodeURIComponent(tag.name)}` } : null
     },
 
+    // GitLab has no draft releases; `ref` creates the tag when missing.
+    async createRelease(repo, { tag, name, body, target }) {
+      const rel = await api(`/projects/${pid(repo)}/releases`, { method: 'POST', body: { tag_name: tag, name, description: body, ref: target } })
+      return { url: rel._links?.self || `${base}/${repo}/-/releases/${encodeURIComponent(tag)}` }
+    },
+
     async createIssue(repo, { title, body, labels }) {
       const it = await api(`/projects/${pid(repo)}/issues`, { method: 'POST', body: { title, description: body, ...(labels?.length ? { labels: labels.join(',') } : {}) } })
       return { number: it.iid, url: it.web_url }
@@ -82,7 +89,7 @@ export default function gitlab({ url = 'https://gitlab.com', token }) {
       const page = (path) => paginate((n) => api(`${path}${path.includes('?') ? '&' : '?'}per_page=100&page=${n}`), 100)
       let projects
       if (!owner) {
-        if (!token) throw new Error('Indique un utilisateur ou un groupe (ou configure un token)')
+        if (!token) throw new Error(tr('Indique un utilisateur ou un groupe (ou configure un token)'))
         projects = await page('/projects?owned=true&order_by=last_activity_at')
         owner = projects[0]?.namespace?.full_path || ''
       } else {

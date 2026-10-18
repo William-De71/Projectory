@@ -1,4 +1,5 @@
 import { getConfig } from '../db.js'
+import { tr } from '../i18n.js'
 
 export const NOTIFY_EVENTS = {
   issue: 'Nouvelle issue',
@@ -32,14 +33,14 @@ export function ntfyConfig(db) {
 
 // Uses ntfy's JSON publishing so titles and messages can hold any UTF-8.
 export async function sendNtfy(config, { title, message, tags = [], priority = 3, click }) {
-  if (!config.topic) throw new Error('Topic ntfy non configuré')
+  if (!config.topic) throw new Error(tr('Topic ntfy non configuré'))
   const res = await fetch(config.server.replace(/\/+$/, ''), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}) },
     body: JSON.stringify({ topic: config.topic, title, message, tags, priority, ...(click ? { click } : {}) }),
     signal: AbortSignal.timeout(10000),
   })
-  if (!res.ok) throw new Error(`ntfy a répondu ${res.status} : ${(await res.text()).slice(0, 200)}`)
+  if (!res.ok) throw new Error(tr('ntfy a répondu {status} : {body}', { status: res.status, body: (await res.text()).slice(0, 200) }))
 }
 
 export function buildMessages(project, entries, config) {
@@ -48,10 +49,10 @@ export function buildMessages(project, entries, config) {
   const appUrl = config.app_url.replace(/\/+$/, '')
   const projectUrl = !appUrl ? undefined : project.id ? `${appUrl}/projects/${project.id}/inbox` : `${appUrl}/inbox`
   if (wanted.length > GROUP_THRESHOLD) {
-    const lines = wanted.slice(0, 6).map((e) => `• ${NOTIFY_EVENTS[eventOf(e)]} : ${e.title}`)
-    if (wanted.length > 6) lines.push(`… et ${wanted.length - 6} autre(s)`)
+    const lines = wanted.slice(0, 6).map((e) => `• ${tr(NOTIFY_EVENTS[eventOf(e)])} : ${e.title}`)
+    if (wanted.length > 6) lines.push(tr('… et {n} autre(s)', { n: wanted.length - 6 }))
     return [{
-      title: `${project.name} : ${wanted.length} nouveautés`,
+      title: tr('{project} : {n} nouveautés', { project: project.name, n: wanted.length }),
       message: lines.join('\n'),
       tags: ['bell'],
       priority: Math.max(...wanted.map((e) => PRIORITY[eventOf(e)] || 3)),
@@ -59,7 +60,7 @@ export function buildMessages(project, entries, config) {
     }]
   }
   return wanted.map((e) => ({
-    title: `${project.name} — ${NOTIFY_EVENTS[eventOf(e)]}`,
+    title: `${project.name} — ${tr(NOTIFY_EVENTS[eventOf(e)])}`,
     message: [e.title, e.excerpt].filter(Boolean).join('\n').slice(0, 500),
     tags: [TAGS[eventOf(e)]],
     priority: PRIORITY[eventOf(e)] || 3,
