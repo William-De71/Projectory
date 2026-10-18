@@ -179,7 +179,9 @@ export default function RoadmapPanel({ projectId }) {
             </Flex>
           }
         >
-          <Progress percent={m.total ? Math.round((m.done / m.total) * 100) : 0} format={() => `${m.done} / ${m.total}`} status={m.status === 'released' ? 'success' : 'active'} />
+          {m.total > 0
+            ? <Progress percent={Math.round((m.done / m.total) * 100)} format={() => `${m.done} / ${m.total}`} status={m.status === 'released' ? 'success' : 'active'} />
+            : <Typography.Text type="secondary">Aucun élément rattaché à cette version.</Typography.Text>}
           {m.description && <Typography.Paragraph type="secondary" style={{ marginTop: 8 }}>{m.description}</Typography.Paragraph>}
           {!!m.items.length && (
             <List
