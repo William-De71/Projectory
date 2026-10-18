@@ -12,8 +12,8 @@ jobs:
     name: API — tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -23,14 +23,14 @@ jobs:
       - run: npm test
         working-directory: server
       - name: Scripts de release
-        run: node --test .github/scripts/
+        run: node --test .github/scripts/*.test.mjs
 
   web:
     name: Front — build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm

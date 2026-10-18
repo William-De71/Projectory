@@ -12,5 +12,5 @@
 - Réglages applicatifs : `getConfig` / `setConfig` (clés `config:*` de la table `settings`). Le token ntfy n'est jamais renvoyé au front (`token_set`).
 - Les tests suppriment `GITHUB_TOKEN` & co de l'environnement : garder ce bloc en tête de chaque fichier de test.
 - Après une mutation côté front, appeler `notifyChange()` pour rafraîchir les composants qui écoutent (`useApi(url, { listen: true })`).
-- Tests : `cd server && npm test` (fetch simulé, base en mémoire) et `node --test .github/scripts/`. Build front : `cd web && npm run build`. Workflows : `actionlint`.
+- Tests : `cd server && npm test` (fetch simulé, base en mémoire) et `node --test .github/scripts/*.test.mjs`. Build front : `cd web && npm run build`. Workflows : `actionlint`.
 - Commits : préfixes `feat:` / `fix:` — le workflow Release s'en sert pour classer le changelog. Ne pas modifier la version des `package.json` à la main : c'est le workflow Release qui le fait.
