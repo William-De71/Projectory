@@ -22,7 +22,7 @@ dayjs.locale('fr')
 
 function readDark() {
   try {
-    const saved = localStorage.getItem('devdeck:dark')
+    const saved = localStorage.getItem('projectory:dark')
     if (saved !== null) return saved === '1'
   } catch { /* storage unavailable */ }
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
@@ -32,7 +32,7 @@ export default function App() {
   const [dark, setDark] = useState(readDark)
   const toggleDark = () => {
     setDark((d) => {
-      try { localStorage.setItem('devdeck:dark', d ? '0' : '1') } catch { /* ignore */ }
+      try { localStorage.setItem('projectory:dark', d ? '0' : '1') } catch { /* ignore */ }
       return !d
     })
   }

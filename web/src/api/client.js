@@ -19,12 +19,12 @@ export const api = {
 }
 
 // Lets any page tell the others (menu badge, dashboard...) that data changed.
-export const notifyChange = () => window.dispatchEvent(new Event('devdeck:change'))
+export const notifyChange = () => window.dispatchEvent(new Event('projectory:change'))
 
 export function useChangeListener(callback) {
   useEffect(() => {
-    window.addEventListener('devdeck:change', callback)
-    return () => window.removeEventListener('devdeck:change', callback)
+    window.addEventListener('projectory:change', callback)
+    return () => window.removeEventListener('projectory:change', callback)
   }, [callback])
 }
 

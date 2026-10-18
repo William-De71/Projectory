@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🗂️ DevDeck
+# 🗂️ Projectory
 
 **Suivi de tous tes projets de dev au même endroit : GitHub, versions, bugs du forum, specs, notes et temps passé.**
 
@@ -25,7 +25,7 @@ Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 | **Boîte de réception** | Tout ce qui est nouveau depuis la dernière synchro, lu/non lu, filtres par source et projet. |
 | **Tableau de bord** | Chiffres clés, nouveautés, prioritaire / échéances proches, mises à jour dispo, PR récentes, erreurs de synchro. |
 | **Recherche globale** | Projets, bugs, specs, notes, issues GitHub. |
-| **Export** | JSON complet en un clic, ou copie du fichier `data/devdeck.db`. |
+| **Export** | JSON complet en un clic, ou copie du fichier `data/projectory.db`. |
 
 Thème clair/sombre, interface en français, utilisable sur mobile.
 
@@ -36,12 +36,12 @@ Thème clair/sombre, interface en français, utilisable sur mobile.
 ## Démarrage avec Docker (recommandé)
 
 ```bash
-git clone <ce-depot> devdeck && cd devdeck
+git clone https://github.com/William-De71/projectory.git && cd projectory
 cp .env.example .env        # puis renseigne GITHUB_TOKEN (conseillé)
 docker compose up -d --build
 ```
 
-Ouvre http://localhost:3001. Les données sont dans `./data/devdeck.db`.
+Ouvre http://localhost:3001. Les données sont dans `./data/projectory.db`.
 
 Mise à jour : `git pull && docker compose up -d --build`.
 
@@ -52,12 +52,12 @@ Mise à jour : `git pull && docker compose up -d --build`.
 | `GITHUB_TOKEN` | — | Token GitHub. Sans token : 60 requêtes/heure et dépôts publics seulement. Un *fine-grained token* en lecture seule suffit (Metadata, Issues, Pull requests, Contents). |
 | `SYNC_INTERVAL_MINUTES` | `30` | Synchro automatique (0 = uniquement via le bouton 🔄). |
 | `APP_PASSWORD` | — | Active une authentification HTTP basique (identifiant libre). À mettre si l'app est exposée hors de ton réseau. |
-| `DEVDECK_PORT` | `3001` | Port exposé sur l'hôte. |
+| `PROJECTORY_PORT` | `3001` | Port exposé sur l'hôte. |
 | `LOG_LEVEL` | `info` | Niveau de logs. |
 
 ### Sauvegarde
 
-Copie `data/devdeck.db` (idéalement app arrêtée, ou via `sqlite3 data/devdeck.db ".backup backup.db"`), ou utilise **Paramètres → Exporter en JSON**.
+Copie `data/projectory.db` (idéalement app arrêtée, ou via `sqlite3 data/projectory.db ".backup backup.db"`), ou utilise **Paramètres → Exporter en JSON**.
 
 ---
 
@@ -97,7 +97,7 @@ cd server && npm test
 ### Architecture
 
 ```
-devdeck/
+projectory/
 ├── server/                 Fastify 5, ESM, node:sqlite
 │   ├── src/
 │   │   ├── index.js        démarrage + planificateur de synchro
@@ -108,7 +108,7 @@ devdeck/
 │   └── test/
 ├── web/                    React 19 + Vite + Ant Design 6
 │   └── src/{pages,components,api}
-├── data/                   volume : devdeck.db
+├── data/                   volume : projectory.db
 ├── Dockerfile              une seule image : build du front + API qui le sert
 └── docker-compose.yml
 ```

@@ -86,7 +86,7 @@ export default function Settings() {
         </Typography.Paragraph>
       </Card>
       <Card size="small" title="Sauvegarde">
-        <Typography.Paragraph>Toutes les données sont dans <code>data/devdeck.db</code> (SQLite). Tu peux aussi exporter un JSON lisible :</Typography.Paragraph>
+        <Typography.Paragraph>Toutes les données sont dans <code>data/projectory.db</code> (SQLite). Tu peux aussi exporter un JSON lisible :</Typography.Paragraph>
         <Button icon={<DownloadOutlined />} href="/api/export">Exporter en JSON</Button>
       </Card>
     </Flex>

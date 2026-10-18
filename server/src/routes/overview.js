@@ -99,7 +99,7 @@ export default async function overviewRoutes(app, { db }) {
   app.get('/export', async (req, reply) => {
     const tables = ['categories', 'projects', 'items', 'docs', 'time_entries', 'inbox']
     const data = Object.fromEntries(tables.map((t) => [t, db.prepare(`SELECT * FROM ${t}`).all().map(decode)]))
-    reply.header('Content-Disposition', `attachment; filename="devdeck-${new Date().toISOString().slice(0, 10)}.json"`)
+    reply.header('Content-Disposition', `attachment; filename="projectory-${new Date().toISOString().slice(0, 10)}.json"`)
     return { exported_at: new Date().toISOString(), ...data }
   })
 }

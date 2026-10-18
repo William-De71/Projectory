@@ -1,9 +1,9 @@
 services:
-  devdeck:
+  projectory:
     build: .
-    container_name: devdeck
+    container_name: projectory
     ports:
-      - "${DEVDECK_PORT:-3001}:3001"
+      - "${PROJECTORY_PORT:-3001}:3001"
     volumes:
       - ./data:/data
     env_file:

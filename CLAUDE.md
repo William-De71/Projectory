@@ -1,4 +1,4 @@
-# DevDeck — notes pour Claude
+# Projectory — notes pour Claude
 
 - Mono-repo : `server/` (Fastify 5, ESM, `node:sqlite`, aucune dépendance native) et `web/` (React 19, Vite, Ant Design 6). Une seule image Docker : le serveur sert `web/dist`.
 - UI et messages d'erreur en français ; commentaires de code en anglais.

@@ -127,7 +127,7 @@ const MIGRATIONS = [
   `,
 ]
 
-export function openDb(file = join(DATA_PATH, 'devdeck.db')) {
+export function openDb(file = join(DATA_PATH, 'projectory.db')) {
   if (file !== ':memory:') mkdirSync(DATA_PATH, { recursive: true })
   const db = new DatabaseSync(file)
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;')

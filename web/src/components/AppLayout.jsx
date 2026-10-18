@@ -100,7 +100,7 @@ export default function AppLayout({ dark, onToggleDark }) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider breakpoint="lg" collapsedWidth="0" width={230} zeroWidthTriggerStyle={{ top: 12, zIndex: 20 }} theme={dark ? 'dark' : 'light'} style={{ borderRight: `1px solid ${token.colorBorderSecondary}` }}>
-        <div style={{ padding: '18px 20px', fontWeight: 700, fontSize: 18 }}>🗂️ DevDeck</div>
+        <div style={{ padding: '18px 20px', fontWeight: 700, fontSize: 18 }}>🗂️ Projectory</div>
         <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={({ key }) => navigate(key)} style={{ borderInlineEnd: 0 }} />
       </Sider>
       <Layout>

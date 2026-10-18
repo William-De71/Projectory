@@ -1,4 +1,4 @@
-const USER_AGENT = 'devdeck (+https://github.com)'
+const USER_AGENT = 'projectory (+https://github.com/William-De71/projectory)'
 
 export class HttpError extends Error {
   constructor(url, status, body) {

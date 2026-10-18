@@ -24,7 +24,7 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
     app.addHook('onRequest', async (req, reply) => {
       if (req.url === '/api/health') return
       if (!checkPassword(req.headers.authorization, password)) {
-        return reply.code(401).header('WWW-Authenticate', 'Basic realm="devdeck"').send({ error: 'Authentification requise' })
+        return reply.code(401).header('WWW-Authenticate', 'Basic realm="projectory"').send({ error: 'Authentification requise' })
       }
     })
   }
