@@ -8,7 +8,9 @@ RUN npm run build
 
 # ---- Runtime: API + static front-end ----
 FROM node:22-alpine
-ENV NODE_ENV=production \
+ARG VERSION=dev
+ENV APP_VERSION=$VERSION \
+    NODE_ENV=production \
     DATA_PATH=/data \
     WEB_DIST=/app/web/dist \
     PORT=3001

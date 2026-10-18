@@ -7,9 +7,11 @@ export class HttpError extends Error {
   }
 }
 
-export async function fetchText(url, { headers = {}, timeout = 15000 } = {}) {
+export async function fetchText(url, { headers = {}, timeout = 15000, method = 'GET', body } = {}) {
   const res = await fetch(url, {
-    headers: { 'User-Agent': USER_AGENT, ...headers },
+    method,
+    headers: { 'User-Agent': USER_AGENT, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(timeout),
   })
   const text = await res.text()

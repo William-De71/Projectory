@@ -1,14 +1,19 @@
 import { XMLParser } from 'fast-xml-parser'
 import { fetchJson, fetchText, looksLikeVersion } from './http.js'
-import { latestGithubVersion } from './github.js'
 
 // ---- Versions -------------------------------------------------------------
 
-export async function latestVersion(source, projectRepo) {
+// `forges.project` is the project's own forge adapter, `forges.github` a
+// GitHub adapter for "github" sources pointing at another repository.
+export async function latestVersion(source, { repo, forges }) {
   const ref = (source.ref || '').trim()
   switch (source.type) {
+    case 'repo':
+      if (!repo) throw new Error('Aucun dépôt configuré pour ce projet')
+      return forges.project.latestRelease(repo)
     case 'github':
-      return latestGithubVersion(ref || projectRepo)
+      if (!ref && !repo) throw new Error('Indique owner/repo')
+      return (ref ? forges.github : forges.project).latestRelease(ref || repo)
     case 'npm': {
       const data = await fetchJson(`https://registry.npmjs.org/${ref.replace('/', '%2F')}/latest`)
       return { version: data.version, url: `https://www.npmjs.com/package/${ref}` }

@@ -31,6 +31,8 @@ export const SOURCE = {
   manual: { label: 'Manuel', color: 'default' },
   forum: { label: 'Forum', color: 'cyan' },
   github: { label: 'GitHub', color: 'geekblue' },
+  gitlab: { label: 'GitLab', color: 'orange' },
+  gitea: { label: 'Gitea', color: 'green' },
   version: { label: 'Version', color: 'magenta' },
 }
 
@@ -47,3 +49,25 @@ export function formatMinutes(min) {
   const m = min % 60
   return h ? `${h} h${m ? ` ${String(m).padStart(2, '0')}` : ''}` : `${m} min`
 }
+
+export const FORGES = {
+  github: { label: 'GitHub', defaultUrl: 'https://github.com' },
+  gitlab: { label: 'GitLab', defaultUrl: 'https://gitlab.com' },
+  gitea: { label: 'Gitea / Forgejo', defaultUrl: '' },
+}
+
+export const MILESTONE_STATUS = {
+  planned: { label: 'Prévue', color: 'blue' },
+  released: { label: 'Publiée', color: 'green' },
+}
+
+// Web page of a project's repository on its forge.
+export function repoUrl(p) {
+  if (!p?.repo) return null
+  if (p.github?.html_url) return p.github.html_url
+  const base = (p.forge === 'github' || !p.forge ? 'https://github.com' : p.forge_url || FORGES[p.forge]?.defaultUrl || '').replace(/\/+$/, '')
+  return `${base}/${p.repo}`
+}
+
+// "!12" for GitLab merge requests, "#12" everywhere else.
+export const refLabel = (forge, type, number) => `${forge === 'gitlab' && type === 'pr' ? '!' : '#'}${number}`

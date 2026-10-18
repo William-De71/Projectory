@@ -26,14 +26,14 @@ export default function Inbox() {
         <Button style={{ marginLeft: 'auto' }} onClick={markAll} disabled={!data?.some((x) => !x.read_at)}>Tout marquer comme lu</Button>
       </Flex>
       <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-        Nouvelles issues et PR GitHub, nouvelles versions publiées et nouveaux sujets de forum détectés à chaque synchro.
+        Nouvelles issues et PR/MR, CI, notifications GitHub perso, nouvelles versions publiées et nouveaux sujets de forum détectés à chaque synchro.
       </Typography.Paragraph>
       <Flex gap={8} wrap>
         <Segmented value={scope} onChange={setScope} options={[{ value: 'unread', label: 'Non lus' }, { value: 'all', label: 'Tout' }]} />
         <Segmented
           value={source}
           onChange={setSource}
-          options={[{ value: 'all', label: 'Toutes sources' }, { value: 'github', label: 'GitHub' }, { value: 'forum', label: 'Forums' }, { value: 'version', label: 'Versions' }]}
+          options={[{ value: 'all', label: 'Toutes sources' }, { value: 'repo', label: 'Dépôts' }, { value: 'forum', label: 'Forums' }, { value: 'version', label: 'Versions' }]}
         />
         <ProjectSelect allowClear value={projectId} onChange={setProjectId} style={{ width: 220 }} placeholder="Tous les projets" />
       </Flex>

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Badge, Card, Flex, Tag, Tooltip, Typography } from 'antd'
-import { BugOutlined, GithubOutlined, PullRequestOutlined, PushpinFilled, WarningOutlined } from '@ant-design/icons'
+import { BugOutlined, PullRequestOutlined, PushpinFilled, WarningOutlined } from '@ant-design/icons'
+import ForgeIcon from './ForgeIcon.jsx'
 import { PROJECT_STATUS } from './labels.js'
 import { CategoryTag, LabelTag } from './Tags.jsx'
 import CiStatus from './CiStatus.jsx'
@@ -36,8 +37,8 @@ export default function ProjectCard({ project: p }) {
           {p.description && <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ marginBottom: 0, fontSize: 13 }}>{stripMarkdown(p.description)}</Typography.Paragraph>}
           <Flex gap={14} wrap style={{ fontSize: 13 }}>
             <Tooltip title="Bugs / tâches ouverts"><span><BugOutlined /> {p.open_items}</span></Tooltip>
-            {p.repo && <Tooltip title="Issues GitHub ouvertes"><span><GithubOutlined /> {p.open_issues}</span></Tooltip>}
-            {p.repo && <Tooltip title="PR ouvertes"><span><PullRequestOutlined /> {p.open_prs}</span></Tooltip>}
+            {p.repo && <Tooltip title="Issues ouvertes sur le dépôt"><span><ForgeIcon forge={p.forge} /> {p.open_issues}</span></Tooltip>}
+            {p.repo && <Tooltip title={p.forge === 'gitlab' ? 'MR ouvertes' : 'PR ouvertes'}><span><PullRequestOutlined /> {p.open_prs}</span></Tooltip>}
             <CiStatus ci={p.github?.ci} />
             {(latest || p.deployed_version) && (
               <Tooltip title={p.deployed_version ? `Utilisée : ${p.deployed_version} — dernière : ${latest || '?'}` : 'Dernière version publiée'}>

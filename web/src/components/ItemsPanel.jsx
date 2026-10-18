@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { App, Button, Card, DatePicker, Drawer, Empty, Flex, Form, Input, Popconfirm, Segmented, Select, Table, Tag, Typography } from 'antd'
-import { LinkOutlined, PlusOutlined } from '@ant-design/icons'
+import { Alert, App, Button, Card, DatePicker, Drawer, Empty, Flex, Form, Input, Popconfirm, Segmented, Select, Table, Tag, Tooltip, Typography } from 'antd'
+import { IssuesCloseOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { ITEM_KIND, ITEM_STATUS, PRIORITY, SOURCE, options } from './labels.js'
@@ -9,10 +9,54 @@ import { LabelTag } from './Tags.jsx'
 import Markdown from './Markdown.jsx'
 import ProjectSelect from './ProjectSelect.jsx'
 
+// Opens an issue on the project's forge; the issue link then lives on the item.
+function IssueLink({ item, onLinked }) {
+  const { message } = App.useApp()
+  const [creating, setCreating] = useState(false)
+  if (!item?.id) return null
+  if (item.issue_url) {
+    return (
+      <Alert
+        type="info"
+        showIcon
+        icon={<IssuesCloseOutlined />}
+        style={{ marginBottom: 16 }}
+        message={<>Issue liée : <a href={item.issue_url} target="_blank" rel="noreferrer">{item.issue_number ? `#${item.issue_number}` : item.issue_url}</a></>}
+        description="Quand l'issue est fermée sur la forge, cet élément passe automatiquement à « Terminé » à la synchro suivante."
+      />
+    )
+  }
+  const create = async () => {
+    setCreating(true)
+    try {
+      const updated = await api.post(`/items/${item.id}/issue`, { labels: item.kind === 'bug' ? ['bug'] : item.kind === 'feature' ? ['enhancement'] : [] })
+      message.success(`Issue #${updated.issue_number} créée`)
+      notifyChange()
+      onLinked(updated)
+    } catch (err) {
+      message.error(err.message)
+    } finally {
+      setCreating(false)
+    }
+  }
+  return (
+    <Popconfirm
+      title="Créer l'issue sur le dépôt du projet ?"
+      description="Titre et description sont repris, avec le lien du forum et la version cible. Les modifications non enregistrées ne sont pas incluses."
+      onConfirm={create}
+    >
+      <Button icon={<IssuesCloseOutlined />} loading={creating} style={{ marginBottom: 16 }}>Créer l'issue sur le dépôt</Button>
+    </Popconfirm>
+  )
+}
+
 export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const [linked, setLinked] = useState(null)
+  useEffect(() => setLinked(null), [item])
+  const current = linked || item
 
   useEffect(() => {
     if (!item) return
@@ -55,6 +99,7 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
         </Flex>
       }
     >
+      <IssueLink item={current} onLinked={setLinked} />
       <Form form={form} layout="vertical">
         {withProjectPicker && (
           <Form.Item name="project_id" label="Projet" rules={[{ required: true, message: 'Projet obligatoire' }]}>
@@ -156,6 +201,11 @@ export default function ItemsPanel({ projectId }) {
         <Flex vertical gap={2}>
           <Flex gap={6} align="center">
             <Typography.Link onClick={() => setEditing(it)} delete={it.status === 'wontfix'}>{title}</Typography.Link>
+            {it.issue_url && (
+              <Tooltip title="Issue sur le dépôt">
+                <a href={it.issue_url} target="_blank" rel="noreferrer"><Tag style={{ marginInlineEnd: 0 }}>{it.issue_number ? `#${it.issue_number}` : 'issue'}</Tag></a>
+              </Tooltip>
+            )}
             {it.external_url && <a href={it.external_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}><LinkOutlined /></a>}
           </Flex>
           {!projectId && <Link to={`/projects/${it.project_id}/items`} style={{ fontSize: 12, opacity: 0.7 }}>{it.project_name}</Link>}

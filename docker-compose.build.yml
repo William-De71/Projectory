@@ -1,0 +1,9 @@
+# Build the image from the local sources instead of pulling it:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  projectory:
+    image: projectory:local
+    build:
+      context: .
+      args:
+        VERSION: local

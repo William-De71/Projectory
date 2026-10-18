@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { timingSafeEqual } from 'node:crypto'
 import Fastify from 'fastify'
@@ -7,6 +7,10 @@ import projectRoutes from './routes/projects.js'
 import contentRoutes from './routes/content.js'
 import overviewRoutes from './routes/overview.js'
 import integrationRoutes from './routes/integrations.js'
+import milestoneRoutes from './routes/milestones.js'
+
+// Set by the Docker build (release tag or dev-<sha>); package.json otherwise.
+export const APP_VERSION = process.env.APP_VERSION || JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version
 
 function checkPassword(header, password) {
   const [scheme, encoded] = String(header || '').split(' ')
@@ -37,11 +41,12 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
     reply.code(status).send({ error: err.message })
   })
 
-  app.get('/api/health', async () => ({ ok: true }))
+  app.get('/api/health', async () => ({ ok: true, version: APP_VERSION }))
   await app.register(projectRoutes, { prefix: '/api', db })
   await app.register(contentRoutes, { prefix: '/api', db })
   await app.register(overviewRoutes, { prefix: '/api', db })
   await app.register(integrationRoutes, { prefix: '/api', db })
+  await app.register(milestoneRoutes, { prefix: '/api', db })
 
   // In production the built front-end is served by the same process.
   if (webDist && existsSync(webDist)) {

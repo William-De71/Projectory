@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { App, Button, Divider, Drawer, Flex, Form, Input, Popconfirm, Select, Switch, Typography } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { api, notifyChange, useApi } from '../api/client.js'
-import { PROJECT_STATUS, options } from './labels.js'
+import { FORGES, PROJECT_STATUS, options } from './labels.js'
 
 const VERSION_TYPES = [
-  { value: 'github', label: 'GitHub release/tag', placeholder: 'owner/repo (vide = dépôt du projet)' },
+  { value: 'repo', label: 'Releases du dépôt', placeholder: 'dépôt configuré ci-dessus (GitHub, GitLab ou Gitea)', noRef: true },
+  { value: 'github', label: 'Release GitHub (autre dépôt)', placeholder: 'owner/repo' },
   { value: 'npm', label: 'Paquet npm', placeholder: 'ex. fastify' },
   { value: 'docker', label: 'Image Docker Hub', placeholder: 'ex. gladysassistant/gladys' },
 ]
@@ -40,12 +41,13 @@ export default function ProjectForm({ project, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const { data: categories } = useApi('/categories')
   const forumSources = Form.useWatch('forum_sources', form) || []
+  const forge = Form.useWatch('forge', form) || 'github'
 
   useEffect(() => {
     if (!project) return
     form.resetFields()
     form.setFieldsValue({
-      status: 'active', tags: [], links: [], version_sources: [], forum_sources: [], pinned: false, notify: true,
+      status: 'active', tags: [], links: [], version_sources: [], forum_sources: [], pinned: false, notify: true, forge: 'github', forge_url: '',
       ...project,
     })
   }, [project, form])
@@ -121,10 +123,20 @@ export default function ProjectForm({ project, onClose, onSaved }) {
           <Input.TextArea autoSize={{ minRows: 2, maxRows: 8 }} />
         </Form.Item>
 
-        <Divider titlePlacement="start">GitHub & liens</Divider>
+        <Divider titlePlacement="start">Dépôt & liens</Divider>
         <Flex gap={12} wrap>
-          <Form.Item name="repo" label="Dépôt GitHub" style={{ flex: 1, minWidth: 220 }} extra="owner/repo ou URL — issues et PR ouvertes seront suivies">
-            <Input placeholder="GladysAssistant/Gladys" />
+          <Form.Item name="forge" label="Forge" style={{ width: 170 }}>
+            <Select options={Object.entries(FORGES).map(([value, f]) => ({ value, label: f.label }))} onChange={(f) => form.setFieldValue('forge_url', FORGES[f].defaultUrl === 'https://github.com' ? '' : FORGES[f].defaultUrl)} />
+          </Form.Item>
+          {forge !== 'github' && (
+            <Form.Item name="forge_url" label="Adresse de l'instance" style={{ flex: 1, minWidth: 220 }} rules={[{ required: true, message: 'Adresse obligatoire' }, { type: 'url', message: 'URL invalide' }]}>
+              <Input placeholder={forge === 'gitlab' ? 'https://gitlab.com' : 'https://git.mondomaine.fr'} />
+            </Form.Item>
+          )}
+        </Flex>
+        <Flex gap={12} wrap>
+          <Form.Item name="repo" label="Dépôt" style={{ flex: 1, minWidth: 220 }} extra={`${forge === 'gitlab' ? 'groupe/projet' : 'owner/repo'} ou URL — issues, ${forge === 'gitlab' ? 'MR' : 'PR'} et CI seront suivies`}>
+            <Input placeholder={forge === 'gitlab' ? 'mon-groupe/mon-projet' : 'GladysAssistant/Gladys'} />
           </Form.Item>
           <Form.Item name="homepage" label="Site / démo" style={{ flex: 1, minWidth: 220 }}>
             <Input placeholder="https://…" />
@@ -143,16 +155,16 @@ export default function ProjectForm({ project, onClose, onSaved }) {
         <Form.Item name="deployed_version" label="Version utilisée / déployée chez toi" extra="Comparée aux dernières versions publiées ci-dessous pour signaler une mise à jour">
           <Input placeholder="ex. 4.45.0" style={{ maxWidth: 200 }} />
         </Form.Item>
-        <SourceList name="version_sources" addLabel="Surveiller une version" initial={{ type: 'github', ref: '' }}>
+        <SourceList name="version_sources" addLabel="Surveiller une version" initial={{ type: 'repo', ref: '' }}>
           {(field) => (
             <>
               <Form.Item name={[field.name, 'type']} style={{ marginBottom: 0, width: 190 }}><Select options={VERSION_TYPES} /></Form.Item>
               <Form.Item noStyle shouldUpdate>
                 {() => {
-                  const t = form.getFieldValue(['version_sources', field.name, 'type'])
+                  const type = VERSION_TYPES.find((v) => v.value === form.getFieldValue(['version_sources', field.name, 'type']))
                   return (
                     <Form.Item name={[field.name, 'ref']} style={{ marginBottom: 0, flex: 1, minWidth: 200 }}>
-                      <Input placeholder={VERSION_TYPES.find((v) => v.value === t)?.placeholder} />
+                      <Input placeholder={type?.placeholder} disabled={type?.noRef} />
                     </Form.Item>
                   )
                 }}

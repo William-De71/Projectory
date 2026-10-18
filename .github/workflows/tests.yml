@@ -1,0 +1,41 @@
+name: Tests
+
+# Reusable: called by CI (every push / PR) and by Release.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    name: API — tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      - run: npm test
+        working-directory: server
+      - name: Scripts de release
+        run: node --test .github/scripts/*.test.mjs
+
+  web:
+    name: Front — build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run build
+        working-directory: web

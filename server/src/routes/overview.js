@@ -1,7 +1,9 @@
 import { decode } from '../db.js'
 import { listProjects } from './projects.js'
 import { syncAll, syncState } from '../sync/index.js'
+import { forgeContext } from '../sync/forges/index.js'
 
+const REPO_SOURCES = "'github', 'gitlab', 'gitea'"
 const INBOX_SQL = `SELECT x.*, p.name AS project_name FROM inbox x LEFT JOIN projects p ON p.id = x.project_id`
 
 // Inbox, dashboard, search, sync control and export.
@@ -12,7 +14,8 @@ export default async function overviewRoutes(app, { db }) {
     const params = []
     if (unread) where.push('x.read_at IS NULL')
     if (project_id) { where.push('x.project_id = ?'); params.push(Number(project_id)) }
-    if (source) { where.push('x.source = ?'); params.push(source) }
+    if (source === 'repo') where.push(`x.source IN (${REPO_SOURCES})`)
+    else if (source) { where.push('x.source = ?'); params.push(source) }
     return db.prepare(`${INBOX_SQL} WHERE ${where.join(' AND ')} ORDER BY x.created_at DESC, x.id DESC LIMIT ?`).all(...params, Number(limit))
   })
 
@@ -27,7 +30,8 @@ export default async function overviewRoutes(app, { db }) {
     const where = ['read_at IS NULL']
     const params = []
     if (project_id) { where.push('project_id = ?'); params.push(Number(project_id)) }
-    if (source) { where.push('source = ?'); params.push(source) }
+    if (source === 'repo') where.push(`source IN (${REPO_SOURCES})`)
+    else if (source) { where.push('source = ?'); params.push(source) }
     const { changes } = db.prepare(`UPDATE inbox SET read_at = datetime('now') WHERE ${where.join(' AND ')}`).run(...params)
     return { changes: Number(changes) }
   })
@@ -94,7 +98,7 @@ export default async function overviewRoutes(app, { db }) {
     return results
   })
 
-  app.get('/sync/status', async () => ({ ...syncState, github_token: !!process.env.GITHUB_TOKEN, interval_minutes: Number(process.env.SYNC_INTERVAL_MINUTES ?? 30) }))
+  app.get('/sync/status', async () => ({ ...syncState, github_token: !!forgeContext(db, 'github').token, interval_minutes: Number(process.env.SYNC_INTERVAL_MINUTES ?? 30) }))
 
   app.post('/sync', async () => syncAll(db, app.log))
 

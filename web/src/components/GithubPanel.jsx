@@ -1,33 +1,57 @@
-import { Link } from 'react-router-dom'
-import { Avatar, Empty, Flex, List, Segmented, Tag, Typography } from 'antd'
-import { CommentOutlined, GithubOutlined, PullRequestOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { useState } from 'react'
-import { useApi } from '../api/client.js'
+import { Link } from 'react-router-dom'
+import { App, Avatar, Button, Empty, Flex, List, Segmented, Tag, Tooltip, Typography } from 'antd'
+import { CommentOutlined, EyeOutlined, PullRequestOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
+import { api, notifyChange, useApi } from '../api/client.js'
+import { refLabel } from './labels.js'
+import ForgeIcon from './ForgeIcon.jsx'
 
-// Open GitHub issues & PRs mirrored by the last sync.
-export default function GithubPanel({ projectId, repo }) {
+// Open issues & PRs / MRs mirrored by the last sync.
+export default function GithubPanel({ projectId, project }) {
+  const { message } = App.useApp()
   const [type, setType] = useState('issue')
   const query = new URLSearchParams({ type })
   if (projectId) query.set('project_id', projectId)
   const { data, loading } = useApi(`/github-items?${query}`, { listen: true })
+  const forge = project?.forge || 'github'
 
-  if (projectId && !repo) return <Empty description="Aucun dépôt GitHub configuré pour ce projet" />
+  if (projectId && !project?.repo) return <Empty description="Aucun dépôt configuré pour ce projet" />
+
+  const track = async (it) => {
+    try {
+      await api.post(`/github-items/${it.id}/track`)
+      message.success('Ajouté aux bugs & tâches du projet')
+      notifyChange()
+    } catch (err) {
+      message.error(err.message)
+    }
+  }
 
   return (
     <Flex vertical gap={12}>
-      <Segmented value={type} onChange={setType} options={[{ value: 'issue', label: 'Issues ouvertes' }, { value: 'pr', label: 'Pull requests ouvertes' }]} style={{ alignSelf: 'start' }} />
+      <Segmented
+        value={type}
+        onChange={setType}
+        options={[{ value: 'issue', label: 'Issues ouvertes' }, { value: 'pr', label: forge === 'gitlab' ? 'Merge requests ouvertes' : 'Pull requests ouvertes' }]}
+        style={{ alignSelf: 'start' }}
+      />
       <List
         loading={loading}
         dataSource={data || []}
         locale={{ emptyText: <Empty description="Rien d'ouvert (ou pas encore synchronisé)" /> }}
         renderItem={(it) => (
-          <List.Item extra={it.comments ? <span style={{ opacity: 0.6 }}><CommentOutlined /> {it.comments}</span> : null}>
+          <List.Item
+            actions={[
+              it.comments ? <span key="c" style={{ opacity: 0.6 }}><CommentOutlined /> {it.comments}</span> : null,
+              <Tooltip key="t" title="Suivre dans Bugs & tâches"><Button size="small" icon={<EyeOutlined />} onClick={() => track(it)} /></Tooltip>,
+            ].filter(Boolean)}
+          >
             <List.Item.Meta
-              avatar={<Avatar size="small" src={it.author ? `https://github.com/${it.author}.png?size=40` : undefined} icon={type === 'pr' ? <PullRequestOutlined /> : <GithubOutlined />} />}
+              avatar={<Avatar size="small" src={forge === 'github' && it.author ? `https://github.com/${it.author}.png?size=40` : undefined} icon={type === 'pr' ? <PullRequestOutlined /> : <ForgeIcon forge={forge} />} />}
               title={
                 <Flex gap={6} wrap align="center">
-                  <a href={it.url} target="_blank" rel="noreferrer">#{it.number} {it.title}</a>
+                  <a href={it.url} target="_blank" rel="noreferrer">{refLabel(forge, it.type, it.number)} {it.title}</a>
                   {it.draft && <Tag>Brouillon</Tag>}
                   {(it.labels || []).map((l) => <Tag key={l.name} color={l.color}>{l.name}</Tag>)}
                 </Flex>

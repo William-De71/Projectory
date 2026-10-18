@@ -1,6 +1,7 @@
 services:
   projectory:
-    build: .
+    # Images published by GitHub Actions: latest (last release), X.Y.Z, X.Y, X, dev (main).
+    image: ghcr.io/william-de71/projectory:${PROJECTORY_TAG:-latest}
     container_name: projectory
     ports:
       - "${PROJECTORY_PORT:-3001}:3001"
