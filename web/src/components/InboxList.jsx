@@ -1,0 +1,97 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { App, Button, Empty, Flex, List, Modal, Select, Tag, Tooltip, Typography } from 'antd'
+import { BugOutlined, CheckOutlined, GithubOutlined, MessageOutlined, PullRequestOutlined, RocketOutlined, UndoOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
+import { api, notifyChange } from '../api/client.js'
+import { ITEM_KIND, PRIORITY, options } from './labels.js'
+
+const ICONS = {
+  issue: <GithubOutlined />,
+  pr: <PullRequestOutlined />,
+  release: <RocketOutlined />,
+  discourse: <MessageOutlined />,
+  rss: <MessageOutlined />,
+}
+const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', rss: 'RSS' }
+
+function ConvertModal({ entry, onClose, onDone }) {
+  const { message } = App.useApp()
+  const [kind, setKind] = useState('bug')
+  const [priority, setPriority] = useState('normal')
+  const convert = async () => {
+    try {
+      await api.post(`/inbox/${entry.id}/to-item`, { kind, priority })
+      message.success('Ajouté au suivi du projet')
+      notifyChange()
+      onDone()
+    } catch (err) {
+      message.error(err.message)
+    }
+  }
+  return (
+    <Modal open={!!entry} title="Ajouter au suivi" onCancel={onClose} onOk={convert} okText="Ajouter" destroyOnHidden>
+      <Typography.Paragraph strong>{entry?.title}</Typography.Paragraph>
+      <Flex gap={8}>
+        <Select value={kind} onChange={setKind} options={options(ITEM_KIND)} style={{ flex: 1 }} />
+        <Select value={priority} onChange={setPriority} options={options(PRIORITY)} style={{ flex: 1 }} />
+      </Flex>
+    </Modal>
+  )
+}
+
+export default function InboxList({ entries, loading, onChange, showProject = true }) {
+  const [converting, setConverting] = useState(null)
+
+  const toggleRead = async (entry) => {
+    await api.post(`/inbox/${entry.id}/read`, { read: !entry.read_at })
+    notifyChange()
+    onChange?.()
+  }
+
+  return (
+    <>
+      <List
+        loading={loading}
+        dataSource={entries || []}
+        locale={{ emptyText: <Empty description="Rien de nouveau" /> }}
+        renderItem={(entry) => (
+          <List.Item
+            actions={[
+              entry.item_id ? (
+                <Tag key="tracked" color="green">Suivi</Tag>
+              ) : entry.kind !== 'release' && entry.project_id ? (
+                <Tooltip key="convert" title="Transformer en bug / tâche"><Button size="small" icon={<BugOutlined />} onClick={() => setConverting(entry)} /></Tooltip>
+              ) : null,
+              <Tooltip key="read" title={entry.read_at ? 'Marquer non lu' : 'Marquer lu'}>
+                <Button size="small" icon={entry.read_at ? <UndoOutlined /> : <CheckOutlined />} onClick={() => toggleRead(entry)} />
+              </Tooltip>,
+            ].filter(Boolean)}
+          >
+            <List.Item.Meta
+              avatar={<span style={{ fontSize: 18, opacity: entry.read_at ? 0.45 : 1 }}>{ICONS[entry.kind] || <MessageOutlined />}</span>}
+              title={
+                <Flex gap={6} wrap align="center" className={entry.read_at ? '' : 'unread-row'}>
+                  <Tag>{KIND_LABELS[entry.kind] || entry.kind}</Tag>
+                  {entry.url ? (
+                    <a href={entry.url} target="_blank" rel="noreferrer" onClick={() => !entry.read_at && toggleRead(entry)}>{entry.title}</a>
+                  ) : entry.title}
+                </Flex>
+              }
+              description={
+                <Flex vertical gap={2}>
+                  {entry.excerpt && <Typography.Text type="secondary" ellipsis={{ tooltip: entry.excerpt }} style={{ maxWidth: 800 }}>{entry.excerpt}</Typography.Text>}
+                  <span style={{ fontSize: 12 }}>
+                    {showProject && entry.project_name && <><Link to={`/projects/${entry.project_id}`}>{entry.project_name}</Link> · </>}
+                    {dayjs.utc(entry.created_at).local().fromNow()}
+                  </span>
+                </Flex>
+              }
+            />
+          </List.Item>
+        )}
+      />
+      <ConvertModal entry={converting} onClose={() => setConverting(null)} onDone={() => { setConverting(null); onChange?.() }} />
+    </>
+  )
+}

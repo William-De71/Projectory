@@ -1,0 +1,105 @@
+import { decode } from '../db.js'
+import { listProjects } from './projects.js'
+import { syncAll, syncState } from '../sync/index.js'
+
+const INBOX_SQL = `SELECT x.*, p.name AS project_name FROM inbox x LEFT JOIN projects p ON p.id = x.project_id`
+
+// Inbox, dashboard, search, sync control and export.
+export default async function overviewRoutes(app, { db }) {
+  app.get('/inbox', async (req) => {
+    const { unread, project_id, source, limit = 200 } = req.query
+    const where = ['1 = 1']
+    const params = []
+    if (unread) where.push('x.read_at IS NULL')
+    if (project_id) { where.push('x.project_id = ?'); params.push(Number(project_id)) }
+    if (source) { where.push('x.source = ?'); params.push(source) }
+    return db.prepare(`${INBOX_SQL} WHERE ${where.join(' AND ')} ORDER BY x.created_at DESC, x.id DESC LIMIT ?`).all(...params, Number(limit))
+  })
+
+  app.post('/inbox/:id/read', async (req) => {
+    const read = req.body?.read !== false
+    db.prepare(`UPDATE inbox SET read_at = ${read ? "datetime('now')" : 'NULL'} WHERE id = ?`).run(Number(req.params.id))
+    return { ok: true }
+  })
+
+  app.post('/inbox/read-all', async (req) => {
+    const { project_id, source } = req.body || {}
+    const where = ['read_at IS NULL']
+    const params = []
+    if (project_id) { where.push('project_id = ?'); params.push(Number(project_id)) }
+    if (source) { where.push('source = ?'); params.push(source) }
+    const { changes } = db.prepare(`UPDATE inbox SET read_at = datetime('now') WHERE ${where.join(' AND ')}`).run(...params)
+    return { changes: Number(changes) }
+  })
+
+  // Turns a notification (forum topic, issue...) into a tracked item.
+  app.post('/inbox/:id/to-item', async (req, reply) => {
+    const entry = db.prepare('SELECT * FROM inbox WHERE id = ?').get(Number(req.params.id))
+    if (!entry) return reply.code(404).send({ error: 'Notification introuvable' })
+    const projectId = req.body?.project_id || entry.project_id
+    if (!projectId) return reply.code(400).send({ error: 'Choisis un projet' })
+    const { lastInsertRowid } = db.prepare(
+      `INSERT INTO items (project_id, kind, title, body, priority, source, external_url) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(projectId, req.body?.kind || 'bug', entry.title, entry.excerpt, req.body?.priority || 'normal', entry.source, entry.url)
+    db.prepare("UPDATE inbox SET item_id = ?, read_at = coalesce(read_at, datetime('now')) WHERE id = ?").run(lastInsertRowid, entry.id)
+    return db.prepare('SELECT * FROM items WHERE id = ?').get(lastInsertRowid)
+  })
+
+  app.get('/dashboard', async () => {
+    const projects = listProjects(db, { where: ["p.status != 'archived'"] })
+    const count = (sql, ...p) => db.prepare(sql).get(...p).n
+    return {
+      stats: {
+        projects: projects.length,
+        active: projects.filter((p) => p.status === 'active').length,
+        open_issues: count("SELECT count(*) n FROM github_items WHERE type = 'issue'"),
+        open_prs: count("SELECT count(*) n FROM github_items WHERE type = 'pr'"),
+        open_bugs: count("SELECT count(*) n FROM items WHERE kind = 'bug' AND status IN ('todo', 'in_progress')"),
+        unread: count('SELECT count(*) n FROM inbox WHERE read_at IS NULL'),
+        minutes_this_month: count("SELECT coalesce(sum(minutes), 0) n FROM time_entries WHERE date >= date('now', 'start of month')"),
+      },
+      pinned: projects.filter((p) => p.pinned),
+      outdated: projects.filter((p) => p.outdated),
+      with_errors: projects.filter((p) => p.sync_error).map(({ id, name, sync_error }) => ({ id, name, sync_error })),
+      urgent: db.prepare(
+        `SELECT i.*, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id
+         WHERE i.status IN ('todo', 'in_progress') AND (i.priority IN ('high', 'critical') OR (i.due_date IS NOT NULL AND i.due_date <= date('now', '+7 days')))
+         ORDER BY CASE i.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END, i.due_date LIMIT 15`
+      ).all(),
+      inbox: db.prepare(`${INBOX_SQL} WHERE x.read_at IS NULL ORDER BY x.created_at DESC LIMIT 10`).all(),
+      recent_prs: db.prepare(
+        `SELECT g.*, p.name AS project_name FROM github_items g JOIN projects p ON p.id = g.project_id
+         WHERE g.type = 'pr' ORDER BY g.updated_at DESC LIMIT 8`
+      ).all().map(decode),
+      sync: syncState,
+    }
+  })
+
+  app.get('/search', async (req) => {
+    const q = String(req.query.q || '').trim()
+    if (q.length < 2) return []
+    const like = `%${q}%`
+    const results = [
+      ...db.prepare('SELECT id, name AS title, description AS excerpt FROM projects WHERE name LIKE ? OR description LIKE ? OR client LIKE ? LIMIT 10')
+        .all(like, like, like).map((r) => ({ ...r, type: 'project', project_id: r.id })),
+      ...db.prepare(`SELECT i.id, i.title, i.body AS excerpt, i.project_id, i.kind, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id WHERE i.title LIKE ? OR i.body LIKE ? LIMIT 15`)
+        .all(like, like).map((r) => ({ ...r, type: 'item' })),
+      ...db.prepare(`SELECT d.id, d.title, substr(d.content, 1, 200) AS excerpt, d.project_id, d.type AS kind, p.name AS project_name FROM docs d LEFT JOIN projects p ON p.id = d.project_id WHERE d.title LIKE ? OR d.content LIKE ? LIMIT 15`)
+        .all(like, like).map((r) => ({ ...r, type: 'doc' })),
+      ...db.prepare(`SELECT g.id, '#' || g.number || ' ' || g.title AS title, g.url, g.project_id, g.type AS kind, p.name AS project_name FROM github_items g JOIN projects p ON p.id = g.project_id WHERE g.title LIKE ? LIMIT 10`)
+        .all(like).map((r) => ({ ...r, type: 'github' })),
+    ]
+    return results
+  })
+
+  app.get('/sync/status', async () => ({ ...syncState, github_token: !!process.env.GITHUB_TOKEN, interval_minutes: Number(process.env.SYNC_INTERVAL_MINUTES ?? 30) }))
+
+  app.post('/sync', async () => syncAll(db, app.log))
+
+  app.get('/export', async (req, reply) => {
+    const tables = ['categories', 'projects', 'items', 'docs', 'time_entries', 'inbox']
+    const data = Object.fromEntries(tables.map((t) => [t, db.prepare(`SELECT * FROM ${t}`).all().map(decode)]))
+    reply.header('Content-Disposition', `attachment; filename="devdeck-${new Date().toISOString().slice(0, 10)}.json"`)
+    return { exported_at: new Date().toISOString(), ...data }
+  })
+}

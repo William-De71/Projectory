@@ -1,0 +1,14 @@
+services:
+  devdeck:
+    build: .
+    container_name: devdeck
+    ports:
+      - "${DEVDECK_PORT:-3001}:3001"
+    volumes:
+      - ./data:/data
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - TZ=${TZ:-Europe/Paris}
+    restart: unless-stopped

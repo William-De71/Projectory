@@ -1,0 +1,11 @@
+import { Flex, Typography } from 'antd'
+import DocsPanel from '../components/DocsPanel.jsx'
+
+export default function Notes() {
+  return (
+    <Flex vertical gap={16}>
+      <Typography.Title level={3} style={{ margin: 0 }}>Notes & spécifications</Typography.Title>
+      <DocsPanel allowTypeFilter />
+    </Flex>
+  )
+}

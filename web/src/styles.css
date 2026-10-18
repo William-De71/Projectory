@@ -1,0 +1,12 @@
+body { margin: 0; }
+.markdown { line-height: 1.6; overflow-wrap: anywhere; }
+.markdown pre { background: rgba(127, 127, 127, 0.12); padding: 12px; border-radius: 6px; overflow: auto; }
+.markdown code { background: rgba(127, 127, 127, 0.12); padding: 1px 4px; border-radius: 4px; }
+.markdown pre code { background: none; padding: 0; }
+.markdown table { border-collapse: collapse; }
+.markdown th, .markdown td { border: 1px solid rgba(127, 127, 127, 0.3); padding: 4px 8px; }
+.markdown blockquote { margin: 0; padding-left: 12px; border-left: 3px solid rgba(127, 127, 127, 0.4); opacity: 0.85; }
+.markdown img { max-width: 100%; }
+.unread-row { font-weight: 600; }
+.clickable { cursor: pointer; }
+.md-editor textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
