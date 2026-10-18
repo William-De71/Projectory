@@ -7,10 +7,11 @@ export const NOTIFY_EVENTS = {
   forum: 'Nouveau sujet de forum',
   ci_failed: 'CI en échec',
   ci_fixed: 'CI réparée',
+  gh_notification: 'Notification GitHub perso (review, mention…)',
 }
 
-const TAGS = { issue: 'beetle', pr: 'twisted_rightwards_arrows', release: 'package', forum: 'speech_balloon', ci_failed: 'rotating_light', ci_fixed: 'white_check_mark' }
-const PRIORITY = { ci_failed: 4 }
+const TAGS = { gh_notification: 'bell', issue: 'beetle', pr: 'twisted_rightwards_arrows', release: 'package', forum: 'speech_balloon', ci_failed: 'rotating_light', ci_fixed: 'white_check_mark' }
+const PRIORITY = { ci_failed: 4, gh_notification: 4 }
 // Beyond this many entries for one project in one sync, send a single summary.
 const GROUP_THRESHOLD = 3
 
@@ -44,7 +45,8 @@ export async function sendNtfy(config, { title, message, tags = [], priority = 3
 export function buildMessages(project, entries, config) {
   const wanted = entries.filter((e) => config.events.includes(eventOf(e)))
   if (!wanted.length) return []
-  const projectUrl = config.app_url ? `${config.app_url.replace(/\/+$/, '')}/projects/${project.id}/inbox` : undefined
+  const appUrl = config.app_url.replace(/\/+$/, '')
+  const projectUrl = !appUrl ? undefined : project.id ? `${appUrl}/projects/${project.id}/inbox` : `${appUrl}/inbox`
   if (wanted.length > GROUP_THRESHOLD) {
     const lines = wanted.slice(0, 6).map((e) => `• ${NOTIFY_EVENTS[eventOf(e)]} : ${e.title}`)
     if (wanted.length > 6) lines.push(`… et ${wanted.length - 6} autre(s)`)

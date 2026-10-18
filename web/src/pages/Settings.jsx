@@ -4,6 +4,7 @@ import { DeleteOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icon
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import NotificationSettings from '../components/NotificationSettings.jsx'
+import { ForgeAccounts, GithubNotificationSettings } from '../components/ForgeSettings.jsx'
 
 function Categories() {
   const { message } = App.useApp()
@@ -67,11 +68,14 @@ function Categories() {
 
 export default function Settings() {
   const { data: sync } = useApi('/sync/status', { listen: true })
+  const { data: health } = useApi('/health')
   return (
     <Flex vertical gap={16}>
       <Typography.Title level={3} style={{ margin: 0 }}>Paramètres</Typography.Title>
       <Categories />
+      <ForgeAccounts />
       <NotificationSettings notifyError={sync?.notify_error} />
+      <GithubNotificationSettings />
       <Card size="small" title="Synchronisation">
         {sync && (
           <Descriptions size="small" column={1}>
@@ -84,13 +88,18 @@ export default function Settings() {
           </Descriptions>
         )}
         <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
-          Se règle via les variables d'environnement <code>GITHUB_TOKEN</code> et <code>SYNC_INTERVAL_MINUTES</code> (voir le README).
+          Fréquence réglable via la variable d'environnement <code>SYNC_INTERVAL_MINUTES</code> (voir le README).
         </Typography.Paragraph>
       </Card>
       <Card size="small" title="Sauvegarde">
         <Typography.Paragraph>Toutes les données sont dans <code>data/projectory.db</code> (SQLite). Tu peux aussi exporter un JSON lisible :</Typography.Paragraph>
         <Button icon={<DownloadOutlined />} href="/api/export">Exporter en JSON</Button>
       </Card>
+      {health?.version && (
+        <Typography.Text type="secondary" style={{ textAlign: 'center', fontSize: 12 }}>
+          Projectory {health.version} — <a href="https://github.com/William-De71/projectory/releases" target="_blank" rel="noreferrer">notes de version</a>
+        </Typography.Text>
+      )}
     </Flex>
   )
 }

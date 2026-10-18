@@ -1,15 +1,18 @@
 import { useMemo, useState } from 'react'
 import { Alert, App, Button, Checkbox, Flex, Input, Modal, Select, Table, Tag, Typography } from 'antd'
-import { GithubOutlined, LockOutlined } from '@ant-design/icons'
+import { LockOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
-import { PROJECT_STATUS, options } from './labels.js'
+import { FORGES, PROJECT_STATUS, options } from './labels.js'
+import ForgeIcon from './ForgeIcon.jsx'
 
-// Bulk-creates projects from the repositories of a GitHub user / organisation.
+// Bulk-creates projects from the repositories of a user / organisation / group on any forge.
 export default function GithubImport({ open, onClose }) {
   const { message } = App.useApp()
   const { data: categories } = useApi(open ? '/categories' : null)
   const [owner, setOwner] = useState('')
+  const [forge, setForge] = useState('github')
+  const [forgeUrl, setForgeUrl] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -22,11 +25,12 @@ export default function GithubImport({ open, onClose }) {
   const [trackReleases, setTrackReleases] = useState(true)
   const [importing, setImporting] = useState(false)
 
-  const load = async (value = owner) => {
+  const load = async (value = owner, f = forge, url = forgeUrl) => {
+    if (f !== 'github' && !url) return setError("Indique l'adresse de l'instance")
     setLoading(true)
     setError(null)
     try {
-      const res = await api.get(`/github/repos?owner=${encodeURIComponent(value.trim())}`)
+      const res = await api.get(`/forges/repos?forge=${f}&url=${encodeURIComponent(url)}&owner=${encodeURIComponent(value.trim())}`)
       setResult(res)
       setOwner(res.owner)
       setSelected([])
@@ -47,7 +51,7 @@ export default function GithubImport({ open, onClose }) {
     setImporting(true)
     try {
       const chosen = result.repos.filter((r) => selected.includes(r.full_name))
-      const res = await api.post('/github/import', { repos: chosen, category_id: categoryId, status, track_releases: trackReleases })
+      const res = await api.post('/forges/import', { forge, forge_url: forgeUrl, repos: chosen, category_id: categoryId, status, track_releases: trackReleases })
       message.success(`${res.created} projet(s) créé(s)${res.skipped ? `, ${res.skipped} déjà suivi(s)` : ''} — première synchro lancée en arrière-plan`)
       notifyChange()
       onClose()
@@ -64,19 +68,33 @@ export default function GithubImport({ open, onClose }) {
       open={open}
       onCancel={onClose}
       width={Math.min(980, window.innerWidth - 32)}
-      title={<><GithubOutlined /> Importer des dépôts GitHub</>}
+      title={<><ForgeIcon forge={forge} /> Importer des dépôts</>}
       okText={selected.length ? `Importer ${selected.length} dépôt${selected.length > 1 ? 's' : ''}` : 'Importer'}
       okButtonProps={{ disabled: !selected.length, loading: importing }}
       onOk={doImport}
-      afterOpenChange={(visible) => { if (visible && !result) load('') }}
+      afterOpenChange={async (visible) => {
+        if (!visible || result) return
+        // Reopen on the forge / owner used last time.
+        const last = await api.get('/forges/last-import').catch(() => ({}))
+        const f = last.forge || 'github'
+        setForge(f)
+        setForgeUrl(last.url || '')
+        setOwner(last.owner || '')
+        if (f === 'github' || last.url) load(last.owner || '', f, last.url || '')
+      }}
     >
       <Flex vertical gap={12}>
+        <Flex gap={8} wrap>
+          <Select value={forge} style={{ width: 160 }} options={Object.entries(FORGES).map(([value, f]) => ({ value, label: f.label }))}
+            onChange={(f) => { setForge(f); setForgeUrl(f === 'gitlab' ? 'https://gitlab.com' : ''); setResult(null); setSelected([]) }} />
+          {forge !== 'github' && <Input value={forgeUrl} onChange={(e) => setForgeUrl(e.target.value)} placeholder={forge === 'gitlab' ? 'https://gitlab.com' : 'https://git.mondomaine.fr'} style={{ width: 240 }} />}
+        </Flex>
         <Flex gap={8} wrap>
           <Input.Search
             value={owner}
             onChange={(e) => setOwner(e.target.value)}
             onSearch={(v) => load(v)}
-            placeholder="Utilisateur ou organisation (vide = propriétaire du token)"
+            placeholder={forge === 'gitlab' ? 'Utilisateur ou groupe (vide = propriétaire du token)' : 'Utilisateur ou organisation (vide = propriétaire du token)'}
             enterButton="Charger"
             loading={loading}
             style={{ maxWidth: 420 }}

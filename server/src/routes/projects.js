@@ -1,11 +1,11 @@
 import { decode, insertRow, updateRow } from '../db.js'
 import { compareVersions } from '../sync/http.js'
-import { normalizeRepo } from '../sync/github.js'
+import { normalizeRepo } from '../sync/forges/index.js'
 import { syncProject } from '../sync/index.js'
 
 const FIELDS = [
   'name', 'description', 'category_id', 'status', 'tags', 'client', 'repo', 'homepage', 'links',
-  'deployed_version', 'version_sources', 'forum_sources', 'pinned', 'notify',
+  'deployed_version', 'version_sources', 'forum_sources', 'pinned', 'notify', 'forge', 'forge_url',
 ]
 
 const LIST_SQL = `

@@ -129,6 +129,30 @@ const MIGRATIONS = [
   -- Per-project switch for push notifications.
   ALTER TABLE projects ADD COLUMN notify INTEGER NOT NULL DEFAULT 1;
   `,
+  `
+  -- Code hosting: github | gitlab | gitea (Forgejo uses the Gitea API).
+  ALTER TABLE projects ADD COLUMN forge TEXT NOT NULL DEFAULT 'github';
+  ALTER TABLE projects ADD COLUMN forge_url TEXT NOT NULL DEFAULT '';
+
+  -- Issue created on the forge from a tracked item.
+  ALTER TABLE items ADD COLUMN issue_number INTEGER;
+  ALTER TABLE items ADD COLUMN issue_url TEXT NOT NULL DEFAULT '';
+
+  -- Planned / released versions; items join them through items.target_version.
+  CREATE TABLE milestones (
+    id INTEGER PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    version TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    due_date TEXT,
+    status TEXT NOT NULL DEFAULT 'planned',
+    released_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(project_id, version)
+  );
+  `,
 ]
 
 export function openDb(file = join(DATA_PATH, 'projectory.db')) {

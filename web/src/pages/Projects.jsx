@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Empty, Flex, Input, Segmented, Select, Spin, Typography } from 'antd'
-import { GithubOutlined, PlusOutlined } from '@ant-design/icons'
+import { CloudDownloadOutlined, PlusOutlined } from '@ant-design/icons'
 import { useApi } from '../api/client.js'
 import { PROJECT_STATUS, options } from '../components/labels.js'
 import ProjectCard from '../components/ProjectCard.jsx'
@@ -29,7 +29,7 @@ export default function Projects() {
     <Flex vertical gap={16}>
       <Flex align="center" gap={12} wrap>
         <Typography.Title level={3} style={{ margin: 0 }}>Projets</Typography.Title>
-        <Button icon={<GithubOutlined />} style={{ marginLeft: 'auto' }} onClick={() => setImporting(true)}>Importer depuis GitHub</Button>
+        <Button icon={<CloudDownloadOutlined />} style={{ marginLeft: 'auto' }} onClick={() => setImporting(true)}>Importer des dépôts</Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreating({})}>Nouveau projet</Button>
       </Flex>
       <Flex gap={8} wrap align="center">

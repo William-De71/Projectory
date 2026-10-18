@@ -1,22 +1,24 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Alert, App, Badge, Button, Card, Descriptions, Empty, Flex, Result, Spin, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, GithubOutlined, GlobalOutlined, LinkOutlined, StarOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, GlobalOutlined, LinkOutlined, StarOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
-import { PROJECT_STATUS } from '../components/labels.js'
+import { FORGES, PROJECT_STATUS, repoUrl } from '../components/labels.js'
 import { CategoryTag, LabelTag } from '../components/Tags.jsx'
 import Markdown from '../components/Markdown.jsx'
 import ProjectForm from '../components/ProjectForm.jsx'
 import ItemsPanel from '../components/ItemsPanel.jsx'
 import GithubPanel from '../components/GithubPanel.jsx'
+import RoadmapPanel from '../components/RoadmapPanel.jsx'
+import ForgeIcon from '../components/ForgeIcon.jsx'
 import DocsPanel from '../components/DocsPanel.jsx'
 import InboxList from '../components/InboxList.jsx'
 import TimePanel from '../components/TimePanel.jsx'
 import { compareVersions } from '../components/versions.js'
 import CiStatus, { CI } from '../components/CiStatus.jsx'
 
-const VERSION_LABELS = { github: 'GitHub', npm: 'npm', docker: 'Docker Hub' }
+const VERSION_LABELS = { repo: 'Dépôt', github: 'GitHub', npm: 'npm', docker: 'Docker Hub' }
 
 function Overview({ project: p }) {
   const versions = p.versions || []
@@ -30,7 +32,7 @@ function Overview({ project: p }) {
         </Card>
         <Card size="small" title="Liens">
           <Flex vertical gap={6}>
-            {p.repo && <a href={`https://github.com/${p.repo}`} target="_blank" rel="noreferrer"><GithubOutlined /> {p.repo}</a>}
+            {p.repo && <a href={repoUrl(p)} target="_blank" rel="noreferrer"><ForgeIcon forge={p.forge} /> {p.repo}</a>}
             {p.homepage && <a href={p.homepage} target="_blank" rel="noreferrer"><GlobalOutlined /> {p.homepage}</a>}
             {(p.links || []).filter((l) => l?.url).map((l, i) => (
               <a key={i} href={l.url} target="_blank" rel="noreferrer"><LinkOutlined /> {l.label || l.url}</a>
@@ -39,7 +41,7 @@ function Overview({ project: p }) {
           </Flex>
         </Card>
         {p.github && (
-          <Card size="small" title="GitHub">
+          <Card size="small" title={FORGES[p.forge]?.label || 'Dépôt'}>
             <Descriptions size="small" column={1}>
               <Descriptions.Item label="Étoiles"><StarOutlined /> {p.github.stars}</Descriptions.Item>
               <Descriptions.Item label="Dernier push">{p.github.pushed_at ? dayjs(p.github.pushed_at).fromNow() : '—'}</Descriptions.Item>
@@ -49,7 +51,7 @@ function Overview({ project: p }) {
             </Descriptions>
             {p.github.ci && (
               <Flex vertical gap={4} style={{ marginTop: 8 }}>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>GitHub Actions ({p.github.default_branch})</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>CI ({p.github.default_branch})</Typography.Text>
                 {p.github.ci.runs.map((r) => (
                   <a key={r.id} href={r.url} target="_blank" rel="noreferrer">
                     {(CI[r.status !== 'completed' ? 'pending' : r.conclusion === 'success' ? 'success' : ['failure', 'timed_out', 'startup_failure'].includes(r.conclusion) ? 'failure' : 'neutral']).icon} {r.name}
@@ -85,7 +87,7 @@ function Overview({ project: p }) {
             ]}
           />
         ) : (
-          <Typography.Text type="secondary">Aucune source de version — ajoute-en dans « Modifier » (GitHub, npm, Docker Hub).</Typography.Text>
+          <Typography.Text type="secondary">Aucune source de version — ajoute-en dans « Modifier » (releases du dépôt, npm, Docker Hub).</Typography.Text>
         )}
       </Card>
     </Flex>
@@ -127,7 +129,8 @@ export default function ProjectDetail() {
   const tabs = [
     { key: 'overview', label: 'Aperçu', children: <Overview project={p} /> },
     { key: 'items', label: <>Bugs & tâches <Badge count={p.open_items} size="small" color="blue" /></>, children: <ItemsPanel projectId={id} /> },
-    { key: 'github', label: <>GitHub <Badge count={p.open_issues + p.open_prs} size="small" color="geekblue" /></>, children: <GithubPanel projectId={id} repo={p.repo} /> },
+    { key: 'github', label: <>{FORGES[p.forge]?.label || 'Dépôt'} <Badge count={p.open_issues + p.open_prs} size="small" color="geekblue" /></>, children: <GithubPanel projectId={id} project={p} /> },
+    { key: 'roadmap', label: 'Versions', children: <RoadmapPanel projectId={id} /> },
     { key: 'specs', label: 'Spécifications', children: <DocsPanel projectId={id} type="spec" /> },
     { key: 'notes', label: 'Notes', children: <DocsPanel projectId={id} type="note" /> },
     {
@@ -136,7 +139,7 @@ export default function ProjectDetail() {
       children: (
         <Flex vertical gap={8}>
           {p.unread > 0 && <Button style={{ alignSelf: 'end' }} onClick={markAllRead}>Tout marquer comme lu</Button>}
-          {inbox.data?.length || inbox.loading ? <InboxList entries={inbox.data} loading={inbox.loading} onChange={() => { inbox.reload(); reload() }} showProject={false} /> : <Empty description="Aucune activité — configure GitHub / forums / versions puis synchronise" />}
+          {inbox.data?.length || inbox.loading ? <InboxList entries={inbox.data} loading={inbox.loading} onChange={() => { inbox.reload(); reload() }} showProject={false} /> : <Empty description="Aucune activité — configure le dépôt, les forums ou les versions puis synchronise" />}
         </Flex>
       ),
     },

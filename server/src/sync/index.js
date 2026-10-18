@@ -1,9 +1,11 @@
-import { decode } from '../db.js'
-import { failedRun, fetchCi, fetchRepo, normalizeRepo } from './github.js'
+import { decode, getConfig } from '../db.js'
+import { failedRun, forgeFor, normalizeRepo } from './forges/index.js'
 import { fetchForum, forumSourceKey, latestVersion } from './sources.js'
 import { notifyProject } from './notify.js'
 
 export const syncState = { running: false, last_run_at: null, last_duration_ms: null, errors: [], notify_error: null }
+
+export const FORGE_SOURCES = ['github', 'gitlab', 'gitea']
 
 // The first time a source is synced we record what already exists as read,
 // so only what appears afterwards shows up as new in the inbox.
@@ -34,16 +36,24 @@ function pushInbox(db, entry, { asRead, fresh }) {
   return isFresh
 }
 
-async function syncGithub(db, project, fresh, errors) {
+// Keys of GitHub projects keep their historical shape so existing baselines stay valid.
+function forgeKey(project, repo) {
+  if (project.forge === 'github') return `p${project.id}:github:${repo}`
+  return `p${project.id}:${project.forge}:${project.forge_url}:${repo}`
+}
+
+async function syncForge(db, project, fresh, errors) {
+  const forge = forgeFor(db, project)
   const repo = normalizeRepo(project.repo)
-  const { info, items } = await fetchRepo(repo)
-  const baseKey = `p${project.id}:github:${repo}`
+  const { info, items } = await forge.fetchRepo(repo)
+  const baseKey = forgeKey(project, repo)
   const asRead = !isBaselined(db, baseKey)
+  const source = project.forge
 
   try {
-    info.ci = await fetchCi(repo, info.default_branch)
+    info.ci = await forge.fetchCi(repo, info.default_branch)
   } catch (err) {
-    // Actions disabled or no access: keep the previous status, report the error.
+    // CI disabled or no access: keep the previous status, report the error.
     info.ci = project.github?.ci ?? null
     if (err.status !== 404) errors.push(`CI : ${err.message}`)
   }
@@ -65,9 +75,9 @@ async function syncGithub(db, project, fresh, errors) {
       if (!existing.has(`${it.type}#${it.number}`)) {
         pushInbox(db, {
           project_id: project.id,
-          source: 'github',
+          source,
           kind: it.type === 'pr' ? 'pr' : 'issue',
-          title: `#${it.number} ${it.title}`,
+          title: `${it.type === 'pr' && source === 'gitlab' ? '!' : '#'}${it.number} ${it.title}`,
           url: it.url,
           excerpt: it.author ? `par ${it.author} — ${it.excerpt}` : it.excerpt,
           external_key: `${baseKey}:${it.type}:${it.number}`,
@@ -85,6 +95,7 @@ async function syncGithub(db, project, fresh, errors) {
         del.run(project.id, type, Number(number))
       }
     }
+    closeLinkedItems(db, project, items)
     db.prepare('UPDATE projects SET github = ? WHERE id = ?').run(JSON.stringify(info), project.id)
     markBaselined(db, baseKey)
     db.exec('COMMIT')
@@ -92,6 +103,19 @@ async function syncGithub(db, project, fresh, errors) {
     db.exec('ROLLBACK')
     throw err
   }
+}
+
+// An item whose forge issue is no longer open gets closed too. Skipped when
+// the issue list may be truncated (adapters stop at 5 pages).
+function closeLinkedItems(db, project, items) {
+  const issues = items.filter((it) => it.type === 'issue')
+  if (issues.length >= 250) return
+  const open = new Set(issues.map((it) => it.number))
+  const linked = db.prepare(
+    "SELECT id, issue_number FROM items WHERE project_id = ? AND issue_number IS NOT NULL AND status IN ('todo', 'in_progress')"
+  ).all(project.id)
+  const close = db.prepare("UPDATE items SET status = 'done', updated_at = datetime('now') WHERE id = ?")
+  for (const it of linked) if (!open.has(it.issue_number)) close.run(it.id)
 }
 
 // Only changes of state are worth an inbox entry: green -> red and red -> green.
@@ -102,7 +126,7 @@ function pushCiTransition(db, project, baseKey, ci, { asRead, fresh }) {
     const run = failedRun(ci)
     pushInbox(db, {
       project_id: project.id,
-      source: 'github',
+      source: project.forge,
       kind: 'ci_failed',
       title: `CI en échec : ${run.name}`,
       url: run.url,
@@ -113,7 +137,7 @@ function pushCiTransition(db, project, baseKey, ci, { asRead, fresh }) {
     const run = ci.runs[0]
     pushInbox(db, {
       project_id: project.id,
-      source: 'github',
+      source: project.forge,
       kind: 'ci_fixed',
       title: 'CI de nouveau au vert',
       url: run.url,
@@ -126,18 +150,22 @@ function pushCiTransition(db, project, baseKey, ci, { asRead, fresh }) {
 async function syncVersions(db, project, errors, fresh) {
   const previous = new Map((project.versions || []).map((v) => [`${v.type}:${v.ref}`, v]))
   const results = []
+  const context = {
+    repo: normalizeRepo(project.repo),
+    forges: { project: forgeFor(db, project), github: forgeFor(db, { forge: 'github' }) },
+  }
   for (const source of project.version_sources || []) {
     const key = `${source.type}:${source.ref || ''}`
     const prev = previous.get(key)
     try {
-      const latest = await latestVersion(source, normalizeRepo(project.repo))
+      const latest = await latestVersion(source, context)
       results.push({ type: source.type, ref: source.ref || '', ...latest, checked_at: new Date().toISOString() })
       if (latest && prev?.version && prev.version !== latest.version) {
         pushInbox(db, {
           project_id: project.id,
           source: 'version',
           kind: 'release',
-          title: `Nouvelle version ${latest.version} (${source.type}${source.ref ? ` ${source.ref}` : ''})`,
+          title: `Nouvelle version ${latest.version} (${source.type === 'repo' ? 'dépôt' : source.type}${source.ref ? ` ${source.ref}` : ''})`,
           url: latest.url,
           excerpt: `Précédente : ${prev.version}${project.deployed_version ? ` — déployée chez toi : ${project.deployed_version}` : ''}`,
           external_key: `p${project.id}:version:${key}:${latest.version}`,
@@ -176,21 +204,7 @@ async function syncForums(db, project, errors, fresh) {
   }
 }
 
-export async function syncProject(db, id, log = console) {
-  const project = decode(db.prepare('SELECT * FROM projects WHERE id = ?').get(id))
-  if (!project) throw new Error('Projet introuvable')
-  const errors = []
-  const fresh = []
-  if (project.repo) {
-    try {
-      await syncGithub(db, project, fresh, errors)
-    } catch (err) {
-      errors.push(`GitHub : ${err.message}`)
-    }
-  }
-  await syncVersions(db, project, errors, fresh)
-  await syncForums(db, project, errors, fresh)
-  db.prepare("UPDATE projects SET last_synced_at = datetime('now'), sync_error = ? WHERE id = ?").run(errors.join('\n') || null, id)
+async function notify(db, project, fresh, log) {
   // A notification failure must not mark the project itself as broken.
   try {
     await notifyProject(db, project, fresh)
@@ -199,7 +213,76 @@ export async function syncProject(db, id, log = console) {
     syncState.notify_error = `${new Date().toISOString()} — ${err.message}`
     log.warn?.(`ntfy : ${err.message}`)
   }
+}
+
+export async function syncProject(db, id, log = console) {
+  const project = decode(db.prepare('SELECT * FROM projects WHERE id = ?').get(id))
+  if (!project) throw new Error('Projet introuvable')
+  const errors = []
+  const fresh = []
+  if (project.repo) {
+    try {
+      await syncForge(db, project, fresh, errors)
+    } catch (err) {
+      errors.push(`${project.forge === 'github' ? 'GitHub' : project.forge === 'gitlab' ? 'GitLab' : 'Gitea'} : ${err.message}`)
+    }
+  }
+  await syncVersions(db, project, errors, fresh)
+  await syncForums(db, project, errors, fresh)
+  db.prepare("UPDATE projects SET last_synced_at = datetime('now'), sync_error = ? WHERE id = ?").run(errors.join('\n') || null, id)
+  await notify(db, project, fresh, log)
   return { id, errors, fresh: fresh.length }
+}
+
+export const GH_NOTIFICATION_REASONS = {
+  review_requested: 'Review demandée',
+  approval_requested: 'Approbation demandée',
+  mention: 'Mention',
+  team_mention: "Mention d'équipe",
+  assign: 'Assignation',
+  author: 'Activité sur ton issue / PR',
+  comment: 'Réponse à ton commentaire',
+  state_change: "Changement d'état",
+  security_alert: 'Alerte de sécurité',
+  invitation: 'Invitation',
+  ci_activity: 'Activité CI',
+  subscribed: 'Dépôt suivi (watch)',
+  manual: 'Abonnement manuel',
+}
+export const DEFAULT_GH_REASONS = ['review_requested', 'approval_requested', 'mention', 'team_mention', 'assign', 'author', 'comment', 'security_alert', 'invitation']
+
+export function ghNotificationConfig(db) {
+  const stored = getConfig(db, 'github_notifications')
+  return { enabled: !!stored.enabled, reasons: stored.reasons || DEFAULT_GH_REASONS }
+}
+
+// Personal GitHub notifications, attached to the matching project when there is one.
+export async function syncGithubNotifications(db, log = console) {
+  const config = ghNotificationConfig(db)
+  if (!config.enabled) return []
+  const threads = await forgeFor(db, { forge: 'github' }).fetchNotifications()
+  const projects = db.prepare("SELECT id, name, repo, notify FROM projects WHERE forge = 'github' AND repo != ''").all()
+  const byRepo = new Map(projects.map((p) => [normalizeRepo(p.repo).toLowerCase(), p]))
+  const asRead = !isBaselined(db, 'github-notifications')
+  const fresh = []
+  for (const t of threads) {
+    if (!config.reasons.includes(t.reason)) continue
+    const project = byRepo.get(t.repo?.toLowerCase())
+    pushInbox(db, {
+      project_id: project?.id ?? null,
+      source: 'github',
+      kind: 'gh_notification',
+      title: t.title,
+      url: t.url,
+      excerpt: `${GH_NOTIFICATION_REASONS[t.reason] || t.reason} · ${t.repo}`,
+      external_key: `ghnotif:${t.id}:${t.updated_at}`,
+      created_at: t.updated_at,
+    }, { asRead, fresh })
+  }
+  markBaselined(db, 'github-notifications')
+  const muted = new Set(projects.filter((p) => !p.notify).map((p) => p.id))
+  await notify(db, { id: null, name: 'GitHub' }, fresh.filter((e) => !muted.has(e.project_id)), log)
+  return fresh
 }
 
 export async function syncAll(db, log = console) {
@@ -212,6 +295,11 @@ export async function syncAll(db, log = console) {
     for (const { id } of ids) {
       const res = await syncProject(db, id, log)
       errors.push(...res.errors.map((e) => `[${id}] ${e}`))
+    }
+    try {
+      await syncGithubNotifications(db, log)
+    } catch (err) {
+      errors.push(`Notifications GitHub : ${err.status === 403 || err.status === 401 ? 'accès refusé — il faut un token classique avec le scope « notifications »' : err.message}`)
     }
   } finally {
     syncState.running = false

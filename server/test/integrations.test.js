@@ -49,22 +49,22 @@ const call = async (method, url, payload) => {
 }
 
 test('lists and imports GitHub repositories, skipping tracked ones', async () => {
-  const list = (await call('GET', '/api/github/repos?owner=will')).body
+  const list = (await call('GET', '/api/forges/repos?owner=will')).body
   assert.equal(list.repos.length, 2)
   assert.equal(list.repos[0].tracked, false)
 
-  const res = (await call('POST', '/api/github/import', { repos: list.repos, category_id: 3, extra_tags: ['perso'], sync: false })).body
+  const res = (await call('POST', '/api/forges/import', { repos: list.repos, category_id: 3, extra_tags: ['perso'], sync: false })).body
   assert.deepEqual([res.created, res.skipped], [2, 0])
-  const again = (await call('POST', '/api/github/import', { repos: list.repos, sync: false })).body
+  const again = (await call('POST', '/api/forges/import', { repos: list.repos, sync: false })).body
   assert.deepEqual([again.created, again.skipped], [0, 2])
 
   const projects = (await call('GET', '/api/projects?status=archived')).body
   assert.equal(projects[0].name, 'old')
   const [foo] = (await call('GET', '/api/projects?q=gladys-foo')).body
   assert.deepEqual(foo.tags, ['gladys', 'perso'])
-  assert.deepEqual(foo.version_sources, [{ type: 'github', ref: '' }])
+  assert.deepEqual(foo.version_sources, [{ type: 'repo', ref: '' }])
   assert.equal(foo.notify, true)
-  assert.equal((await call('GET', '/api/github/repos?owner=will')).body.repos[0].tracked, true)
+  assert.equal((await call('GET', '/api/forges/repos?owner=will')).body.repos[0].tracked, true)
 })
 
 test('ntfy settings keep the token write-only', async () => {
