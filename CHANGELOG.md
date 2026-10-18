@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.0 — 2026-10-18
+
+### ✨ Nouveautés
+
+- résumé hebdo, issues/PR qui dorment, calendrier ICS, PWA, statistiques, sauvegardes, palette Ctrl+K (#4) (18382ee)
+
 ## v0.3.0 — 2026-10-18
 
 ### ✨ Nouveautés
