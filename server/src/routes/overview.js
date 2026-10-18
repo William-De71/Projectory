@@ -3,6 +3,7 @@ import { listProjects } from './projects.js'
 import { syncAll, syncState } from '../sync/index.js'
 import { forgeContext } from '../sync/forges/index.js'
 import { tr } from '../i18n.js'
+import { findStale } from '../insights.js'
 
 const REPO_SOURCES = "'github', 'gitlab', 'gitea'"
 const INBOX_SQL = `SELECT x.*, p.name AS project_name FROM inbox x LEFT JOIN projects p ON p.id = x.project_id`
@@ -60,6 +61,7 @@ export default async function overviewRoutes(app, { db }) {
         open_issues: count("SELECT count(*) n FROM github_items WHERE type = 'issue'"),
         open_prs: count("SELECT count(*) n FROM github_items WHERE type = 'pr'"),
         ci_failing: projects.filter((p) => p.ci === 'failure').length,
+        stale: findStale(db).length,
         open_bugs: count("SELECT count(*) n FROM items WHERE kind = 'bug' AND status IN ('todo', 'in_progress')"),
         unread: count('SELECT count(*) n FROM inbox WHERE read_at IS NULL'),
         minutes_this_month: count("SELECT coalesce(sum(minutes), 0) n FROM time_entries WHERE date >= date('now', 'start of month')"),
@@ -74,6 +76,7 @@ export default async function overviewRoutes(app, { db }) {
          ORDER BY CASE i.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END, i.due_date LIMIT 15`
       ).all(),
       inbox: db.prepare(`${INBOX_SQL} WHERE x.read_at IS NULL ORDER BY x.created_at DESC LIMIT 10`).all(),
+      stale: findStale(db).slice(0, 8),
       recent_prs: db.prepare(
         `SELECT g.*, p.name AS project_name FROM github_items g JOIN projects p ON p.id = g.project_id
          WHERE g.type = 'pr' ORDER BY g.updated_at DESC LIMIT 8`

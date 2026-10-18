@@ -137,7 +137,7 @@ export default function ProjectForm({ project, onClose, onSaved }) {
         </Flex>
         <Flex gap={12} wrap>
           <Form.Item name="repo" label={t('Dépôt')} style={{ flex: 1, minWidth: 220 }} extra={t('{path} ou URL — issues, {prs} et CI seront suivies', { path: forge === 'gitlab' ? t('groupe / projet') : 'owner/repo', prs: forge === 'gitlab' ? 'MR' : 'PR' })}>
-            <Input placeholder={forge === 'gitlab' ? 'mon-groupe/mon-projet' : t('GladysAssistant/Gladys')} />
+            <Input placeholder={forge === 'gitlab' ? 'mon-groupe/mon-projet' : 'GladysAssistant/Gladys'} />
           </Form.Item>
           <Form.Item name="homepage" label={t('Site / démo')} style={{ flex: 1, minWidth: 220 }}>
             <Input placeholder="https://…" />

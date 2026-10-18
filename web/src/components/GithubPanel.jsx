@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { refLabel } from './labels.js'
 import ForgeIcon from './ForgeIcon.jsx'
+import StaleTag from './StaleTag.jsx'
 import { t } from '../i18n/index.js'
 
 // Open issues & PRs / MRs mirrored by the last sync.
@@ -15,6 +16,8 @@ export default function GithubPanel({ projectId, project }) {
   const query = new URLSearchParams({ type })
   if (projectId) query.set('project_id', projectId)
   const { data, loading } = useApi(`/github-items?${query}`, { listen: true })
+  const { data: stale } = useApi('/stale', { listen: true })
+  const staleById = new Map((stale?.items || []).map((s) => [s.id, s]))
   const forge = project?.forge || 'github'
 
   if (projectId && !project?.repo) return <Empty description={t('Aucun dépôt configuré pour ce projet')} />
@@ -54,6 +57,7 @@ export default function GithubPanel({ projectId, project }) {
                 <Flex gap={6} wrap align="center">
                   <a href={it.url} target="_blank" rel="noreferrer">{refLabel(forge, it.type, it.number)} {it.title}</a>
                   {it.draft && <Tag>{t('Brouillon')}</Tag>}
+                  {staleById.has(it.id) && <StaleTag item={staleById.get(it.id)} />}
                   {(it.labels || []).map((l) => <Tag key={l.name} color={l.color}>{l.name}</Tag>)}
                 </Flex>
               }
