@@ -9,7 +9,7 @@ for (const key of ['GITHUB_TOKEN', 'GITLAB_TOKEN', 'GITEA_TOKEN', 'GITEA_URL', '
 
 // Fake GitLab (gitlab.test), Gitea (git.home.test), GitHub and ntfy.
 const calls = []
-const state = { ghIssues: [], notifications: [], ntfy: [] }
+const state = { ghIssues: [], notifications: [], ntfy: [], bigClosed: [], pr7: { reviews: [], mergeable: true, checks: 'success' } }
 const realFetch = globalThis.fetch
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status })
 
@@ -68,7 +68,11 @@ before(() => {
       item(4, { pull_request: {} }),
       item(5, {}),
       item(6, {}),
-    ])
+      item(7, { pull_request: {}, user: { login: 'will' }, title: 'Mon correctif', updated_at: state.pr7.updated_at || '2026-01-01T00:00:00Z' }),
+    ].filter((it) => !state.bigClosed.includes(it.number)))
+    if (url === `${big}/pulls/7`) return json({ number: 7, head: { sha: 'abc7' }, mergeable: state.pr7.mergeable, mergeable_state: state.pr7.mergeable ? 'clean' : 'dirty', requested_reviewers: [{ login: 'ann' }] })
+    if (url.startsWith(`${big}/pulls/7/reviews`)) return json(state.pr7.reviews)
+    if (url.startsWith(`${big}/commits/abc7/check-runs`)) return json({ check_runs: [{ status: 'completed', conclusion: state.pr7.checks }] })
     if (url.startsWith(`${big}/pulls?`)) return json([{ number: 3, requested_reviewers: [{ login: 'will' }] }, { number: 4, requested_reviewers: [{ login: 'ann' }] }])
     if (url.startsWith('https://api.github.com/search/issues?')) {
       assert.match(decodeURIComponent(url), /repo:org\/big is:open mentions:Will/)
@@ -167,11 +171,63 @@ test('GitHub: flags the issues and PRs that concern the token owner', async () =
     await call('POST', `/api/projects/${p.id}/sync`)
     const items = (await call('GET', `/api/github-items?project_id=${p.id}`)).body
     const mine = Object.fromEntries(items.map((it) => [it.number, it.mine]))
-    assert.deepEqual(mine, { 1: ['author'], 2: ['assignee'], 3: ['review'], 4: [], 5: ['mention'], 6: [] })
+    assert.deepEqual(mine, { 1: ['author'], 2: ['assignee'], 3: ['review'], 4: [], 5: ['mention'], 6: [], 7: ['author'] })
     assert.deepEqual(items.find((it) => it.number === 2).assignees, ['will'])
   } finally {
     delete process.env.GITHUB_TOKEN
   }
+})
+
+test('my PRs: state, transitions to the inbox, cross-project view, forum reply reminder', async () => {
+  process.env.GITHUB_TOKEN = 'ghp-test'
+  try {
+    const p = (await call('GET', '/api/projects')).body.find((x) => x.repo === 'org/big')
+    const prState = async () => (await call('GET', '/api/my-github')).body.find((it) => it.number === 7 && it.project_id === p.id).pr_state
+    await call('POST', `/api/projects/${p.id}/sync`)
+    assert.deepEqual(await prState(), { review: 'pending', approvals: 0, ci: 'success', conflict: false })
+    const mineList = (await call('GET', '/api/my-github')).body.filter((it) => it.project_id === p.id)
+    assert.deepEqual(mineList.map((it) => it.number).sort(), [1, 2, 3, 5, 7])
+
+    // A reviewer asks for changes and main moves on: two inbox entries for the author.
+    state.pr7 = { reviews: [{ user: { login: 'ann' }, state: 'APPROVED' }, { user: { login: 'bob' }, state: 'CHANGES_REQUESTED' }], mergeable: false, checks: 'failure', updated_at: '2026-01-02T00:00:00Z' }
+    await call('POST', `/api/projects/${p.id}/sync`)
+    assert.deepEqual(await prState(), { review: 'changes_requested', approvals: 1, ci: 'failure', conflict: true })
+    const entries = (await call('GET', '/api/inbox?unread=1')).body.filter((x) => x.kind === 'pr_status')
+    assert.deepEqual(entries.map((x) => x.title).sort(), [
+      '#7 Mon correctif : CI en échec ❌',
+      '#7 Mon correctif : changements demandés ✏️',
+      '#7 Mon correctif : en conflit avec la branche principale ⚠️',
+    ])
+
+    // An item reported on the forum and linked to issue #2: closing the issue closes the item and asks for a forum reply.
+    const { body: it } = await call('POST', '/api/items', { project_id: p.id, title: 'Bug du forum', source: 'forum', external_url: 'https://forum.test/t/bug/9', issue_number: 2, issue_url: 'https://github.com/org/big/issues/2' })
+    state.bigClosed = [2]
+    await call('POST', `/api/projects/${p.id}/sync`)
+    assert.equal((await call('GET', `/api/items?project_id=${p.id}`)).body.find((x) => x.id === it.id).status, 'done')
+    const reply = (await call('GET', '/api/inbox?unread=1')).body.find((x) => x.kind === 'forum_reply')
+    assert.equal(reply.url, 'https://forum.test/t/bug/9')
+    let today = (await call('GET', '/api/today')).body
+    assert.deepEqual(today.forum_replies.map((x) => x.id), [it.id])
+    await call('PUT', `/api/items/${it.id}`, { forum_replied_at: '2026-01-03 10:00:00' })
+    today = (await call('GET', '/api/today')).body
+    assert.equal(today.forum_replies.length, 0)
+  } finally {
+    delete process.env.GITHUB_TOKEN
+  }
+})
+
+test('ntfy: forum mentions and PR status are their own events, on by default for older settings', async () => {
+  const { buildMessages, ntfyConfig } = await import('../src/sync/notify.js')
+  const { openDb: open } = await import('../src/db.js')
+  const db = open(':memory:')
+  db.prepare("INSERT INTO settings (key, value) VALUES ('config:ntfy', ?)").run(JSON.stringify({ topic: 't', events: ['forum'] }))
+  const config = ntfyConfig(db)
+  assert.ok(config.events.includes('forum_mention') && config.events.includes('pr_status'), 'new events are on for settings saved before they existed')
+  assert.ok(!config.events.includes('issue'), 'events switched off stay off')
+  const [msg] = buildMessages({ id: 1, name: 'Gladys' }, [{ source: 'forum', kind: 'discourse_mentions', title: 'Thermostat', excerpt: '@Nagromdark : Salut @Will_71' }], config)
+  assert.equal(msg.title, 'Gladys — Mention sur le forum')
+  assert.equal(msg.priority, 4)
+  assert.equal(buildMessages({ id: 1, name: 'Gladys' }, [{ source: 'forum', kind: 'forum_reply', title: 'x' }], config).length, 0)
 })
 
 test('personal GitHub notifications: opt-in, reasons filter, baseline, ntfy', async () => {

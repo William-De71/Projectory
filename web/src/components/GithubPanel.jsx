@@ -7,6 +7,7 @@ import { api, notifyChange, useApi } from '../api/client.js'
 import { refLabel } from './labels.js'
 import ForgeIcon from './ForgeIcon.jsx'
 import StaleTag from './StaleTag.jsx'
+import PrStatus from './PrStatus.jsx'
 import { t } from '../i18n/index.js'
 
 // Why an item concerns the user, as computed by the sync (token owner).
@@ -123,6 +124,7 @@ export default function GithubPanel({ projectId, project }) {
                 <Flex gap={6} wrap align="center">
                   <a href={it.url} target="_blank" rel="noreferrer">{refLabel(forge, it.type, it.number)} {it.title}</a>
                   {(it.mine || []).filter((r) => MINE[r]).map((r) => <Tag key={r} color={MINE[r].color} bordered={false}>{t(MINE[r].label)}</Tag>)}
+                  {it.type === 'pr' && <PrStatus state={it.pr_state} />}
                   {it.draft && <Tag>{t('Brouillon')}</Tag>}
                   {staleById.has(it.id) && <StaleTag item={staleById.get(it.id)} />}
                   {(it.labels || []).map((l) => <Tag key={l.name} color={l.color}>{l.name}</Tag>)}

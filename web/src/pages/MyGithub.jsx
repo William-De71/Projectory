@@ -1,0 +1,69 @@
+import { Link } from 'react-router-dom'
+import { Card, Empty, Flex, List, Spin, Tag, Typography } from 'antd'
+import dayjs from 'dayjs'
+import { useApi } from '../api/client.js'
+import { refLabel } from '../components/labels.js'
+import PrStatus from '../components/PrStatus.jsx'
+import { t } from '../i18n/index.js'
+
+const SECTIONS = [
+  { key: 'review', title: 'Reviews demandées', match: (it) => it.mine.includes('review'), empty: 'Aucune review en attente' },
+  { key: 'prs', title: 'Mes PR', match: (it) => it.type === 'pr' && it.mine.includes('author'), empty: 'Aucune PR ouverte' },
+  { key: 'assigned', title: 'Assignées à moi', match: (it) => it.mine.includes('assignee'), empty: 'Rien d’assigné' },
+  { key: 'mentions', title: 'Mentions', match: (it) => it.mine.includes('mention'), empty: 'Aucune mention' },
+  { key: 'issues', title: 'Mes issues', match: (it) => it.type === 'issue' && it.mine.includes('author'), empty: 'Aucune issue ouverte' },
+]
+
+function Row({ it }) {
+  return (
+    <List.Item>
+      <Flex vertical gap={4} style={{ minWidth: 0, width: '100%' }}>
+        <a href={it.url} target="_blank" rel="noreferrer">{refLabel(it.forge, it.type, it.number)} {it.title}</a>
+        <Flex gap={4} wrap align="center">
+          <Link to={`/projects/${it.project_id}/github`}><Tag style={{ marginInlineEnd: 0 }}>{it.project_name}</Tag></Link>
+          {it.type === 'pr' && <PrStatus state={it.pr_state} />}
+          {it.draft && <Tag style={{ marginInlineEnd: 0 }}>{t('Brouillon')}</Tag>}
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {it.author} · {t('maj {when}', { when: dayjs(it.updated_at).fromNow() })}
+          </Typography.Text>
+        </Flex>
+      </Flex>
+    </List.Item>
+  )
+}
+
+// Issues and PRs that concern the user (author, assignee, review, mention), across projects.
+export default function MyGithub() {
+  const { data, loading } = useApi('/my-github', { listen: true })
+  if (!data) return <Spin spinning={loading}><div style={{ height: 300 }} /></Spin>
+
+  const sections = SECTIONS.map((sec) => ({ ...sec, rows: data.filter(sec.match) }))
+  const ordered = [...sections.filter((sec) => sec.rows.length), ...sections.filter((sec) => !sec.rows.length)]
+
+  return (
+    <Flex vertical gap={16}>
+      <Flex align="baseline" gap={12} wrap>
+        <Typography.Title level={3} style={{ margin: 0 }}>{t('Mon GitHub')}</Typography.Title>
+        <Typography.Text type="secondary">{t('Issues et PR qui te concernent, sur tous tes projets')}</Typography.Text>
+      </Flex>
+      {!data.length ? (
+        <Empty description={t('Rien pour l’instant. Ces listes utilisent le compte du token de la forge (Paramètres → Forges et tokens) et se remplissent à la synchro.')} />
+      ) : (
+        <div style={{ columnWidth: 420, columnGap: 16 }}>
+          {ordered.map((sec) => (
+            <Card
+              key={sec.key}
+              size="small"
+              title={<>{t(sec.title)} <Tag style={{ marginInlineStart: 4 }}>{sec.rows.length}</Tag></>}
+              style={{ breakInside: 'avoid', marginBottom: 16 }}
+            >
+              {sec.rows.length
+                ? <List size="small" dataSource={sec.rows} rowKey="id" renderItem={(it) => <Row it={it} />} />
+                : <Typography.Text type="secondary">{t(sec.empty)}</Typography.Text>}
+            </Card>
+          ))}
+        </div>
+      )}
+    </Flex>
+  )
+}

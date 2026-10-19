@@ -31,6 +31,12 @@ export function todayView(db, date) {
        WHERE x.kind = 'gh_notification' AND x.reason IN (${REVIEW_REASONS.map(() => '?').join(', ')}) AND x.read_at IS NULL
        ORDER BY x.created_at DESC LIMIT 10`
     ).all(...REVIEW_REASONS),
+    // Fixed bugs that came from the forum and still deserve an answer there.
+    forum_replies: db.prepare(
+      `${ITEMS} WHERE i.source = 'forum' AND i.external_url != '' AND i.status = 'done' AND i.forum_replied_at IS NULL
+         AND i.updated_at >= datetime('now', '-30 days')
+       ORDER BY i.updated_at DESC LIMIT 10`
+    ).all(),
     minutes: db.prepare('SELECT coalesce(sum(minutes), 0) AS n FROM time_entries WHERE date = ?').get(day).n,
   }
 }
