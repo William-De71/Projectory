@@ -120,7 +120,8 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider breakpoint="lg" collapsedWidth="0" width={230} zeroWidthTriggerStyle={{ top: 12, zIndex: 20 }} theme={dark ? 'dark' : 'light'} style={{ borderRight: `1px solid ${token.colorBorderSecondary}` }}>
+      {/* "light" Sider follows the dark algorithm too; its "dark" theme is a fixed navy blue. */}
+      <Sider breakpoint="lg" collapsedWidth="0" width={230} zeroWidthTriggerStyle={{ top: 12, zIndex: 20 }} theme="light" style={{ borderRight: `1px solid ${token.colorBorderSecondary}` }}>
         <div style={{ padding: '18px 20px', fontWeight: 700, fontSize: 18 }}><img src="/icons/icon.svg" alt="" width={24} height={24} style={{ verticalAlign: '-5px', marginRight: 8 }} />Projectory</div>
         <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={({ key }) => navigate(key)} style={{ borderInlineEnd: 0 }} />
       </Sider>

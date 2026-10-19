@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Alert, App, Button, Card, DatePicker, Drawer, Empty, Flex, Form, Input, Popconfirm, Segmented, Select, Table, Tag, Tooltip, Typography } from 'antd'
+import { Alert, App, Button, Card, DatePicker, Empty, Flex, Form, Input, Popconfirm, Segmented, Select, Table, Tag, Tooltip, Typography } from 'antd'
 import { IssuesCloseOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
@@ -11,6 +11,7 @@ import MarkdownInput from './MarkdownInput.jsx'
 import TodayButton from './TodayButton.jsx'
 import ProjectSelect from './ProjectSelect.jsx'
 import { t } from '../i18n/index.js'
+import FormModal from './FormModal.jsx'
 
 // Opens an issue on the project's forge; the issue link then lives on the item.
 function IssueLink({ item, onLinked }) {
@@ -95,18 +96,14 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
   }
 
   return (
-    <Drawer
+    <FormModal
       open={!!item}
       onClose={onClose}
-      size={Math.min(640, window.innerWidth)}
       title={item?.id ? t('Modifier') : t('Nouveau bug / tâche')}
-      destroyOnHidden
-      extra={
-        <Flex gap={8}>
-          {item?.id && <Popconfirm title={t('Supprimer ?')} onConfirm={remove}><Button danger>{t('Supprimer')}</Button></Popconfirm>}
-          <Button type="primary" loading={saving} onClick={save}>{t('Enregistrer')}</Button>
-        </Flex>
-      }
+      saving={saving}
+      onSave={save}
+      onDelete={item?.id ? remove : null}
+      deleteTitle={t('Supprimer ?')}
     >
       <IssueLink item={current} onLinked={setLinked} />
       <Form form={form} layout="vertical">
@@ -135,7 +132,7 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
           <MarkdownInput autoSize={{ minRows: 6, maxRows: 24 }} placeholder={[t('1. Aller sur…'), t('2. Cliquer sur…'), '', t('Attendu : …'), t('Obtenu : …'), t('Version : …')].join('\n')} />
         </Form.Item>
       </Form>
-    </Drawer>
+    </FormModal>
   )
 }
 
@@ -263,6 +260,7 @@ export default function ItemsPanel({ projectId }) {
           columns={columns}
           dataSource={items}
           pagination={{ pageSize: 25, hideOnSinglePage: true }}
+          scroll={{ x: 'max-content' }}
           expandable={{
             expandedRowKeys: expanded,
             onExpandedRowsChange: setExpanded,
