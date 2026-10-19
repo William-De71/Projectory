@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { App, Button, Divider, Flex, Form, Input, Modal, Popconfirm, Select, Switch, Typography } from 'antd'
+import { App, Button, Divider, Flex, Form, Input, Select, Switch, Typography } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { FORGES, PROJECT_STATUS, options } from './labels.js'
 import { t } from '../i18n/index.js'
+import FormModal from './FormModal.jsx'
 
 const VERSION_TYPES = [
   { value: 'repo', label: 'Releases du dépôt', placeholder: 'dépôt configuré ci-dessus (GitHub, GitLab ou Gitea)', noRef: true },
@@ -77,28 +78,14 @@ export default function ProjectForm({ project, onClose, onSaved }) {
   }
 
   return (
-    <Modal
+    <FormModal
       open={!!project}
-      onCancel={onClose}
-      centered
-      width="min(760px, calc(100vw - 24px))"
+      onClose={onClose}
       title={project?.id ? t('Modifier {name}', { name: project.name }) : t('Nouveau projet')}
-      destroyOnHidden
-      // Long form: the body scrolls, the buttons stay visible.
-      styles={{ body: { maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', paddingRight: 8 } }}
-      footer={
-        <Flex gap={8} justify="space-between">
-          {project?.id ? (
-            <Popconfirm title={t('Supprimer le projet et tout son contenu (bugs, specs, notes) ?')} onConfirm={remove}>
-              <Button danger>{t('Supprimer')}</Button>
-            </Popconfirm>
-          ) : <span />}
-          <Flex gap={8}>
-            <Button onClick={onClose}>{t('Annuler')}</Button>
-            <Button type="primary" loading={saving} onClick={save}>{t('Enregistrer')}</Button>
-          </Flex>
-        </Flex>
-      }
+      saving={saving}
+      onSave={save}
+      onDelete={project?.id ? remove : null}
+      deleteTitle={t('Supprimer le projet et tout son contenu (bugs, specs, notes) ?')}
     >
       <Form form={form} layout="vertical">
         <Form.Item name="name" label={t('Nom')} rules={[{ required: true, message: t('Nom obligatoire') }]}>
@@ -212,6 +199,6 @@ export default function ProjectForm({ project, onClose, onSaved }) {
           }}
         </SourceList>
       </Form>
-    </Modal>
+    </FormModal>
   )
 }

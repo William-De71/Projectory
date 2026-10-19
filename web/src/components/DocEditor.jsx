@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { App, Button, Drawer, Flex, Form, Input, Popconfirm, Segmented, Select, Switch, Tabs } from 'antd'
+import { App, Flex, Form, Input, Segmented, Select, Switch, Tabs } from 'antd'
 import { api } from '../api/client.js'
 import { DOC_STATUS, options } from './labels.js'
 import Markdown from './Markdown.jsx'
 import MarkdownInput from './MarkdownInput.jsx'
 import ProjectSelect from './ProjectSelect.jsx'
 import { getLang, t } from '../i18n/index.js'
+import FormModal from './FormModal.jsx'
 
 const SPEC_TEMPLATES = {
   fr: `## Contexte
@@ -48,7 +49,7 @@ Why is this needed? Who asked for it?
 
 export const specTemplate = () => SPEC_TEMPLATES[getLang()] || SPEC_TEMPLATES.fr
 
-// Drawer to create or edit a spec / note. `doc` null = closed.
+// Dialog to create or edit a spec / note. `doc` null = closed.
 export default function DocEditor({ doc, onClose, onSaved, onDeleted, withProjectPicker = false }) {
   const { message } = App.useApp()
   const [form] = Form.useForm()
@@ -95,22 +96,15 @@ export default function DocEditor({ doc, onClose, onSaved, onDeleted, withProjec
   }
 
   return (
-    <Drawer
+    <FormModal
       open={!!doc}
       onClose={onClose}
-      size={Math.min(960, window.innerWidth)}
+      width={960}
       title={doc?.id ? t('Modifier') : type === 'spec' ? t('Nouvelle spécification') : t('Nouvelle note')}
-      destroyOnHidden
-      extra={
-        <Flex gap={8}>
-          {doc?.id && (
-            <Popconfirm title={t('Supprimer ce document ?')} onConfirm={remove}>
-              <Button danger>{t('Supprimer')}</Button>
-            </Popconfirm>
-          )}
-          <Button type="primary" loading={saving} onClick={save}>{t('Enregistrer')}</Button>
-        </Flex>
-      }
+      saving={saving}
+      onSave={save}
+      onDelete={doc?.id ? remove : null}
+      deleteTitle={t('Supprimer ce document ?')}
     >
       <Form form={form} layout="vertical" onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save() } }}>
         <Flex gap={12} wrap>
@@ -150,6 +144,6 @@ export default function DocEditor({ doc, onClose, onSaved, onDeleted, withProjec
           ]}
         />
       </Form>
-    </Drawer>
+    </FormModal>
   )
 }

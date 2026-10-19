@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Alert, Button, Card, Col, Empty, Flex, List, Row, Spin, Statistic, Tag, Tooltip, Typography } from 'antd'
+import { Alert, Button, Card, Col, Flex, List, Row, Spin, Statistic, Tag, Tooltip, Typography } from 'antd'
 import { PullRequestOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useApi } from '../api/client.js'
@@ -25,6 +25,101 @@ export default function Dashboard() {
     { title: t('CI en échec'), value: stats.ci_failing, color: stats.ci_failing ? '#ff4d4f' : undefined },
     { title: t('En attente'), value: stats.stale, tip: t('Issues sans réponse et PR / MR sans activité') },
     { title: t('Temps ce mois'), value: formatMinutes(stats.minutes_this_month), to: '/time' },
+  ]
+
+  const sections = [
+    {
+      key: 'inbox',
+      title: t('Nouveautés'),
+      extra: <Link to="/inbox">{t('Tout voir')}</Link>,
+      empty: !data.inbox.length,
+      emptyText: t('Rien de nouveau'),
+      content: <InboxList entries={data.inbox} onChange={reload} />,
+    },
+    {
+      key: 'urgent',
+      title: t('Prioritaire / échéance proche'),
+      extra: <Link to="/items">{t('Tout voir')}</Link>,
+      empty: !data.urgent.length,
+      emptyText: t('Rien d\'urgent'),
+      content: (
+        <List
+          dataSource={data.urgent}
+          renderItem={(it) => (
+            <List.Item className="clickable" onClick={() => navigate(`/projects/${it.project_id}/items`)}>
+              <Flex vertical gap={2} style={{ width: '100%' }}>
+                <Typography.Text strong ellipsis>{it.title}</Typography.Text>
+                <Flex gap={4} wrap>
+                  <Tag>{it.project_name}</Tag>
+                  <LabelTag map={ITEM_KIND} value={it.kind} />
+                  <LabelTag map={PRIORITY} value={it.priority} />
+                  {it.due_date && <Tag color={dayjs(it.due_date).isBefore(dayjs(), 'day') ? 'red' : 'gold'}>{dayjs(it.due_date).format('D MMM')}</Tag>}
+                </Flex>
+              </Flex>
+            </List.Item>
+          )}
+        />
+      ),
+    },
+    {
+      key: 'stale',
+      title: t('En attente'),
+      extra: <Link to="/settings">{t('Réglages')}</Link>,
+      empty: !data.stale.length,
+      emptyText: t('Rien ne dort 👌'),
+      content: (
+        <List
+          dataSource={data.stale}
+          renderItem={(s) => (
+            <List.Item>
+              <Flex vertical gap={2} style={{ minWidth: 0, width: '100%' }}>
+                <a href={s.url} target="_blank" rel="noreferrer"><Typography.Text ellipsis style={{ color: 'inherit' }}>{refLabel(s.forge, s.type, s.number)} {s.title}</Typography.Text></a>
+                <Flex gap={4} wrap>
+                  <Tag>{s.project_name}</Tag>
+                  <StaleTag item={s} />
+                </Flex>
+              </Flex>
+            </List.Item>
+          )}
+        />
+      ),
+    },
+    {
+      key: 'outdated',
+      title: t('Mises à jour disponibles'),
+      empty: !data.outdated.length,
+      emptyText: t('Tout est à jour'),
+      content: (
+        <List
+          dataSource={data.outdated}
+          renderItem={(p) => (
+            <List.Item className="clickable" onClick={() => navigate(`/projects/${p.id}`)}>
+              <Typography.Text>{p.name}</Typography.Text>
+              <Tag color="orange">{p.deployed_version} → {latestVersion(p)}</Tag>
+            </List.Item>
+          )}
+        />
+      ),
+    },
+    {
+      key: 'prs',
+      title: t('PR récentes'),
+      empty: !data.recent_prs.length,
+      emptyText: t('Aucune PR ouverte'),
+      content: (
+        <List
+          dataSource={data.recent_prs}
+          renderItem={(pr) => (
+            <List.Item>
+              <Flex vertical gap={2} style={{ minWidth: 0 }}>
+                <a href={pr.url} target="_blank" rel="noreferrer"><PullRequestOutlined /> #{pr.number} {pr.title}</a>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>{pr.project_name} · {pr.author} · {dayjs(pr.updated_at).fromNow()}</Typography.Text>
+              </Flex>
+            </List.Item>
+          )}
+        />
+      ),
+    },
   ]
 
   return (
@@ -82,84 +177,19 @@ export default function Dashboard() {
       )}
 
       {!!data.pinned.length && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
           {data.pinned.map((p) => <ProjectCard key={p.id} project={p} />)}
         </div>
       )}
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} xl={14}>
-          <Card size="small" title={t('Nouveautés')} extra={<Link to="/inbox">{t('Tout voir')}</Link>}>
-            <InboxList entries={data.inbox} onChange={reload} />
+      {/* Sections flow into balanced columns; those with content come first. */}
+      <div style={{ columnWidth: 380, columnGap: 16 }}>
+        {sections.filter((sec) => !sec.empty).concat(sections.filter((sec) => sec.empty)).map((sec) => (
+          <Card key={sec.key} size="small" title={sec.title} extra={sec.extra} style={{ breakInside: 'avoid', marginBottom: 16 }}>
+            {sec.empty ? <Typography.Text type="secondary">{sec.emptyText}</Typography.Text> : sec.content}
           </Card>
-        </Col>
-        <Col xs={24} xl={10}>
-          <Flex vertical gap={16}>
-            <Card size="small" title={t('Prioritaire / échéance proche')} extra={<Link to="/items">{t('Tout voir')}</Link>}>
-              <List
-                dataSource={data.urgent}
-                locale={{ emptyText: <Empty description={t('Rien d\'urgent')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-                renderItem={(it) => (
-                  <List.Item className="clickable" onClick={() => navigate(`/projects/${it.project_id}/items`)}>
-                    <Flex vertical gap={2} style={{ width: '100%' }}>
-                      <Typography.Text strong ellipsis>{it.title}</Typography.Text>
-                      <Flex gap={4} wrap>
-                        <Tag>{it.project_name}</Tag>
-                        <LabelTag map={ITEM_KIND} value={it.kind} />
-                        <LabelTag map={PRIORITY} value={it.priority} />
-                        {it.due_date && <Tag color={dayjs(it.due_date).isBefore(dayjs(), 'day') ? 'red' : 'gold'}>{dayjs(it.due_date).format('D MMM')}</Tag>}
-                      </Flex>
-                    </Flex>
-                  </List.Item>
-                )}
-              />
-            </Card>
-            <Card size="small" title={t('En attente')} extra={<Link to="/settings">{t('Réglages')}</Link>}>
-              <List
-                dataSource={data.stale}
-                locale={{ emptyText: <Empty description={t('Rien ne dort 👌')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-                renderItem={(s) => (
-                  <List.Item>
-                    <Flex vertical gap={2} style={{ minWidth: 0, width: '100%' }}>
-                      <a href={s.url} target="_blank" rel="noreferrer"><Typography.Text ellipsis style={{ color: 'inherit' }}>{refLabel(s.forge, s.type, s.number)} {s.title}</Typography.Text></a>
-                      <Flex gap={4} wrap>
-                        <Tag>{s.project_name}</Tag>
-                        <StaleTag item={s} />
-                      </Flex>
-                    </Flex>
-                  </List.Item>
-                )}
-              />
-            </Card>
-            <Card size="small" title={t('Mises à jour disponibles')}>
-              <List
-                dataSource={data.outdated}
-                locale={{ emptyText: <Empty description={t('Tout est à jour')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-                renderItem={(p) => (
-                  <List.Item className="clickable" onClick={() => navigate(`/projects/${p.id}`)}>
-                    <Typography.Text>{p.name}</Typography.Text>
-                    <Tag color="orange">{p.deployed_version} → {latestVersion(p)}</Tag>
-                  </List.Item>
-                )}
-              />
-            </Card>
-            <Card size="small" title={t('PR récentes')}>
-              <List
-                dataSource={data.recent_prs}
-                locale={{ emptyText: <Empty description={t('Aucune PR ouverte')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-                renderItem={(pr) => (
-                  <List.Item>
-                    <Flex vertical gap={2} style={{ minWidth: 0 }}>
-                      <a href={pr.url} target="_blank" rel="noreferrer"><PullRequestOutlined /> #{pr.number} {pr.title}</a>
-                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>{pr.project_name} · {pr.author} · {dayjs(pr.updated_at).fromNow()}</Typography.Text>
-                    </Flex>
-                  </List.Item>
-                )}
-              />
-            </Card>
-          </Flex>
-        </Col>
-      </Row>
+        ))}
+      </div>
     </Flex>
   )
 }
