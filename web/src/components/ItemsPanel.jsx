@@ -263,6 +263,7 @@ export default function ItemsPanel({ projectId }) {
           columns={columns}
           dataSource={items}
           pagination={{ pageSize: 25, hideOnSinglePage: true }}
+          scroll={{ x: 'max-content' }}
           expandable={{
             expandedRowKeys: expanded,
             onExpandedRowsChange: setExpanded,

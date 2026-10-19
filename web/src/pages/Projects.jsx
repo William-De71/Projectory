@@ -42,14 +42,17 @@ export default function Projects() {
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreating({})}>{t('Nouveau projet')}</Button>
       </Flex>
       <Flex gap={8} wrap align="center">
-        <Segmented
-          value={category}
-          onChange={setCategory}
-          options={[
-            { value: 'all', label: t('Tous ({n})', { n: data?.length ?? 0 }) },
-            ...(categories || []).map((c) => ({ value: String(c.id), label: <span><span style={{ color: c.color }}>●</span> {c.name}</span> })),
-          ]}
-        />
+        {/* Many categories: scroll inside instead of widening the page on mobile. */}
+        <div style={{ maxWidth: '100%', overflowX: 'auto' }}>
+          <Segmented
+            value={category}
+            onChange={setCategory}
+            options={[
+              { value: 'all', label: t('Tous ({n})', { n: data?.length ?? 0 }) },
+              ...(categories || []).map((c) => ({ value: String(c.id), label: <span><span style={{ color: c.color }}>●</span> {c.name}</span> })),
+            ]}
+          />
+        </div>
         <Select allowClear placeholder={t('Statut (hors archivés)')} style={{ width: 200 }} value={status} onChange={setStatus} options={options(PROJECT_STATUS)} />
         <Input.Search placeholder={t('Filtrer par nom, client, tag…')} allowClear onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 280 }} />
       </Flex>

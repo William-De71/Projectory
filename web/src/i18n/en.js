@@ -31,6 +31,7 @@ export default {
   "Ajouté aux bugs & tâches du projet": "Added to the project's bugs & tasks",
   "Aller à": "Go to",
   "Aller à, chercher, créer… (↑ ↓ pour choisir, Entrée pour valider)": "Go to, search, create… (↑ ↓ to choose, Enter to run)",
+  "Annuler": "Cancel",
   "Aperçu": "Overview",
   "Archivé": "Archived",
   "Archivés": "Archived",

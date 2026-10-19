@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { App, Button, Divider, Drawer, Flex, Form, Input, Popconfirm, Select, Switch, Typography } from 'antd'
+import { App, Button, Divider, Flex, Form, Input, Modal, Popconfirm, Select, Switch, Typography } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { FORGES, PROJECT_STATUS, options } from './labels.js'
@@ -35,7 +35,7 @@ function SourceList({ name, addLabel, children, initial }) {
   )
 }
 
-// Drawer to create (project = {}) or edit a project. `project` null = closed.
+// Dialog to create (project = {}) or edit a project. `project` null = closed.
 export default function ProjectForm({ project, onClose, onSaved }) {
   const { message } = App.useApp()
   const [form] = Form.useForm()
@@ -77,20 +77,26 @@ export default function ProjectForm({ project, onClose, onSaved }) {
   }
 
   return (
-    <Drawer
+    <Modal
       open={!!project}
-      onClose={onClose}
-      size={Math.min(720, window.innerWidth)}
+      onCancel={onClose}
+      centered
+      width="min(760px, calc(100vw - 24px))"
       title={project?.id ? t('Modifier {name}', { name: project.name }) : t('Nouveau projet')}
       destroyOnHidden
-      extra={
-        <Flex gap={8}>
-          {project?.id && (
+      // Long form: the body scrolls, the buttons stay visible.
+      styles={{ body: { maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', paddingRight: 8 } }}
+      footer={
+        <Flex gap={8} justify="space-between">
+          {project?.id ? (
             <Popconfirm title={t('Supprimer le projet et tout son contenu (bugs, specs, notes) ?')} onConfirm={remove}>
               <Button danger>{t('Supprimer')}</Button>
             </Popconfirm>
-          )}
-          <Button type="primary" loading={saving} onClick={save}>{t('Enregistrer')}</Button>
+          ) : <span />}
+          <Flex gap={8}>
+            <Button onClick={onClose}>{t('Annuler')}</Button>
+            <Button type="primary" loading={saving} onClick={save}>{t('Enregistrer')}</Button>
+          </Flex>
         </Flex>
       }
     >
@@ -206,6 +212,6 @@ export default function ProjectForm({ project, onClose, onSaved }) {
           }}
         </SourceList>
       </Form>
-    </Drawer>
+    </Modal>
   )
 }
