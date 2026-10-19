@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.0 — 2026-10-19
+
+### ✨ Nouveautés
+
+- page « Mon GitHub », état de mes PR, réponse forum quand un bug est corrigé, mentions forum sur ntfy (#8) (3128ca0)
+
 ## v0.6.0 — 2026-10-19
 
 ### ✨ Nouveautés
