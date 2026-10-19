@@ -169,6 +169,12 @@ const MIGRATIONS = [
   ALTER TABLE github_items ADD COLUMN assignees TEXT NOT NULL DEFAULT '[]';
   ALTER TABLE github_items ADD COLUMN mine TEXT NOT NULL DEFAULT '[]';
   `,
+  `
+  -- State of a PR that concerns the user: { review, ci, conflict, approvals }.
+  ALTER TABLE github_items ADD COLUMN pr_state TEXT;
+  -- When the fix was announced on the forum topic the item came from.
+  ALTER TABLE items ADD COLUMN forum_replied_at TEXT;
+  `,
 ]
 
 export function openDb(file = join(DATA_PATH, 'projectory.db')) {
@@ -191,7 +197,7 @@ export function openDb(file = join(DATA_PATH, 'projectory.db')) {
 }
 
 // JSON columns are stored as text; decode them on the way out.
-const JSON_COLUMNS = ['tags', 'links', 'version_sources', 'forum_sources', 'github', 'versions', 'labels', 'assignees', 'mine']
+const JSON_COLUMNS = ['tags', 'links', 'version_sources', 'forum_sources', 'github', 'versions', 'labels', 'assignees', 'mine', 'pr_state']
 
 export function decode(row) {
   if (!row) return row

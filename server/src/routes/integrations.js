@@ -169,6 +169,8 @@ export default async function integrationRoutes(app, { db }) {
     const body = req.body || {}
     const next = { ...current }
     for (const key of ['enabled', 'server', 'topic', 'events', 'app_url']) if (key in body) next[key] = body[key]
+    // Remember which events existed when the choice was made (new ones default to on).
+    if ('events' in body) next.known_events = Object.keys(NOTIFY_EVENTS)
     // The token is write-only: an empty field keeps it, clear_token removes it.
     if (body.token) next.token = body.token
     if (body.clear_token) delete next.token

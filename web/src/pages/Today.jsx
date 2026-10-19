@@ -8,6 +8,7 @@ import { ITEM_KIND, PRIORITY, formatMinutes } from '../components/labels.js'
 import { LabelTag } from '../components/Tags.jsx'
 import { ItemForm } from '../components/ItemsPanel.jsx'
 import { setFocus, todayDate } from '../components/TodayButton.jsx'
+import ForumReplyModal, { needsForumReply } from '../components/ForumReplyModal.jsx'
 import { t } from '../i18n/index.js'
 
 const FOCUS_LIMIT = 5
@@ -63,6 +64,7 @@ export default function Today() {
   const { data, loading, setData } = useApi(`/today?date=${today}`, { listen: true })
   const { data: openItems } = useApi('/items?open=1', { listen: true })
   const [editing, setEditing] = useState(null)
+  const [replyTo, setReplyTo] = useState(null)
 
   if (!data) return <Spin spinning={loading}><div style={{ height: 300 }} /></Spin>
 
@@ -82,7 +84,10 @@ export default function Today() {
   // A finished item stays in today's list (ticked) until tomorrow.
   const toggleDone = (item, done) => {
     setData((d) => ({ ...d, focus: d.focus.map((i) => (i.id === item.id ? { ...i, status: done ? 'done' : 'todo' } : i)) }))
-    run(() => api.put(`/items/${item.id}`, { status: done ? 'done' : 'todo', focus_date: today }))
+    run(async () => {
+      const updated = await api.put(`/items/${item.id}`, { status: done ? 'done' : 'todo', focus_date: today })
+      if (needsForumReply(updated)) setReplyTo(updated)
+    })
   }
 
   const open = data.focus.filter(isOpen)
@@ -158,6 +163,22 @@ export default function Today() {
         </Col>
         <Col xs={24} lg={10}>
           <Flex vertical gap={16}>
+            {data.forum_replies.length > 0 && (
+              <Card size="small" title={t('À répondre sur le forum')}>
+                <List
+                  size="small"
+                  dataSource={data.forum_replies}
+                  renderItem={(it) => (
+                    <List.Item actions={[<Button key="reply" size="small" onClick={() => setReplyTo(it)}>{t('Répondre')}</Button>]}>
+                      <Flex vertical gap={2} style={{ minWidth: 0 }}>
+                        <Typography.Text ellipsis>{it.title}</Typography.Text>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{it.project_name}{it.target_version ? ` · ${it.target_version}` : ''}</Typography.Text>
+                      </Flex>
+                    </List.Item>
+                  )}
+                />
+              </Card>
+            )}
             <Candidates title={t('À échéance')} items={data.due} today={today} onAdd={add} onOpen={setEditing} empty={t('Aucune échéance dépassée ni pour aujourd’hui')} />
             <Card size="small" title={t('Reviews demandées')}>
               <List
@@ -184,6 +205,7 @@ export default function Today() {
           </Flex>
         </Col>
       </Row>
+      <ForumReplyModal item={replyTo} onClose={() => setReplyTo(null)} />
       <ItemForm item={editing} withProjectPicker={!editing?.project_id} onClose={() => setEditing(null)} onSaved={() => setEditing(null)} />
     </Flex>
   )

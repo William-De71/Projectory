@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { App, AutoComplete, Badge, Button, Flex, Grid, Input, Layout, Menu, Segmented, Tag, Tooltip, theme } from 'antd'
 import {
   AppstoreOutlined, BugOutlined, ClockCircleOutlined, DashboardOutlined, EditOutlined,
-  InboxOutlined, MoonOutlined, CheckSquareOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined,
+  InboxOutlined, MoonOutlined, CheckSquareOutlined, GithubOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import { api, notifyChange, useChangeListener } from '../api/client.js'
 import DocEditor from './DocEditor.jsx'
@@ -109,6 +109,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const items = [
     { key: '/', icon: <DashboardOutlined />, label: t('Tableau de bord') },
     { key: '/today', icon: <CheckSquareOutlined />, label: t('Aujourd’hui') },
+    { key: '/mine', icon: <GithubOutlined />, label: t('Mon GitHub') },
     { key: '/projects', icon: <AppstoreOutlined />, label: t('Projets') },
     { key: '/inbox', icon: <InboxOutlined />, label: <Flex justify="space-between" align="center">{t('Boîte de réception') + ' '}<Badge count={unread} size="small" /></Flex> },
     { key: '/items', icon: <BugOutlined />, label: t('Bugs & tâches') },

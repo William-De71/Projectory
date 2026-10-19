@@ -1,7 +1,7 @@
 import { decode, insertRow, updateRow } from '../db.js'
 import { tr } from '../i18n.js'
 
-const ITEM_FIELDS = ['project_id', 'kind', 'title', 'body', 'status', 'priority', 'source', 'external_url', 'target_version', 'due_date', 'issue_number', 'issue_url', 'focus_date']
+const ITEM_FIELDS = ['project_id', 'kind', 'title', 'body', 'status', 'priority', 'source', 'external_url', 'target_version', 'due_date', 'issue_number', 'issue_url', 'focus_date', 'forum_replied_at']
 const DOC_FIELDS = ['project_id', 'type', 'title', 'content', 'status', 'pinned']
 const CATEGORY_FIELDS = ['name', 'color', 'position']
 

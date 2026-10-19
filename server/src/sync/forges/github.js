@@ -1,5 +1,5 @@
 import { fetchJson } from '../http.js'
-import { cachedLogin, ciConclusion, paginate } from './common.js'
+import { FAILED, cachedLogin, ciConclusion, paginate } from './common.js'
 import { tr } from '../../i18n.js'
 
 // GitHub (github.com, or GitHub Enterprise through GITHUB_API_URL).
@@ -71,6 +71,27 @@ export default function github({ token }) {
       const q = encodeURIComponent(`repo:${repo} is:open mentions:${login}`)
       const res = await gh(`/search/issues?q=${q}&per_page=100`)
       return new Set((res.items || []).map((it) => it.number))
+    },
+
+    // Review decision, checks of the head commit and merge conflicts of one PR.
+    async fetchPrState(repo, number) {
+      const pr = await gh(`/repos/${repo}/pulls/${number}`)
+      const reviews = await gh(`/repos/${repo}/pulls/${number}/reviews?per_page=100`)
+      const { check_runs: runs = [] } = await gh(`/repos/${repo}/commits/${pr.head.sha}/check-runs?per_page=100`).catch(() => ({}))
+      // Latest decisive review of each reviewer; a later comment does not cancel it.
+      const latest = new Map()
+      for (const r of reviews) if (['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(r.state)) latest.set(r.user?.login, r.state)
+      const decisions = [...latest.values()]
+      let ci = null
+      if (runs.some((r) => r.status === 'completed' && FAILED.includes(r.conclusion))) ci = 'failure'
+      else if (runs.some((r) => r.status !== 'completed')) ci = 'pending'
+      else if (runs.length) ci = 'success'
+      return {
+        review: decisions.includes('CHANGES_REQUESTED') ? 'changes_requested' : decisions.includes('APPROVED') ? 'approved' : (pr.requested_reviewers || []).length ? 'pending' : null,
+        approvals: decisions.filter((d) => d === 'APPROVED').length,
+        ci,
+        conflict: pr.mergeable === false || pr.mergeable_state === 'dirty',
+      }
     },
 
     // Latest GitHub Actions run of each workflow on the default branch.

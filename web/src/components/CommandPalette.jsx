@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Empty, Flex, Input, Modal, Tag, theme, Typography } from 'antd'
 import {
-  AppstoreOutlined, BugOutlined, CheckSquareOutlined, ClockCircleOutlined, CloudDownloadOutlined, DashboardOutlined, EditOutlined, FileTextOutlined,
+  AppstoreOutlined, BugOutlined, CheckSquareOutlined, GithubOutlined, ClockCircleOutlined, CloudDownloadOutlined, DashboardOutlined, EditOutlined, FileTextOutlined,
   GlobalOutlined, InboxOutlined, MoonOutlined, PlusOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import { api } from '../api/client.js'
@@ -44,6 +44,7 @@ export default function CommandPalette({ open, onClose, actions }) {
     const pages = [
       { label: t('Tableau de bord'), icon: <DashboardOutlined />, run: () => navigate('/') },
       { label: t('Aujourd’hui'), icon: <CheckSquareOutlined />, run: () => navigate('/today') },
+      { label: t('Mon GitHub'), icon: <GithubOutlined />, run: () => navigate('/mine') },
       { label: t('Projets'), icon: <AppstoreOutlined />, run: () => navigate('/projects') },
       { label: t('Boîte de réception'), icon: <InboxOutlined />, run: () => navigate('/inbox') },
       { label: t('Bugs & tâches'), icon: <BugOutlined />, run: () => navigate('/items') },
@@ -76,7 +77,7 @@ export default function CommandPalette({ open, onClose, actions }) {
       },
     }))
     const filtered = [...commands, ...pages, ...projectEntries].filter((e) => match(`${e.label} ${e.hint || ''} ${e.keywords || ''}`))
-    return [...filtered.slice(0, needle ? 12 : 8 + 8), ...searchEntries.slice(0, 10)]
+    return [...filtered.slice(0, needle ? 12 : 8 + 9), ...searchEntries.slice(0, 10)]
   }, [q, projects, results, actions, navigate])
 
   useEffect(() => setActive(0), [q])

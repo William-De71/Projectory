@@ -52,6 +52,20 @@ async function syncForge(db, project, fresh, errors) {
   // Who the token belongs to, to flag what concerns the user. Never fatal.
   const login = await forge.whoami?.().catch(() => null)
   const mentioned = login && forge.fetchMentions ? await forge.fetchMentions(repo, login).catch(() => new Set()) : new Set()
+  const mineOf = new Map(items.map((it) => [it, involvement(it, login, mentioned)]))
+  // Review / CI / conflict state of the PRs that concern the user (capped: one
+  // request set per PR). Fetched before the transaction, never fatal.
+  const prStates = new Map()
+  if (forge.fetchPrState) {
+    const watched = items.filter((it) => it.type === 'pr' && mineOf.get(it).length).slice(0, 20)
+    await Promise.all(watched.map(async (it) => {
+      try { prStates.set(it.number, await forge.fetchPrState(repo, it.number)) } catch { /* keep going */ }
+    }))
+  }
+  const previousStates = new Map(
+    db.prepare("SELECT number, pr_state FROM github_items WHERE project_id = ? AND type = 'pr'").all(project.id)
+      .map((r) => [r.number, r.pr_state ? JSON.parse(r.pr_state) : null])
+  )
   const baseKey = forgeKey(project, repo)
   const asRead = !isBaselined(db, baseKey)
   const source = project.forge
@@ -68,20 +82,24 @@ async function syncForge(db, project, fresh, errors) {
     db.prepare('SELECT type, number FROM github_items WHERE project_id = ?').all(project.id).map((r) => `${r.type}#${r.number}`)
   )
   const upsert = db.prepare(
-    `INSERT INTO github_items (project_id, type, number, title, author, url, labels, draft, comments, created_at, updated_at, assignees, mine)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO github_items (project_id, type, number, title, author, url, labels, draft, comments, created_at, updated_at, assignees, mine, pr_state)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(project_id, type, number) DO UPDATE SET
        title = excluded.title, labels = excluded.labels, draft = excluded.draft,
        comments = excluded.comments, updated_at = excluded.updated_at,
-       assignees = excluded.assignees, mine = excluded.mine`
+       assignees = excluded.assignees, mine = excluded.mine, pr_state = excluded.pr_state`
   )
   db.exec('BEGIN')
   try {
     for (const it of items) {
       upsert.run(
         project.id, it.type, it.number, it.title, it.author, it.url, JSON.stringify(it.labels), it.draft ? 1 : 0, it.comments, it.created_at, it.updated_at,
-        JSON.stringify(it.assignees || []), JSON.stringify(involvement(it, login, mentioned))
+        JSON.stringify(it.assignees || []), JSON.stringify(mineOf.get(it)),
+        prStates.has(it.number) ? JSON.stringify(prStates.get(it.number)) : null
       )
+      if (mineOf.get(it).includes('author')) {
+        pushPrTransitions(db, project, baseKey, it, previousStates.get(it.number), prStates.get(it.number), { asRead, fresh })
+      }
       if (!existing.has(`${it.type}#${it.number}`)) {
         pushInbox(db, {
           project_id: project.id,
@@ -105,7 +123,7 @@ async function syncForge(db, project, fresh, errors) {
         del.run(project.id, type, Number(number))
       }
     }
-    closeLinkedItems(db, project, items)
+    closeLinkedItems(db, project, items, baseKey, { asRead, fresh })
     db.prepare('UPDATE projects SET github = ? WHERE id = ?').run(JSON.stringify(info), project.id)
     markBaselined(db, baseKey)
     db.exec('COMMIT')
@@ -117,15 +135,53 @@ async function syncForge(db, project, fresh, errors) {
 
 // An item whose forge issue is no longer open gets closed too. Skipped when
 // the issue list may be truncated (adapters stop at 5 pages).
-function closeLinkedItems(db, project, items) {
+function closeLinkedItems(db, project, items, baseKey, opts) {
   const issues = items.filter((it) => it.type === 'issue')
   if (issues.length >= 250) return
   const open = new Set(issues.map((it) => it.number))
   const linked = db.prepare(
-    "SELECT id, issue_number FROM items WHERE project_id = ? AND issue_number IS NOT NULL AND status IN ('todo', 'in_progress')"
+    "SELECT id, title, source, external_url, issue_number FROM items WHERE project_id = ? AND issue_number IS NOT NULL AND status IN ('todo', 'in_progress')"
   ).all(project.id)
   const close = db.prepare("UPDATE items SET status = 'done', updated_at = datetime('now') WHERE id = ?")
-  for (const it of linked) if (!open.has(it.issue_number)) close.run(it.id)
+  for (const it of linked) {
+    if (open.has(it.issue_number)) continue
+    close.run(it.id)
+    // A bug reported on the forum: remind to tell the reporter it is fixed.
+    if (it.source === 'forum' && it.external_url) {
+      pushInbox(db, {
+        project_id: project.id,
+        source: 'forum',
+        kind: 'forum_reply',
+        title: tr('Corrigé : réponds sur le forum — {title}', { title: it.title }),
+        url: it.external_url,
+        external_key: `${baseKey}:forum-reply:${it.id}`,
+      }, opts)
+    }
+  }
+}
+
+// Changes worth telling the author of a PR about.
+const PR_TRANSITIONS = [
+  ['approved', (b, a) => a.review === 'approved' && b.review !== 'approved', 'approuvée ✅'],
+  ['changes', (b, a) => a.review === 'changes_requested' && b.review !== 'changes_requested', 'changements demandés ✏️'],
+  ['conflict', (b, a) => a.conflict && !b.conflict, 'en conflit avec la branche principale ⚠️'],
+  ['ci', (b, a) => a.ci === 'failure' && b.ci !== 'failure', 'CI en échec ❌'],
+]
+
+// Compares with the state stored at the previous sync: nothing on the first one.
+function pushPrTransitions(db, project, baseKey, it, before, after, opts) {
+  if (!before || !after) return
+  for (const [code, changed, label] of PR_TRANSITIONS) {
+    if (!changed(before, after)) continue
+    pushInbox(db, {
+      project_id: project.id,
+      source: project.forge,
+      kind: 'pr_status',
+      title: tr('#{number} {title} : {state}', { number: it.number, title: it.title, state: tr(label) }),
+      url: it.url,
+      external_key: `${baseKey}:prstate:${it.number}:${code}:${it.updated_at}`,
+    }, opts)
+  }
 }
 
 // Only changes of state are worth an inbox entry: green -> red and red -> green.

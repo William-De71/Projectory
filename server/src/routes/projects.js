@@ -83,6 +83,13 @@ export default async function projectRoutes(app, { db }) {
     return { ...res, project: listProjects(db, { where: ['p.id = ?'], params: [res.id] })[0] }
   })
 
+  // Open issues / PRs that concern the user, across every project.
+  app.get('/my-github', async () =>
+    db.prepare(
+      `SELECT g.*, p.name AS project_name, p.forge FROM github_items g JOIN projects p ON p.id = g.project_id
+       WHERE g.mine != '[]' AND p.status != 'archived' ORDER BY g.updated_at DESC`
+    ).all().map(decode))
+
   app.get('/github-items', async (req) => {
     const { project_id, type } = req.query
     const where = ['1 = 1']

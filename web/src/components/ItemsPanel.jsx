@@ -9,6 +9,7 @@ import { LabelTag } from './Tags.jsx'
 import Markdown from './Markdown.jsx'
 import MarkdownInput from './MarkdownInput.jsx'
 import TodayButton from './TodayButton.jsx'
+import ForumReplyModal, { needsForumReply } from './ForumReplyModal.jsx'
 import ProjectSelect from './ProjectSelect.jsx'
 import { t } from '../i18n/index.js'
 import FormModal from './FormModal.jsx'
@@ -185,6 +186,7 @@ export default function ItemsPanel({ projectId }) {
   const [view, setView] = useState('table')
   const [editing, setEditing] = useState(null)
   const [expanded, setExpanded] = useState([])
+  const [replyTo, setReplyTo] = useState(null)
   const query = new URLSearchParams()
   if (projectId) query.set('project_id', projectId)
   if (filters.scope === 'open' && view === 'table') query.set('open', '1')
@@ -195,8 +197,10 @@ export default function ItemsPanel({ projectId }) {
 
   const updateStatus = async (id, status) => {
     setData((rows) => rows.map((r) => (r.id === id ? { ...r, status } : r)))
-    await api.put(`/items/${id}`, { status })
+    const updated = await api.put(`/items/${id}`, { status })
     notifyChange()
+    // A bug reported on the forum is fixed: offer to tell the reporter.
+    if (needsForumReply(updated)) setReplyTo(updated)
   }
 
   const columns = [
@@ -214,6 +218,9 @@ export default function ItemsPanel({ projectId }) {
               </Tooltip>
             )}
             {it.external_url && <a href={it.external_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}><LinkOutlined /></a>}
+            {needsForumReply(it) && (
+              <Tag color="green" style={{ cursor: 'pointer', marginInlineEnd: 0 }} onClick={() => setReplyTo(it)}>{t('répondre sur le forum')}</Tag>
+            )}
           </Flex>
           {!projectId && <Link to={`/projects/${it.project_id}/items`} style={{ fontSize: 12, opacity: 0.7 }}>{it.project_name}</Link>}
         </Flex>
@@ -271,6 +278,7 @@ export default function ItemsPanel({ projectId }) {
         />
       )}
       <ItemForm item={editing} withProjectPicker={!projectId} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload() }} />
+      <ForumReplyModal item={replyTo} onClose={() => { setReplyTo(null); reload() }} />
     </Flex>
   )
 }

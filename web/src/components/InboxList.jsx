@@ -17,8 +17,10 @@ const ICONS = {
   ci_failed: <CloseCircleOutlined style={{ color: '#ff4d4f' }} />,
   ci_fixed: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
   gh_notification: <BellOutlined style={{ color: '#fa8c16' }} />,
+  pr_status: <PullRequestOutlined style={{ color: '#eb2f96' }} />,
+  forum_reply: <MessageOutlined style={{ color: '#52c41a' }} />,
 }
-const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', discourse_mentions: 'Pour toi', rss: 'RSS', ci_failed: 'CI', ci_fixed: 'CI', gh_notification: 'Pour toi' }
+const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', discourse_mentions: 'Pour toi', rss: 'RSS', ci_failed: 'CI', ci_fixed: 'CI', gh_notification: 'Pour toi', pr_status: 'Ma PR', forum_reply: 'À répondre' }
 
 function ConvertModal({ entry, onClose, onDone }) {
   const { message } = App.useApp()
