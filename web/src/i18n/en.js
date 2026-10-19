@@ -255,6 +255,7 @@ export default {
   "Notes & specs": "Notes & specs",
   "Notes & spécifications": "Notes & specifications",
   "Notes (reprises en tête du changelog)": "Notes (shown at the top of the changelog)",
+  "Notes de version": "Release notes",
   "Notes globales": "Global notes",
   "Notification envoyée — vérifie ton téléphone": "Notification sent — check your phone",
   "Notifications": "Notifications",

@@ -13,6 +13,8 @@ import { t } from '../i18n/index.js'
 
 const { Sider, Header, Content } = Layout
 
+const RELEASES_URL = 'https://github.com/William-De71/Projectory/releases'
+
 const SEARCH_TYPES = { project: 'Projet', item: 'Suivi', doc: 'Doc', github: 'GitHub' }
 
 function GlobalSearch({ onOpenPalette }) {
@@ -68,6 +70,8 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const [quickNote, setQuickNote] = useState(null)
   const [newItem, setNewItem] = useState(null)
   const [palette, setPalette] = useState(false)
+  const [version, setVersion] = useState(null)
+  useEffect(() => { api.get('/health').then((h) => setVersion(h.version)).catch(() => {}) }, [])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -122,9 +126,30 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {/* "light" Sider follows the dark algorithm too; its "dark" theme is a fixed navy blue. */}
-      <Sider breakpoint="lg" collapsedWidth="0" width={230} zeroWidthTriggerStyle={{ top: 12, zIndex: 20 }} theme="light" style={{ borderRight: `1px solid ${token.colorBorderSecondary}` }}>
-        <div style={{ padding: '18px 20px', fontWeight: 700, fontSize: 18 }}><img src="/icons/icon.svg" alt="" width={24} height={24} style={{ verticalAlign: '-5px', marginRight: 8 }} />Projectory</div>
-        <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={({ key }) => navigate(key)} style={{ borderInlineEnd: 0 }} />
+      {/* Sticky so the menu and the version stay in view on long pages. */}
+      <Sider
+        breakpoint="lg"
+        collapsedWidth="0"
+        width={230}
+        zeroWidthTriggerStyle={{ top: 12, zIndex: 20 }}
+        theme="light"
+        style={{ borderRight: `1px solid ${token.colorBorderSecondary}`, position: 'sticky', top: 0, height: '100vh', zIndex: 10 }}
+      >
+        <Flex vertical style={{ height: '100%' }}>
+          <div style={{ padding: '18px 20px', fontWeight: 700, fontSize: 18 }}><img src="/icons/icon.svg" alt="" width={24} height={24} style={{ verticalAlign: '-5px', marginRight: 8 }} />Projectory</div>
+          <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={({ key }) => navigate(key)} style={{ borderInlineEnd: 0, flex: 1, overflowY: 'auto' }} />
+          {version && (
+            <a
+              href={/^\d+\.\d+\.\d+$/.test(version) ? `${RELEASES_URL}/tag/v${version}` : RELEASES_URL}
+              target="_blank"
+              rel="noreferrer"
+              title={t('Notes de version')}
+              style={{ padding: '12px 20px', fontSize: 12, color: token.colorTextTertiary, borderTop: `1px solid ${token.colorBorderSecondary}` }}
+            >
+              {/^\d/.test(version) ? `v${version}` : version}
+            </a>
+          )}
+        </Flex>
       </Sider>
       <Layout>
         <Header style={{ background: token.colorBgContainer, padding: mobile ? '0 12px 0 56px' : '0 16px', lineHeight: 'normal', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', alignItems: 'center', gap: 8 }}>
