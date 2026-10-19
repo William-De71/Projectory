@@ -1,5 +1,5 @@
 import { fetchJson } from '../http.js'
-import { ciConclusion, paginate } from './common.js'
+import { cachedLogin, ciConclusion, paginate } from './common.js'
 import { tr } from '../../i18n.js'
 
 const PIPELINE_STATE = {
@@ -39,6 +39,8 @@ export default function gitlab({ url = 'https://gitlab.com', token }) {
     number: it.iid,
     title: it.title,
     author: it.author?.username || '',
+    assignees: (it.assignees || []).map((u) => u.username),
+    reviewers: (it.reviewers || []).map((u) => u.username),
     url: it.web_url,
     labels: (it.labels || []).map((name) => ({ name, color: '#8c8c8c' })),
     draft: !!(it.draft || it.work_in_progress),
@@ -58,6 +60,8 @@ export default function gitlab({ url = 'https://gitlab.com', token }) {
       const mrs = await paginate((page) => api(`/projects/${pid(repo)}/merge_requests?state=opened&per_page=100&page=${page}`), 100, 5)
       return { info: mapRepo(info), items: [...issues.map(mapItem('issue')), ...mrs.map(mapItem('pr'))] }
     },
+
+    whoami: () => (token ? cachedLogin(`gitlab|${base}|${token}`, async () => (await api('/user')).username) : Promise.resolve(null)),
 
     async fetchCi(repo, branch) {
       const [p] = await api(`/projects/${pid(repo)}/pipelines?ref=${encodeURIComponent(branch)}&per_page=1`)

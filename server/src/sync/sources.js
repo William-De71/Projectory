@@ -34,12 +34,15 @@ export async function latestVersion(source, { repo, forges }) {
 // ---- Forums -----------------------------------------------------------------
 
 export function forumSourceKey(source) {
-  return [source.type, source.url, source.path || '', source.query || ''].join('|')
+  const key = [source.type, source.url, source.path || '', source.query || '']
+  if (source.user) key.push(source.user)
+  return key.join('|')
 }
 
 // Returns topics as { id, title, url, excerpt, created_at }.
 export async function fetchForum(source) {
   if (source.type === 'discourse') return fetchDiscourse(source)
+  if (source.type === 'discourse_mentions') return fetchDiscourseMentions(source)
   if (source.type === 'rss') return fetchRss(source)
   throw new Error(tr('Type de forum inconnu : {type}', { type: source.type }))
 }
@@ -60,6 +63,32 @@ async function fetchDiscourse({ url, path, query }) {
     excerpt: stripHtml(t.excerpt || blurbs[t.id] || ''),
     created_at: t.created_at,
   }))
+}
+
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Posts that tag @user. Discourse only exposes mentions to the user themself,
+// so this relies on the public search: posts containing the name, written by
+// someone else, whose excerpt holds "@user".
+async function fetchDiscourseMentions({ url, user }) {
+  const username = String(user || '').trim().replace(/^@/, '')
+  if (!username) throw new Error(tr("Nom d'utilisateur Discourse manquant"))
+  const base = url.replace(/\/+$/, '')
+  const data = await fetchJson(`${base}/search.json?q=${encodeURIComponent(`${username} order:latest`)}`)
+  const topics = Object.fromEntries((data.topics || []).map((t) => [t.id, t]))
+  const tag = new RegExp(`@${escapeRegExp(username)}\\b`, 'i')
+  return (data.posts || [])
+    .filter((p) => p.username?.toLowerCase() !== username.toLowerCase() && tag.test(p.blurb || ''))
+    .map((p) => {
+      const topic = topics[p.topic_id] || {}
+      return {
+        id: String(p.id),
+        title: decodeEntities(topic.fancy_title || topic.title || ''),
+        url: `${base}/t/${topic.slug || 'topic'}/${p.topic_id}/${p.post_number}`,
+        excerpt: `@${p.username} : ${stripHtml(p.blurb || '')}`,
+        created_at: p.created_at,
+      }
+    })
 }
 
 const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@' })

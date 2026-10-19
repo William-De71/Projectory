@@ -163,6 +163,12 @@ const MIGRATIONS = [
   -- Reason of a personal GitHub notification (review_requested, mention...).
   ALTER TABLE inbox ADD COLUMN reason TEXT;
   `,
+  `
+  -- Assignees of an open issue / PR and why it concerns the user
+  -- (author, assignee, review, mention), for the "for me" filters.
+  ALTER TABLE github_items ADD COLUMN assignees TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE github_items ADD COLUMN mine TEXT NOT NULL DEFAULT '[]';
+  `,
 ]
 
 export function openDb(file = join(DATA_PATH, 'projectory.db')) {
@@ -185,7 +191,7 @@ export function openDb(file = join(DATA_PATH, 'projectory.db')) {
 }
 
 // JSON columns are stored as text; decode them on the way out.
-const JSON_COLUMNS = ['tags', 'links', 'version_sources', 'forum_sources', 'github', 'versions', 'labels']
+const JSON_COLUMNS = ['tags', 'links', 'version_sources', 'forum_sources', 'github', 'versions', 'labels', 'assignees', 'mine']
 
 export function decode(row) {
   if (!row) return row

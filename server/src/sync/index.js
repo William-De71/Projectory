@@ -1,5 +1,6 @@
 import { decode, getConfig } from '../db.js'
 import { failedRun, forgeFor, normalizeRepo } from './forges/index.js'
+import { involvement } from './forges/common.js'
 import { fetchForum, forumSourceKey, latestVersion } from './sources.js'
 import { notifyProject } from './notify.js'
 import { tr } from '../i18n.js'
@@ -48,6 +49,9 @@ async function syncForge(db, project, fresh, errors) {
   const forge = forgeFor(db, project)
   const repo = normalizeRepo(project.repo)
   const { info, items } = await forge.fetchRepo(repo)
+  // Who the token belongs to, to flag what concerns the user. Never fatal.
+  const login = await forge.whoami?.().catch(() => null)
+  const mentioned = login && forge.fetchMentions ? await forge.fetchMentions(repo, login).catch(() => new Set()) : new Set()
   const baseKey = forgeKey(project, repo)
   const asRead = !isBaselined(db, baseKey)
   const source = project.forge
@@ -64,16 +68,20 @@ async function syncForge(db, project, fresh, errors) {
     db.prepare('SELECT type, number FROM github_items WHERE project_id = ?').all(project.id).map((r) => `${r.type}#${r.number}`)
   )
   const upsert = db.prepare(
-    `INSERT INTO github_items (project_id, type, number, title, author, url, labels, draft, comments, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO github_items (project_id, type, number, title, author, url, labels, draft, comments, created_at, updated_at, assignees, mine)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(project_id, type, number) DO UPDATE SET
        title = excluded.title, labels = excluded.labels, draft = excluded.draft,
-       comments = excluded.comments, updated_at = excluded.updated_at`
+       comments = excluded.comments, updated_at = excluded.updated_at,
+       assignees = excluded.assignees, mine = excluded.mine`
   )
   db.exec('BEGIN')
   try {
     for (const it of items) {
-      upsert.run(project.id, it.type, it.number, it.title, it.author, it.url, JSON.stringify(it.labels), it.draft ? 1 : 0, it.comments, it.created_at, it.updated_at)
+      upsert.run(
+        project.id, it.type, it.number, it.title, it.author, it.url, JSON.stringify(it.labels), it.draft ? 1 : 0, it.comments, it.created_at, it.updated_at,
+        JSON.stringify(it.assignees || []), JSON.stringify(involvement(it, login, mentioned))
+      )
       if (!existing.has(`${it.type}#${it.number}`)) {
         pushInbox(db, {
           project_id: project.id,

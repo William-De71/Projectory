@@ -55,6 +55,25 @@ before(() => {
     }
     if (url === `${gh}/releases` && init.method === 'POST') return json({ html_url: `https://github.com/will/app/releases/tag/${JSON.parse(init.body).tag_name}` }, 201)
     if (url.startsWith('https://api.github.com/notifications')) return json(state.notifications)
+
+    // GitHub: repo "org/big", busy with other people's PRs; the token belongs to "will".
+    const big = 'https://api.github.com/repos/org/big'
+    const item = (number, fields) => ({ number, title: `#${number}`, html_url: `https://github.com/org/big/issues/${number}`, user: { login: 'someone' }, labels: [], assignees: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', ...fields })
+    if (url === 'https://api.github.com/user') return init.headers?.Authorization ? json({ login: 'Will' }) : json({ message: 'Requires authentication' }, 401)
+    if (url === big) return json({ full_name: 'org/big', default_branch: 'main' })
+    if (url.startsWith(`${big}/issues?`)) return json([
+      item(1, { user: { login: 'will' } }),
+      item(2, { assignees: [{ login: 'will' }] }),
+      item(3, { pull_request: {} }),
+      item(4, { pull_request: {} }),
+      item(5, {}),
+      item(6, {}),
+    ])
+    if (url.startsWith(`${big}/pulls?`)) return json([{ number: 3, requested_reviewers: [{ login: 'will' }] }, { number: 4, requested_reviewers: [{ login: 'ann' }] }])
+    if (url.startsWith('https://api.github.com/search/issues?')) {
+      assert.match(decodeURIComponent(url), /repo:org\/big is:open mentions:Will/)
+      return json({ items: [{ number: 5 }, { number: 1 }] })
+    }
     return new Response('not found', { status: 404 })
   }
 })
@@ -139,6 +158,20 @@ test('GitHub: issue from item, linked item closes with the issue, track an issue
   await call('POST', `/api/projects/${p.id}/sync`)
   const after = (await call('GET', `/api/items?project_id=${p.id}`)).body
   assert.equal(after[0].status, 'done')
+})
+
+test('GitHub: flags the issues and PRs that concern the token owner', async () => {
+  process.env.GITHUB_TOKEN = 'ghp-test'
+  try {
+    const { body: p } = await call('POST', '/api/projects', { name: 'Big', repo: 'org/big' })
+    await call('POST', `/api/projects/${p.id}/sync`)
+    const items = (await call('GET', `/api/github-items?project_id=${p.id}`)).body
+    const mine = Object.fromEntries(items.map((it) => [it.number, it.mine]))
+    assert.deepEqual(mine, { 1: ['author'], 2: ['assignee'], 3: ['review'], 4: [], 5: ['mention'], 6: [] })
+    assert.deepEqual(items.find((it) => it.number === 2).assignees, ['will'])
+  } finally {
+    delete process.env.GITHUB_TOKEN
+  }
 })
 
 test('personal GitHub notifications: opt-in, reasons filter, baseline, ntfy', async () => {

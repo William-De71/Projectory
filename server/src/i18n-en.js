@@ -43,6 +43,7 @@ export default {
   "Lien de calendrier invalide": "Invalid calendar link",
   "Mention": "Mention",
   "Mention d'équipe": "Team mention",
+  "Nom d'utilisateur Discourse manquant": "Missing Discourse username",
   "Notification GitHub perso (review, mention…)": "Personal GitHub notification (review, mention…)",
   "Notification de test : tout fonctionne 🎉": "Test notification: everything works 🎉",
   "Notification introuvable": "Notification not found",

@@ -1,5 +1,5 @@
 import { fetchJson } from '../http.js'
-import { ciConclusion, paginate } from './common.js'
+import { cachedLogin, ciConclusion, paginate } from './common.js'
 import { tr } from '../../i18n.js'
 
 // GitHub (github.com, or GitHub Enterprise through GITHUB_API_URL).
@@ -38,6 +38,12 @@ export default function github({ token }) {
         open.push(...batch)
         if (batch.length < 100) break
       }
+      // Requested reviewers are only listed on the pulls endpoint.
+      const reviewers = new Map()
+      if (open.some((it) => it.pull_request)) {
+        const pulls = await paginate((page) => gh(`/repos/${repo}/pulls?state=open&per_page=100&page=${page}`), 100, 5).catch(() => [])
+        for (const pr of pulls) reviewers.set(pr.number, (pr.requested_reviewers || []).map((u) => u.login))
+      }
       return {
         info: mapRepo(info),
         items: open.map((it) => ({
@@ -45,6 +51,8 @@ export default function github({ token }) {
           number: it.number,
           title: it.title,
           author: it.user?.login || '',
+          assignees: (it.assignees || []).map((u) => u.login),
+          reviewers: reviewers.get(it.number) || [],
           url: it.html_url,
           labels: (it.labels || []).map((l) => ({ name: l.name, color: `#${l.color}` })),
           draft: !!it.draft,
@@ -54,6 +62,15 @@ export default function github({ token }) {
           excerpt: (it.body || '').slice(0, 300),
         })),
       }
+    },
+
+    whoami: () => (token ? cachedLogin(`github|${api}|${token}`, async () => (await gh('/user')).login) : Promise.resolve(null)),
+
+    // Numbers of the open issues / PRs that mention the user (search API).
+    async fetchMentions(repo, login) {
+      const q = encodeURIComponent(`repo:${repo} is:open mentions:${login}`)
+      const res = await gh(`/search/issues?q=${q}&per_page=100`)
+      return new Set((res.items || []).map((it) => it.number))
     },
 
     // Latest GitHub Actions run of each workflow on the default branch.

@@ -15,6 +15,7 @@ const VERSION_TYPES = [
 
 const FORUM_TYPES = [
   { value: 'discourse', label: 'Forum Discourse' },
+  { value: 'discourse_mentions', label: 'Discourse : mes mentions' },
   { value: 'rss', label: 'Flux RSS / Atom' },
 ]
 
@@ -180,20 +181,31 @@ export default function ProjectForm({ project, onClose, onSaved }) {
             return (
               <Flex vertical gap={6} style={{ flex: 1, padding: 8, border: '1px dashed rgba(127,127,127,.3)', borderRadius: 6 }}>
                 <Flex gap={8} wrap>
-                  <Form.Item name={[field.name, 'type']} style={{ marginBottom: 0, width: 170 }}><Select options={FORUM_TYPES.map((f) => ({ ...f, label: t(f.label) }))} /></Form.Item>
+                  <Form.Item name={[field.name, 'type']} style={{ marginBottom: 0, width: 230 }}><Select options={FORUM_TYPES.map((f) => ({ ...f, label: t(f.label) }))} /></Form.Item>
                   <Form.Item name={[field.name, 'label']} style={{ marginBottom: 0, flex: 1, minWidth: 140 }}><Input placeholder={t('Libellé (optionnel)')} /></Form.Item>
                 </Flex>
                 <Form.Item name={[field.name, 'url']} rules={[{ required: true, message: t('URL obligatoire') }]} style={{ marginBottom: 0 }}>
                   <Input placeholder={forumType === 'rss' ? t('URL du flux RSS / Atom') : t('URL du forum Discourse')} />
                 </Form.Item>
-                <Flex gap={8} wrap>
-                  {forumType !== 'rss' && (
-                    <Form.Item name={[field.name, 'path']} style={{ marginBottom: 0, flex: 1, minWidth: 160 }}><Input placeholder={t('Chemin : c/bug/5, tag/zigbee… (vide = derniers sujets)')} /></Form.Item>
-                  )}
-                  <Form.Item name={[field.name, 'query']} style={{ marginBottom: 0, flex: 1, minWidth: 160 }}>
-                    <Input placeholder={forumType === 'rss' ? t('Mots-clés à filtrer, séparés par des virgules') : t('ou recherche (remplace le chemin)')} />
+                {forumType === 'discourse_mentions' ? (
+                  <Form.Item
+                    name={[field.name, 'user']}
+                    rules={[{ required: true, message: t('Nom d’utilisateur obligatoire') }]}
+                    extra={t('Seuls les messages qui te taguent (@pseudo) arrivent dans la boîte de réception.')}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Input prefix="@" placeholder={t('Ton nom d’utilisateur sur le forum')} />
                   </Form.Item>
-                </Flex>
+                ) : (
+                  <Flex gap={8} wrap>
+                    {forumType !== 'rss' && (
+                      <Form.Item name={[field.name, 'path']} style={{ marginBottom: 0, flex: 1, minWidth: 160 }}><Input placeholder={t('Chemin : c/bug/5, tag/zigbee… (vide = derniers sujets)')} /></Form.Item>
+                    )}
+                    <Form.Item name={[field.name, 'query']} style={{ marginBottom: 0, flex: 1, minWidth: 160 }}>
+                      <Input placeholder={forumType === 'rss' ? t('Mots-clés à filtrer, séparés par des virgules') : t('ou recherche (remplace le chemin)')} />
+                    </Form.Item>
+                  </Flex>
+                )}
               </Flex>
             )
           }}
