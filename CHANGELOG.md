@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.6.0 — 2026-10-19
+
+### ✨ Nouveautés
+
+- mentions Discourse et filtres « Me concernant » sur les issues et PR (#7) (c8c3d82)
+
+### 🐛 Corrections
+
+- thème sombre, formulaires en fenêtre centrée, tableau de bord sans trous (#6) (f414e9c)
+
 ## v0.5.0 — 2026-10-18
 
 ### ✨ Nouveautés
