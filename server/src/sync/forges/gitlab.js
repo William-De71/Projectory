@@ -64,7 +64,9 @@ export default function gitlab({ url = 'https://gitlab.com', token }) {
     whoami: () => (token ? cachedLogin(`gitlab|${base}|${token}`, async () => (await api('/user')).username) : Promise.resolve(null)),
 
     async fetchCi(repo, branch) {
-      const [p] = await api(`/projects/${pid(repo)}/pipelines?ref=${encodeURIComponent(branch)}&per_page=1`)
+      // Scheduled pipelines say nothing about the state of the branch.
+      const pipelines = await api(`/projects/${pid(repo)}/pipelines?ref=${encodeURIComponent(branch)}&per_page=10`)
+      const p = pipelines.find((x) => x.source !== 'schedule')
       if (!p) return null
       const [status, conclusion] = PIPELINE_STATE[p.status] || ['in_progress', null]
       return ciConclusion([{ id: p.id, name: 'Pipeline', status, conclusion, url: p.web_url, updated_at: p.updated_at, sha: p.sha?.slice(0, 7) }])

@@ -176,3 +176,35 @@ export function BackupSettings() {
     </Card>
   )
 }
+
+export function ReleaseChecklistSettings() {
+  const { message } = App.useApp()
+  const { data, setData } = useApi('/settings/release-checklist')
+  const [text, setText] = useState(null)
+  if (!data) return null
+  const value = text ?? data.items.join('\n')
+  const save = async (items) => {
+    try {
+      const res = await api.put('/settings/release-checklist', { items })
+      setData(res)
+      setText(null)
+      message.success(t('Checklist enregistrée'))
+    } catch (err) {
+      message.error(err.message)
+    }
+  }
+  return (
+    <Card size="small" title={t('Checklist de release')}>
+      <Flex vertical gap={8}>
+        <Typography.Text type="secondary">
+          {t('Étapes à cocher sur chaque version avant de la publier (une par ligne). Les versions déjà commencées gardent leur liste.')}
+        </Typography.Text>
+        <Input.TextArea value={value} onChange={(e) => setText(e.target.value)} autoSize={{ minRows: 4, maxRows: 12 }} />
+        <Flex gap={8}>
+          <Button type="primary" icon={<SaveOutlined />} onClick={() => save(value.split('\n'))}>{t('Enregistrer')}</Button>
+          {data.custom && <Button onClick={() => save([])}>{t('Revenir à la liste par défaut')}</Button>}
+        </Flex>
+      </Flex>
+    </Card>
+  )
+}

@@ -2,6 +2,8 @@ import { fetchJson } from '../http.js'
 import { FAILED, cachedLogin, ciConclusion, paginate } from './common.js'
 import { tr } from '../../i18n.js'
 
+const CODE_EVENTS = ['push', 'merge_group']
+
 // GitHub (github.com, or GitHub Enterprise through GITHUB_API_URL).
 export default function github({ token }) {
   const api = process.env.GITHUB_API_URL || 'https://api.github.com'
@@ -96,9 +98,12 @@ export default function github({ token }) {
 
     // Latest GitHub Actions run of each workflow on the default branch.
     async fetchCi(repo, branch) {
-      const data = await gh(`/repos/${repo}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=30&exclude_pull_requests=true`)
+      const data = await gh(`/repos/${repo}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=50&exclude_pull_requests=true`)
       const latest = new Map()
       for (const r of data.workflow_runs || []) {
+        // Only runs triggered by the code: scheduled jobs and manual workflows
+        // (release, autofix…) say nothing about the state of the branch.
+        if (!CODE_EVENTS.includes(r.event)) continue
         if (!latest.has(r.workflow_id)) {
           latest.set(r.workflow_id, { id: r.id, name: r.name, status: r.status, conclusion: r.conclusion, url: r.html_url, updated_at: r.updated_at, sha: r.head_sha?.slice(0, 7) })
         }

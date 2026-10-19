@@ -1,9 +1,9 @@
-import { decode, insertRow, updateRow } from '../db.js'
+import { decode, getConfig, insertRow, setConfig, updateRow } from '../db.js'
 import { compareVersions } from '../sync/http.js'
 import { forgeFor, normalizeRepo } from '../sync/forges/index.js'
 import { tr } from '../i18n.js'
 
-const FIELDS = ['project_id', 'version', 'title', 'description', 'due_date', 'status', 'released_at']
+const FIELDS = ['project_id', 'version', 'title', 'description', 'due_date', 'status', 'released_at', 'checklist']
 const DONE = ['done', 'wontfix']
 const SECTIONS = [
   { title: '✨ Nouveautés', kinds: ['feature'] },
@@ -30,6 +30,32 @@ export function changelog(db, projectId, version) {
   }
   if (!items.length) lines.push('', `_${tr('Aucun élément terminé pour cette version.')}_`)
   return lines.join('\n')
+}
+
+// Default steps before publishing a version; translated when used.
+const DEFAULT_CHECKLIST = ['Tests verts', 'Changelog relu', 'Version mise à jour', 'Documentation à jour', 'Image Docker / paquet publié', 'Annonce sur le forum']
+
+// The user's template, or the default one in the current language.
+export function checklistTemplate(db) {
+  const stored = getConfig(db, 'release_checklist')
+  return stored.items?.length ? stored.items : DEFAULT_CHECKLIST.map((label) => tr(label))
+}
+
+// Forum announcement of a released version: Discourse Markdown, ready to post.
+export function announcement(db, projectId, version) {
+  const project = db.prepare('SELECT name FROM projects WHERE id = ?').get(projectId)
+  const milestone = db.prepare('SELECT * FROM milestones WHERE project_id = ? AND version = ?').get(projectId, version)
+  const name = project?.name || ''
+  // The changelog without its "## version — date" heading.
+  const notes = changelog(db, projectId, version).split('\n').slice(2).join('\n').trim()
+  const body = [
+    tr('Bonjour à tous,'),
+    tr('La version **{v}** de **{project}** est disponible 🎉', { v: version, project: name }),
+    notes,
+    milestone?.release_url && tr('Notes complètes et téléchargement : {url}', { url: milestone.release_url }),
+    tr('Merci pour vos retours, n’hésitez pas à signaler ici le moindre souci !'),
+  ].filter(Boolean).join('\n\n')
+  return { title: tr('{project} {v} est disponible', { project: name, v: version }), markdown: body }
 }
 
 // Creates the release (and its tag) on the project's forge with the version's changelog.
@@ -67,8 +93,11 @@ export default async function milestoneRoutes(app, { db }) {
       if (!byVersion.has(it.target_version)) byVersion.set(it.target_version, { id: null, project_id: projectId, version: it.target_version, title: '', status: 'planned', items: [] })
       byVersion.get(it.target_version).items.push(it)
     }
+    const template = checklistTemplate(db)
     const versions = [...byVersion.values()].map((m) => ({
       ...m,
+      // Not stored until the first box is ticked: follows the template until then.
+      checklist: m.id ? (m.checklist ? JSON.parse(m.checklist) : template.map((label) => ({ label, done: false }))) : null,
       total: m.items.length,
       done: m.items.filter((it) => DONE.includes(it.status)).length,
     }))
@@ -83,6 +112,25 @@ export default async function milestoneRoutes(app, { db }) {
     const released = db.prepare("SELECT version FROM milestones WHERE project_id = ? AND status = 'released'").all(projectId)
       .map((m) => m.version).sort((a, b) => compareVersions(b, a))
     return { markdown: ['# Changelog', ...released.map((v) => changelog(db, projectId, v))].join('\n\n') }
+  })
+
+  app.get('/projects/:id/announcement', async (req, reply) => {
+    const version = String(req.query.version || '').trim()
+    if (!version) return reply.code(400).send({ error: tr('Version obligatoire') })
+    // Where to post: Discourse forums of the project and its followed topics.
+    const project = decode(db.prepare('SELECT forum_sources FROM projects WHERE id = ?').get(Number(req.params.id)))
+    const forums = [...new Set((project?.forum_sources || []).filter((s) => s.type?.startsWith('discourse')).map((s) => s.url.replace(/\/+$/, '')))]
+    const topics = db.prepare('SELECT id, title, url FROM forum_watches WHERE project_id = ? ORDER BY created_at DESC').all(Number(req.params.id))
+    return { ...announcement(db, Number(req.params.id), version), forums, topics }
+  })
+
+  app.get('/settings/release-checklist', async () => ({ items: checklistTemplate(db), custom: !!getConfig(db, 'release_checklist').items?.length }))
+
+  app.put('/settings/release-checklist', async (req) => {
+    const items = (req.body?.items || []).map((s) => String(s).trim()).filter(Boolean)
+    // An empty list goes back to the default steps.
+    setConfig(db, 'release_checklist', items.length ? { items } : {})
+    return { items: checklistTemplate(db), custom: items.length > 0 }
   })
 
   app.post('/milestones', async (req, reply) => {

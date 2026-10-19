@@ -9,7 +9,7 @@ for (const key of ['GITHUB_TOKEN', 'GITLAB_TOKEN', 'GITEA_TOKEN', 'GITEA_URL', '
 
 // Fake GitLab (gitlab.test), Gitea (git.home.test), GitHub and ntfy.
 const calls = []
-const state = { ghIssues: [], notifications: [], ntfy: [], bigClosed: [], pr7: { reviews: [], mergeable: true, checks: 'success' } }
+const state = { topic: { highest: 5 }, ghIssues: [], notifications: [], ntfy: [], bigClosed: [], pr7: { reviews: [], mergeable: true, checks: 'success' } }
 const realFetch = globalThis.fetch
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status })
 
@@ -55,6 +55,15 @@ before(() => {
     }
     if (url === `${gh}/releases` && init.method === 'POST') return json({ html_url: `https://github.com/will/app/releases/tag/${JSON.parse(init.body).tag_name}` }, 201)
     if (url.startsWith('https://api.github.com/notifications')) return json(state.notifications)
+
+    // Discourse topic 42 on forum.test
+    if (url === 'https://forum.test/t/42.json') return json({ id: 42, slug: 'meteo', title: 'Intégration Météo-France', highest_post_number: state.topic.highest })
+    if (url.startsWith('https://forum.test/t/42/')) {
+      const from = Number(url.split('/').pop().replace('.json', ''))
+      const posts = []
+      for (let n = from; n <= state.topic.highest; n++) posts.push({ post_number: n, username: n === 7 ? 'Will_71' : 'Damien_D', cooked: `<p>Réponse ${n}</p>`, created_at: '2026-10-20T10:00:00Z' })
+      return json({ post_stream: { posts } })
+    }
 
     // GitHub: repo "org/big", busy with other people's PRs; the token belongs to "will".
     const big = 'https://api.github.com/repos/org/big'
@@ -228,6 +237,54 @@ test('ntfy: forum mentions and PR status are their own events, on by default for
   assert.equal(msg.title, 'Gladys — Mention sur le forum')
   assert.equal(msg.priority, 4)
   assert.equal(buildMessages({ id: 1, name: 'Gladys' }, [{ source: 'forum', kind: 'forum_reply', title: 'x' }], config).length, 0)
+})
+
+test('followed forum topics: baseline, new replies (not mine), errors on bad links', async () => {
+  const { body: p } = await call('POST', '/api/projects', { name: 'Météo', forum_sources: [{ type: 'discourse_mentions', url: 'https://forum.test', user: '@Will_71' }] })
+  assert.equal((await call('POST', '/api/forum-watches', { project_id: p.id, url: 'https://forum.test/latest' })).status, 400)
+  const { status, body: w } = await call('POST', '/api/forum-watches', { project_id: p.id, url: 'https://forum.test/t/meteo/42/3' })
+  assert.equal(status, 201)
+  assert.deepEqual([w.base_url, w.topic_id, w.title, w.last_post_number], ['https://forum.test', 42, 'Intégration Météo-France', 5])
+  assert.equal((await call('POST', '/api/forum-watches', { project_id: p.id, url: 'https://forum.test/t/42' })).body.id, w.id, 'same topic is not followed twice')
+
+  state.topic.highest = 7
+  await call('POST', `/api/projects/${p.id}/sync`)
+  const replies = (await call('GET', `/api/inbox?project_id=${p.id}`)).body.filter((x) => x.kind === 'forum_followed')
+  assert.deepEqual(replies.map((x) => x.url), ['https://forum.test/t/meteo/42/6'], 'own reply #7 is skipped')
+  assert.equal(replies[0].excerpt, '@Damien_D : Réponse 6')
+  assert.equal(replies[0].read_at, null)
+  assert.equal((await call('GET', `/api/projects/${p.id}/forum-watches`)).body[0].last_post_number, 7)
+
+  await call('POST', `/api/projects/${p.id}/sync`)
+  assert.equal((await call('GET', `/api/inbox?project_id=${p.id}`)).body.filter((x) => x.kind === 'forum_followed').length, 1, 'nothing new, nothing added')
+  await call('DELETE', `/api/forum-watches/${w.id}`)
+  assert.equal((await call('GET', `/api/projects/${p.id}/forum-watches`)).body.length, 0)
+})
+
+test('release checklist template and forum announcement', async () => {
+  let res = await call('GET', '/api/settings/release-checklist')
+  assert.equal(res.body.custom, false)
+  assert.ok(res.body.items.includes('Annonce sur le forum'))
+  res = await call('PUT', '/api/settings/release-checklist', { items: ['Tests', ' ', 'Annonce'] })
+  assert.deepEqual(res.body, { items: ['Tests', 'Annonce'], custom: true })
+
+  const { body: p } = await call('POST', '/api/projects', { name: 'Météo', forum_sources: [{ type: 'discourse', url: 'https://forum.test/' }] })
+  const { body: m } = await call('POST', '/api/milestones', { project_id: p.id, version: '1.2.0' })
+  let roadmap = (await call('GET', `/api/projects/${p.id}/roadmap`)).body
+  assert.deepEqual(roadmap.versions[0].checklist, [{ label: 'Tests', done: false }, { label: 'Annonce', done: false }])
+  await call('PUT', `/api/milestones/${m.id}`, { checklist: [{ label: 'Tests', done: true }, { label: 'Annonce', done: false }] })
+  roadmap = (await call('GET', `/api/projects/${p.id}/roadmap`)).body
+  assert.equal(roadmap.versions[0].checklist[0].done, true)
+  await call('PUT', '/api/settings/release-checklist', { items: [] })
+
+  await call('POST', '/api/items', { project_id: p.id, title: 'Vigilance orange', kind: 'bug', status: 'done', target_version: '1.2.0' })
+  await call('POST', `/api/projects/${p.id}/release`, { version: '1.2.0' })
+  const ann = (await call('GET', `/api/projects/${p.id}/announcement?version=1.2.0`)).body
+  assert.equal(ann.title, 'Météo 1.2.0 est disponible')
+  assert.match(ann.markdown, /^Bonjour à tous,\n\nLa version \*\*1\.2\.0\*\* de \*\*Météo\*\* est disponible/)
+  assert.match(ann.markdown, /- Vigilance orange/)
+  assert.doesNotMatch(ann.markdown, /## 1\.2\.0/)
+  assert.deepEqual(ann.forums, ['https://forum.test'])
 })
 
 test('personal GitHub notifications: opt-in, reasons filter, baseline, ntfy', async () => {

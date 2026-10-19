@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import NotificationSettings from '../components/NotificationSettings.jsx'
 import { ForgeAccounts, GithubNotificationSettings } from '../components/ForgeSettings.jsx'
-import { BackupSettings, CalendarSettings, DigestSettings, StaleSettings } from '../components/AutomationSettings.jsx'
+import { BackupSettings, CalendarSettings, DigestSettings, StaleSettings, ReleaseChecklistSettings } from '../components/AutomationSettings.jsx'
 import { t } from '../i18n/index.js'
 
 function Categories() {
@@ -94,6 +94,7 @@ export default function Settings() {
         )}
         <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>{t('Fréquence réglable via la variable d\'environnement') + ' '}<code>SYNC_INTERVAL_MINUTES</code>{' ' + t('(voir le README).')}</Typography.Paragraph>
       </Card>
+      <ReleaseChecklistSettings />
       <BackupSettings />
       <Card size="small" title={t('Données et export')}>
         <Typography.Paragraph>{t('Toutes les données sont dans') + ' '}<code>data/projectory.db</code>{' ' + t('(SQLite). Tu peux aussi exporter un JSON lisible :')}</Typography.Paragraph>
