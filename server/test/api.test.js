@@ -19,6 +19,15 @@ before(() => {
     if (url.includes('/repos/acme/app/issues')) return json(upstream.issues)
     if (url.endsWith('/repos/acme/app/releases/latest')) return json({ tag_name: upstream.release, html_url: 'https://x' })
     if (url.startsWith('https://registry.npmjs.org/')) return json({ version: '2.1.0' })
+    if (url === 'https://forum.test/search.json?q=Will_71%20order%3Alatest') return json({
+      posts: [
+        { id: 900, username: 'Damien_D', blurb: '@Will_71 Parfait, merci !', topic_id: 42, post_number: 7, created_at: '2026-10-18T20:08:03Z' },
+        { id: 901, username: 'Will_71', blurb: 'Merci @Will_71 de rien', topic_id: 42, post_number: 8, created_at: '2026-10-18T21:00:00Z' },
+        { id: 902, username: 'guim31', blurb: 'Voir le dépôt de Will_71 sur GitHub', topic_id: 43, post_number: 2, created_at: '2026-10-18T22:00:00Z' },
+        { id: 903, username: 'mutmut', blurb: 'ok merci @will_71 ,', topic_id: 43, post_number: 3, created_at: '2026-10-18T23:00:00Z' },
+      ],
+      topics: [{ id: 42, slug: 'meteo-france', title: 'Intégration externe : Meteo France' }, { id: 43, slug: 'reolink', fancy_title: 'Reolink &amp; Argus' }],
+    })
     if (url === 'https://forum.test/c/bugs/5.json') return json({ topic_list: { topics: upstream.topics } })
     if (url === 'https://blog.test/feed') return new Response(`<rss><channel><item><guid>a1</guid><title>Bug zigbee</title><link>https://blog.test/a1</link></item><item><guid>a2</guid><title>Autre</title><link>https://blog.test/a2</link></item></channel></rss>`)
     return new Response('not found', { status: 404 })
@@ -104,6 +113,19 @@ test('docs, search, time and export', async () => {
   const exp = (await call('GET', '/api/export')).body
   assert.equal(exp.docs.length, 2)
   assert.equal((await call('POST', '/api/projects', {})).status, 400)
+})
+
+test('Discourse mentions: only posts by others that tag @user', async () => {
+  const { fetchForum, forumSourceKey } = await import('../src/sync/sources.js')
+  const source = { type: 'discourse_mentions', url: 'https://forum.test/', user: '@Will_71' }
+  const posts = await fetchForum(source)
+  assert.deepEqual(posts.map((p) => p.id), ['900', '903'])
+  assert.equal(posts[0].url, 'https://forum.test/t/meteo-france/42/7')
+  assert.equal(posts[0].title, 'Intégration externe : Meteo France')
+  assert.equal(posts[0].excerpt, '@Damien_D : @Will_71 Parfait, merci !')
+  assert.equal(posts[1].title, 'Reolink & Argus')
+  assert.notEqual(forumSourceKey(source), forumSourceKey({ ...source, user: 'other' }))
+  await assert.rejects(fetchForum({ ...source, user: ' ' }), /utilisateur Discourse manquant/)
 })
 
 test('decodes HTML entities in forum titles', async () => {
