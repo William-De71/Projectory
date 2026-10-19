@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.1 — 2026-10-19
+
+### 🐛 Corrections
+
+- version affichée en bas de la barre latérale, avec lien vers les notes de version (#9) (103cc28)
+
 ## v0.7.0 — 2026-10-19
 
 ### ✨ Nouveautés
