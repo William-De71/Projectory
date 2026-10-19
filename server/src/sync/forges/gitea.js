@@ -1,5 +1,5 @@
 import { fetchJson } from '../http.js'
-import { ciConclusion, paginate } from './common.js'
+import { cachedLogin, ciConclusion, paginate } from './common.js'
 import { tr } from '../../i18n.js'
 
 const STATUS_STATE = {
@@ -49,6 +49,7 @@ export default function gitea({ url, token }) {
           number: it.number,
           title: it.title,
           author: it.user?.login || '',
+          assignees: (it.assignees || []).map((u) => u.login),
           url: it.html_url,
           labels: (it.labels || []).map((l) => ({ name: l.name, color: l.color?.startsWith('#') ? l.color : `#${l.color}` })),
           draft: !!it.pull_request?.draft,
@@ -59,6 +60,8 @@ export default function gitea({ url, token }) {
         })),
       }
     },
+
+    whoami: () => (token ? cachedLogin(`gitea|${base}|${token}`, async () => (await api('/user')).login) : Promise.resolve(null)),
 
     async fetchCi(repo, branch) {
       const combined = await api(`/repos/${repo}/commits/${encodeURIComponent(branch)}/status`)
