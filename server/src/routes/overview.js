@@ -5,6 +5,7 @@ import { forgeContext } from '../sync/forges/index.js'
 import { tr } from '../i18n.js'
 import { findStale } from '../insights.js'
 import { todayView } from '../today.js'
+import { VISIBLE_ITEM } from '../visibility.js'
 
 const REPO_SOURCES = "'github', 'gitlab', 'gitea'"
 const INBOX_SQL = `SELECT x.*, p.name AS project_name FROM inbox x LEFT JOIN projects p ON p.id = x.project_id`
@@ -59,8 +60,8 @@ export default async function overviewRoutes(app, { db }) {
       stats: {
         projects: projects.length,
         active: projects.filter((p) => p.status === 'active').length,
-        open_issues: count("SELECT count(*) n FROM github_items WHERE type = 'issue'"),
-        open_prs: count("SELECT count(*) n FROM github_items WHERE type = 'pr'"),
+        open_issues: count(`SELECT count(*) n FROM github_items g JOIN projects p ON p.id = g.project_id WHERE g.type = 'issue' AND p.status != 'archived' AND ${VISIBLE_ITEM}`),
+        open_prs: count(`SELECT count(*) n FROM github_items g JOIN projects p ON p.id = g.project_id WHERE g.type = 'pr' AND p.status != 'archived' AND ${VISIBLE_ITEM}`),
         ci_failing: projects.filter((p) => p.ci === 'failure').length,
         stale: findStale(db).length,
         open_bugs: count("SELECT count(*) n FROM items WHERE kind = 'bug' AND status IN ('todo', 'in_progress')"),
@@ -80,7 +81,7 @@ export default async function overviewRoutes(app, { db }) {
       stale: findStale(db).slice(0, 8),
       recent_prs: db.prepare(
         `SELECT g.*, p.name AS project_name FROM github_items g JOIN projects p ON p.id = g.project_id
-         WHERE g.type = 'pr' ORDER BY g.updated_at DESC LIMIT 8`
+         WHERE g.type = 'pr' AND ${VISIBLE_ITEM} ORDER BY g.updated_at DESC LIMIT 8`
       ).all().map(decode),
       sync: syncState,
     }

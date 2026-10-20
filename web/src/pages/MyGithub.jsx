@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
-import { Card, Empty, Flex, List, Spin, Tag, Typography } from 'antd'
+import { App, Button, Card, Empty, Flex, List, Spin, Tag, Tooltip, Typography } from 'antd'
+import { PlusSquareOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { useApi } from '../api/client.js'
+import { api, notifyChange, useApi } from '../api/client.js'
 import { refLabel } from '../components/labels.js'
 import PrStatus from '../components/PrStatus.jsx'
 import { t } from '../i18n/index.js'
@@ -14,9 +15,36 @@ const SECTIONS = [
   { key: 'issues', title: 'Mes issues', match: (it) => it.type === 'issue' && it.mine.includes('author'), empty: 'Aucune issue ouverte' },
 ]
 
+// Title of the task created from an item: what needs doing comes first.
+function taskFor(it) {
+  const ref = `${refLabel(it.forge, it.type, it.number)} ${it.title}`
+  const st = it.type === 'pr' ? it.pr_state || {} : {}
+  if (st.conflict) return { title: t('Résoudre le conflit : {ref}', { ref }), priority: 'high' }
+  if (st.review === 'changes_requested') return { title: t('Corriger les retours de review : {ref}', { ref }), priority: 'high' }
+  if (st.ci === 'failure') return { title: t('Corriger la CI : {ref}', { ref }), priority: 'high' }
+  if (it.mine.includes('review')) return { title: t('Faire la review : {ref}', { ref }), priority: 'normal' }
+  return { title: ref, priority: 'normal' }
+}
+
 function Row({ it }) {
+  const { message } = App.useApp()
+  const createTask = async () => {
+    try {
+      await api.post(`/github-items/${it.id}/track`, { kind: 'task', ...taskFor(it) })
+      message.success(t('Tâche créée dans {project}', { project: it.project_name }))
+      notifyChange()
+    } catch (err) {
+      message.error(err.message)
+    }
+  }
   return (
-    <List.Item>
+    <List.Item
+      actions={[
+        it.item_id
+          ? <Link key="t" to={`/projects/${it.project_id}/items`}><Tag color="green" style={{ marginInlineEnd: 0 }}>{t('Tâche créée')}</Tag></Link>
+          : <Tooltip key="t" title={t('Créer une tâche : « {title} »', { title: taskFor(it).title })}><Button size="small" icon={<PlusSquareOutlined />} aria-label={t('Créer une tâche')} onClick={createTask} /></Tooltip>,
+      ]}
+    >
       <Flex vertical gap={4} style={{ minWidth: 0, width: '100%' }}>
         <a href={it.url} target="_blank" rel="noreferrer">{refLabel(it.forge, it.type, it.number)} {it.title}</a>
         <Flex gap={4} wrap align="center">

@@ -191,6 +191,12 @@ const MIGRATIONS = [
   -- Release checklist of a version: [{ label, done }].
   ALTER TABLE milestones ADD COLUMN checklist TEXT;
   `,
+  `
+  -- Which issues / PRs of the repository are followed: auto | all | mine.
+  ALTER TABLE projects ADD COLUMN github_scope TEXT NOT NULL DEFAULT 'auto';
+  -- Effective value (1 = only those that concern the user), kept up to date.
+  ALTER TABLE projects ADD COLUMN mine_only INTEGER NOT NULL DEFAULT 0;
+  `,
 ]
 
 export function openDb(file = join(DATA_PATH, 'projectory.db')) {
@@ -223,7 +229,7 @@ export function decode(row) {
       try { out[col] = JSON.parse(out[col]) } catch { /* keep raw */ }
     }
   }
-  for (const col of ['pinned', 'draft', 'notify']) if (col in out) out[col] = !!out[col]
+  for (const col of ['pinned', 'draft', 'notify', 'mine_only']) if (col in out) out[col] = !!out[col]
   return out
 }
 

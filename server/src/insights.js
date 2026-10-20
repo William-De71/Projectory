@@ -1,3 +1,4 @@
+import { VISIBLE_ITEM } from './visibility.js'
 import { getConfig } from './db.js'
 import { tr } from './i18n.js'
 import { compareVersions } from './sync/http.js'
@@ -17,7 +18,7 @@ export function findStale(db, now = new Date()) {
   const base = `SELECT g.id, g.project_id, g.type, g.number, g.title, g.url, g.author, g.comments, g.created_at, g.updated_at,
       p.name AS project_name, p.forge
     FROM github_items g JOIN projects p ON p.id = g.project_id
-    WHERE p.status != 'archived'`
+    WHERE p.status != 'archived' AND ${VISIBLE_ITEM}`
   const issues = db.prepare(`${base} AND g.type = 'issue' AND g.comments = 0 AND g.created_at <= ?`).all(daysAgo(issue_days, now))
     .map((r) => ({ ...r, reason: 'no_reply', age_days: ageDays(r.created_at, now) }))
   const prs = db.prepare(`${base} AND g.type = 'pr' AND g.draft = 0 AND g.updated_at <= ?`).all(daysAgo(pr_days, now))

@@ -182,6 +182,25 @@ test('GitHub: flags the issues and PRs that concern the token owner', async () =
     const mine = Object.fromEntries(items.map((it) => [it.number, it.mine]))
     assert.deepEqual(mine, { 1: ['author'], 2: ['assignee'], 3: ['review'], 4: [], 5: ['mention'], 6: [], 7: ['author'] })
     assert.deepEqual(items.find((it) => it.number === 2).assignees, ['will'])
+
+    // org/big belongs to someone else: by default only the user's items are counted.
+    let project = (await call('GET', `/api/projects?q=Big`)).body.find((x) => x.id === p.id)
+    assert.equal(project.mine_only, true)
+    assert.deepEqual([project.open_issues, project.open_prs], [3, 2])
+    const dash = (await call('GET', '/api/dashboard')).body
+    assert.ok(!dash.recent_prs.some((r) => r.project_id === p.id && r.number === 4), 'other people\'s PRs stay out of the dashboard')
+    project = (await call('PUT', `/api/projects/${p.id}`, { github_scope: 'all' })).body
+    assert.deepEqual([project.mine_only, project.open_issues, project.open_prs], [false, 4, 3])
+    project = (await call('PUT', `/api/projects/${p.id}`, { github_scope: 'auto' })).body
+    assert.equal(project.mine_only, true)
+
+    // A PR in conflict becomes a task with a custom title; tracking it again returns the same item.
+    const pr7 = items.find((it) => it.number === 7)
+    const { body: task } = await call('POST', `/api/github-items/${pr7.id}/track`, { title: 'Résoudre le conflit : #7', priority: 'high' })
+    assert.deepEqual([task.title, task.kind, task.priority], ['Résoudre le conflit : #7', 'task', 'high'])
+    assert.equal((await call('POST', `/api/github-items/${pr7.id}/track`, {})).body.id, task.id)
+    const mineRow = (await call('GET', '/api/my-github')).body.find((it) => it.id === pr7.id)
+    assert.equal(mineRow.item_id, task.id)
   } finally {
     delete process.env.GITHUB_TOKEN
   }
