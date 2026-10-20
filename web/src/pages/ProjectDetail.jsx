@@ -15,6 +15,7 @@ import StatsPanel from '../components/StatsPanel.jsx'
 import ForgeIcon from '../components/ForgeIcon.jsx'
 import DocsPanel from '../components/DocsPanel.jsx'
 import InboxList from '../components/InboxList.jsx'
+import ForumWatches from '../components/ForumWatches.jsx'
 import TimePanel from '../components/TimePanel.jsx'
 import { compareVersions } from '../components/versions.js'
 import CiStatus, { CI } from '../components/CiStatus.jsx'
@@ -142,6 +143,7 @@ export default function ProjectDetail() {
       label: <>{t('Activité') + ' '}<Badge count={p.unread} size="small" /></>,
       children: (
         <Flex vertical gap={8}>
+          <ForumWatches projectId={id} />
           {p.unread > 0 && <Button style={{ alignSelf: 'end' }} onClick={markAllRead}>{t('Tout marquer comme lu')}</Button>}
           {inbox.data?.length || inbox.loading ? <InboxList entries={inbox.data} loading={inbox.loading} onChange={() => { inbox.reload(); reload() }} showProject={false} /> : <Empty description={t(
             'Aucune activité — configure le dépôt, les forums ou les versions puis synchronise'

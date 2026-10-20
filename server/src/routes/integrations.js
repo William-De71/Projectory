@@ -5,6 +5,7 @@ import { NOTIFY_EVENTS, ntfyConfig, sendNtfy } from '../sync/notify.js'
 import { GH_NOTIFICATION_REASONS, ghNotificationConfig, syncAll } from '../sync/index.js'
 import { LANGS, getLocale, saveLocale, tr } from '../i18n.js'
 import { externalizeUploads } from '../uploads.js'
+import { fetchTopic, parseTopicUrl } from '../sync/sources.js'
 
 function forgeError(err, owner) {
   const hint = {
@@ -21,6 +22,35 @@ const publicAccounts = (db) => forgeAccounts(db).map(({ token, ...a }) => ({ ...
 
 // Forge import / issues / accounts, ntfy and GitHub notification settings.
 export default async function integrationRoutes(app, { db }) {
+  // ---- Followed forum topics ----
+  app.get('/projects/:id/forum-watches', async (req) =>
+    db.prepare('SELECT * FROM forum_watches WHERE project_id = ? ORDER BY created_at DESC').all(Number(req.params.id)))
+
+  app.post('/forum-watches', async (req, reply) => {
+    const projectId = Number(req.body?.project_id)
+    const topic = parseTopicUrl(req.body?.url)
+    if (!projectId) return reply.code(400).send({ error: tr('Choisis un projet') })
+    if (!topic) return reply.code(400).send({ error: tr('Lien de sujet Discourse invalide (…/t/titre/123)') })
+    const existing = db.prepare('SELECT * FROM forum_watches WHERE project_id = ? AND base_url = ? AND topic_id = ?').get(projectId, topic.base_url, topic.topic_id)
+    if (existing) return existing
+    // Start from the current last post: only later replies are reported.
+    let title = String(req.body?.title || '')
+    let last = null
+    try {
+      const info = await fetchTopic(topic)
+      title = info.title || title
+      last = info.highest
+    } catch { /* checked again at the next sync */ }
+    const { lastInsertRowid } = db.prepare('INSERT INTO forum_watches (project_id, url, base_url, topic_id, title, last_post_number) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(projectId, String(req.body.url).trim(), topic.base_url, topic.topic_id, title, last)
+    return reply.code(201).send(db.prepare('SELECT * FROM forum_watches WHERE id = ?').get(lastInsertRowid))
+  })
+
+  app.delete('/forum-watches/:id', async (req) => {
+    db.prepare('DELETE FROM forum_watches WHERE id = ?').run(Number(req.params.id))
+    return { ok: true }
+  })
+
   const trackedRepos = (forge, url) => new Set(
     db.prepare("SELECT lower(repo) AS repo FROM projects WHERE repo != '' AND forge = ? AND (forge = 'github' OR forge_url = ?)")
       .all(forge, url || '').map((r) => r.repo)

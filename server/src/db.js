@@ -175,6 +175,22 @@ const MIGRATIONS = [
   -- When the fix was announced on the forum topic the item came from.
   ALTER TABLE items ADD COLUMN forum_replied_at TEXT;
   `,
+  `
+  -- Forum topics followed for new replies (Discourse).
+  CREATE TABLE forum_watches (
+    id INTEGER PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    base_url TEXT NOT NULL,
+    topic_id INTEGER NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    last_post_number INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(project_id, base_url, topic_id)
+  );
+  -- Release checklist of a version: [{ label, done }].
+  ALTER TABLE milestones ADD COLUMN checklist TEXT;
+  `,
 ]
 
 export function openDb(file = join(DATA_PATH, 'projectory.db')) {
@@ -197,7 +213,7 @@ export function openDb(file = join(DATA_PATH, 'projectory.db')) {
 }
 
 // JSON columns are stored as text; decode them on the way out.
-const JSON_COLUMNS = ['tags', 'links', 'version_sources', 'forum_sources', 'github', 'versions', 'labels', 'assignees', 'mine', 'pr_state']
+const JSON_COLUMNS = ['tags', 'links', 'version_sources', 'forum_sources', 'github', 'versions', 'labels', 'assignees', 'mine', 'pr_state', 'checklist']
 
 export function decode(row) {
   if (!row) return row

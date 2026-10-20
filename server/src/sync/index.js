@@ -1,7 +1,7 @@
 import { decode, getConfig } from '../db.js'
 import { failedRun, forgeFor, normalizeRepo } from './forges/index.js'
 import { involvement } from './forges/common.js'
-import { fetchForum, forumSourceKey, latestVersion } from './sources.js'
+import { fetchForum, fetchTopic, forumSourceKey, latestVersion } from './sources.js'
 import { notifyProject } from './notify.js'
 import { tr } from '../i18n.js'
 
@@ -274,6 +274,37 @@ async function syncForums(db, project, errors, fresh) {
   }
 }
 
+// Followed topics: every new reply (except the user's own) lands in the inbox.
+async function syncForumWatches(db, project, errors, fresh) {
+  const watches = db.prepare('SELECT * FROM forum_watches WHERE project_id = ?').all(project.id)
+  if (!watches.length) return
+  // The username of a "my mentions" source tells which replies are the user's.
+  const me = (project.forum_sources || []).find((s) => s.type === 'discourse_mentions')?.user?.replace(/^@/, '').toLowerCase()
+  const save = db.prepare('UPDATE forum_watches SET title = ?, last_post_number = ? WHERE id = ?')
+  for (const w of watches) {
+    try {
+      const topic = await fetchTopic(w, w.last_post_number)
+      for (const p of topic.posts) {
+        if (me && p.username?.toLowerCase() === me) continue
+        pushInbox(db, {
+          project_id: project.id,
+          source: 'forum',
+          kind: 'forum_followed',
+          title: topic.title,
+          url: p.url,
+          excerpt: `@${p.username} : ${p.excerpt}`,
+          external_key: `forumwatch:${w.id}:${p.number}`,
+          created_at: p.created_at,
+        }, { asRead: false, fresh })
+      }
+      // First check: just remember where the topic stands.
+      save.run(topic.title || w.title, Math.max(topic.highest, w.last_post_number ?? 0), w.id)
+    } catch (err) {
+      errors.push(tr('Sujet suivi {title} : {error}', { title: w.title || w.url, error: err.message }))
+    }
+  }
+}
+
 async function notify(db, project, fresh, log) {
   // A notification failure must not mark the project itself as broken.
   try {
@@ -299,6 +330,7 @@ export async function syncProject(db, id, log = console) {
   }
   await syncVersions(db, project, errors, fresh)
   await syncForums(db, project, errors, fresh)
+  await syncForumWatches(db, project, errors, fresh)
   db.prepare("UPDATE projects SET last_synced_at = datetime('now'), sync_error = ? WHERE id = ?").run(errors.join('\n') || null, id)
   await notify(db, project, fresh, log)
   return { id, errors, fresh: fresh.length }

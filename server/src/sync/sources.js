@@ -91,6 +91,37 @@ async function fetchDiscourseMentions({ url, user }) {
     })
 }
 
+// "https://forum/t/slug/123/4" -> { base_url: "https://forum", topic_id: 123 }.
+export function parseTopicUrl(url) {
+  let u
+  try { u = new URL(String(url).trim()) } catch { return null }
+  const at = u.pathname.indexOf('/t/')
+  if (at < 0) return null
+  const id = u.pathname.slice(at + 3).split('/').find((seg) => /^\d+$/.test(seg))
+  if (!id) return null
+  return { base_url: `${u.origin}${u.pathname.slice(0, at)}`, topic_id: Number(id) }
+}
+
+// Title, last post number and the posts after `after` of a Discourse topic.
+export async function fetchTopic({ base_url, topic_id }, after = null) {
+  const topic = await fetchJson(`${base_url}/t/${topic_id}.json`)
+  const highest = topic.highest_post_number ?? topic.posts_count ?? 0
+  const result = { title: decodeEntities(topic.fancy_title || topic.title || ''), slug: topic.slug, highest, posts: [] }
+  if (after == null || highest <= after) return result
+  // The topic payload only holds the first posts: ask for the ones after the last seen.
+  const page = await fetchJson(`${base_url}/t/${topic_id}/${after + 1}.json`)
+  result.posts = (page.post_stream?.posts || [])
+    .filter((p) => p.post_number > after)
+    .map((p) => ({
+      number: p.post_number,
+      username: p.username,
+      excerpt: stripHtml(p.cooked || '').slice(0, 300),
+      created_at: p.created_at,
+      url: `${base_url}/t/${topic.slug}/${topic_id}/${p.post_number}`,
+    }))
+  return result
+}
+
 const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@' })
 
 async function fetchRss({ url, query }) {

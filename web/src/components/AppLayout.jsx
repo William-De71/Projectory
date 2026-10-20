@@ -85,8 +85,12 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const screens = Grid.useBreakpoint()
   const mobile = !screens.lg
 
+  const [githubTodo, setGithubTodo] = useState(0)
   const refreshUnread = useCallback(() => {
     api.get('/inbox?unread=1&limit=1000').then((rows) => setUnread(rows.length)).catch(() => {})
+    // "My GitHub" badge: reviews to do, and my PRs that need something from me.
+    api.get('/my-github').then((rows) => setGithubTodo(rows.filter((it) => it.mine.includes('review')
+      || (it.type === 'pr' && it.mine.includes('author') && (it.pr_state?.review === 'changes_requested' || it.pr_state?.conflict || it.pr_state?.ci === 'failure'))).length)).catch(() => {})
   }, [])
   useEffect(() => {
     refreshUnread()
@@ -113,7 +117,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const items = [
     { key: '/', icon: <DashboardOutlined />, label: t('Tableau de bord') },
     { key: '/today', icon: <CheckSquareOutlined />, label: t('Aujourd’hui') },
-    { key: '/mine', icon: <GithubOutlined />, label: t('Mon GitHub') },
+    { key: '/mine', icon: <GithubOutlined />, label: <Flex justify="space-between" align="center">{t('Mon GitHub') + ' '}<Badge count={githubTodo} size="small" color="magenta" title={t('Reviews à faire et PR qui demandent une action')} /></Flex> },
     { key: '/projects', icon: <AppstoreOutlined />, label: t('Projets') },
     { key: '/inbox', icon: <InboxOutlined />, label: <Flex justify="space-between" align="center">{t('Boîte de réception') + ' '}<Badge count={unread} size="small" /></Flex> },
     { key: '/items', icon: <BugOutlined />, label: t('Bugs & tâches') },

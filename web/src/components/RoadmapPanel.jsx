@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { App, Button, Card, Checkbox, DatePicker, Empty, Flex, Form, Input, List, Modal, Popconfirm, Progress, Select, Tabs, Tag, Typography } from 'antd'
-import { CopyOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, ExportOutlined, FileTextOutlined, PlusOutlined, RocketOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, ExportOutlined, FileTextOutlined, PlusOutlined, RocketOutlined, SoundOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { FORGES, ITEM_KIND, ITEM_STATUS, MILESTONE_STATUS } from './labels.js'
 import { LabelTag } from './Tags.jsx'
 import { ItemForm } from './ItemsPanel.jsx'
+import AnnouncementModal from './AnnouncementModal.jsx'
 import Markdown from './Markdown.jsx'
 import { compareVersions } from './versions.js'
 import { t } from '../i18n/index.js'
@@ -176,6 +177,7 @@ export default function RoadmapPanel({ projectId, project }) {
   const [changelog, setChangelog] = useState(null)
   const [item, setItem] = useState(null)
   const [releasing, setReleasing] = useState(null)
+  const [announcing, setAnnouncing] = useState(null)
 
   const versions = data?.versions || []
   const latest = [...versions].map((v) => v.version).sort((a, b) => compareVersions(b, a))[0]
@@ -185,6 +187,17 @@ export default function RoadmapPanel({ projectId, project }) {
     const res = await api.get(`/projects/${projectId}/changelog${version ? `?version=${encodeURIComponent(version)}` : ''}`)
     setChangelog({ title: version ? `Changelog ${version}` : t('Changelog complet'), markdown: res.markdown, filename: version ? `CHANGELOG-${version}.md` : 'CHANGELOG.md' })
   }
+
+  const toggleStep = async (m, index, done) => {
+    const checklist = m.checklist.map((step, i) => (i === index ? { ...step, done } : step))
+    try {
+      await api.put(`/milestones/${m.id}`, { checklist })
+      notifyChange()
+    } catch (err) {
+      message.error(err.message)
+    }
+  }
+  const pending = (m) => (m.checklist || []).filter((step) => !step.done).length
 
   const remove = async (m) => {
     await api.del(`/milestones/${m.id}`)
@@ -228,7 +241,17 @@ export default function RoadmapPanel({ projectId, project }) {
           extra={
             <Flex gap={6}>
               <Button size="small" icon={<FileTextOutlined />} onClick={() => showChangelog(m.version)}>{t('Changelog')}</Button>
-              {m.status === 'planned' && <Button size="small" type="primary" icon={<RocketOutlined />} onClick={() => setReleasing({ mode: 'release', milestone: m })}>{t('Publier')}</Button>}
+              {m.status === 'planned' && (pending(m) ? (
+                <Popconfirm
+                  title={t('Checklist incomplète')}
+                  description={t('{n} étape(s) non cochée(s). Publier quand même ?', { n: pending(m) })}
+                  okText={t('Publier')}
+                  onConfirm={() => setReleasing({ mode: 'release', milestone: m })}
+                >
+                  <Button size="small" type="primary" icon={<RocketOutlined />}>{t('Publier')}</Button>
+                </Popconfirm>
+              ) : <Button size="small" type="primary" icon={<RocketOutlined />} onClick={() => setReleasing({ mode: 'release', milestone: m })}>{t('Publier')}</Button>)}
+              {m.status === 'released' && m.id && <Button size="small" icon={<SoundOutlined />} onClick={() => setAnnouncing(m)}>{t('Annonce forum')}</Button>}
               {m.release_url && <Button size="small" icon={<ExportOutlined />} href={m.release_url} target="_blank">{t('Release')}</Button>}
               {m.status === 'released' && m.id && !m.release_url && project?.repo && (
                 <Button size="small" icon={<RocketOutlined />} onClick={() => setReleasing({ mode: 'forge', milestone: m })}>{t('Sur') + ' '}{FORGES[project.forge]?.label}</Button>
@@ -242,6 +265,18 @@ export default function RoadmapPanel({ projectId, project }) {
             ? <Progress percent={Math.round((m.done / m.total) * 100)} format={() => `${m.done} / ${m.total}`} status={m.status === 'released' ? 'success' : 'active'} />
             : <Typography.Text type="secondary">{t('Aucun élément rattaché à cette version.')}</Typography.Text>}
           {m.description && <Typography.Paragraph type="secondary" style={{ marginTop: 8 }}>{m.description}</Typography.Paragraph>}
+          {m.status === 'planned' && !!m.checklist?.length && (
+            <Flex vertical gap={2} style={{ marginTop: 8 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {t('Checklist de release : {done} / {total}', { done: m.checklist.length - pending(m), total: m.checklist.length })}
+              </Typography.Text>
+              <Flex gap={4} wrap style={{ columnGap: 16 }}>
+                {m.checklist.map((step, i) => (
+                  <Checkbox key={`${i}-${step.label}`} checked={step.done} onChange={(e) => toggleStep(m, i, e.target.checked)}>{step.label}</Checkbox>
+                ))}
+              </Flex>
+            </Flex>
+          )}
           {!!m.items.length && (
             <List
               size="small"
@@ -284,6 +319,7 @@ export default function RoadmapPanel({ projectId, project }) {
 
       <MilestoneModal milestone={editing} latest={latest} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload() }} />
       <ChangelogModal state={changelog} onClose={() => setChangelog(null)} />
+      <AnnouncementModal state={announcing} projectId={projectId} onClose={() => setAnnouncing(null)} />
       <ReleaseModal
         state={releasing}
         project={project}

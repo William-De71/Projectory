@@ -10,7 +10,7 @@ for (const key of ['GITHUB_TOKEN', 'NTFY_TOPIC', 'NTFY_SERVER', 'NTFY_TOKEN', 'A
 
 const realFetch = globalThis.fetch
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status })
-const run = (id, name, conclusion, workflow_id = 1) => ({ id, name, workflow_id, status: 'completed', conclusion, html_url: `https://gh/run/${id}`, updated_at: '2026-10-01T00:00:00Z', head_sha: 'abcdef123456' })
+const run = (id, name, conclusion, workflow_id = 1, event = 'push') => ({ id, name, workflow_id, event, status: 'completed', conclusion, html_url: `https://gh/run/${id}`, updated_at: '2026-10-01T00:00:00Z', head_sha: 'abcdef123456' })
 
 before(() => {
   globalThis.fetch = async (url, init) => {
@@ -81,7 +81,8 @@ test('ntfy settings keep the token write-only', async () => {
 test('CI transitions and new issues are notified, first sync is silent', async () => {
   const [foo] = (await call('GET', '/api/projects?q=gladys-foo')).body
   state.ntfy.length = 0
-  state.runs = [run(10, 'Tests', 'success'), run(9, 'Tests', 'failure'), run(8, 'Lint', 'success', 2)]
+  // A failed scheduled job and a failed manual release workflow do not make the branch red.
+  state.runs = [run(10, 'Tests', 'success'), run(9, 'Tests', 'failure'), run(8, 'Lint', 'success', 2), run(7, 'Autofix', 'failure', 3, 'schedule'), run(6, 'Release', 'failure', 4, 'workflow_dispatch')]
   let res = (await call('POST', `/api/projects/${foo.id}/sync`)).body
   assert.deepEqual(res.errors, [])
   assert.equal(res.project.ci, 'success')

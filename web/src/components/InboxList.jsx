@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { App, Button, Empty, Flex, List, Modal, Select, Tag, Tooltip, Typography } from 'antd'
-import { BellOutlined, BugOutlined, CheckOutlined, CloseCircleOutlined, CheckCircleOutlined, GithubOutlined, MessageOutlined, PullRequestOutlined, RocketOutlined, UndoOutlined } from '@ant-design/icons'
+import { BellOutlined, BugOutlined, CheckOutlined, EyeOutlined, CloseCircleOutlined, CheckCircleOutlined, GithubOutlined, MessageOutlined, PullRequestOutlined, RocketOutlined, UndoOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange } from '../api/client.js'
 import { ITEM_KIND, PRIORITY, options } from './labels.js'
 import { t } from '../i18n/index.js'
+import { followTopic } from './ForumWatches.jsx'
 
 const ICONS = {
   issue: <GithubOutlined />,
@@ -18,9 +19,10 @@ const ICONS = {
   ci_fixed: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
   gh_notification: <BellOutlined style={{ color: '#fa8c16' }} />,
   pr_status: <PullRequestOutlined style={{ color: '#eb2f96' }} />,
+  forum_followed: <MessageOutlined style={{ color: '#13c2c2' }} />,
   forum_reply: <MessageOutlined style={{ color: '#52c41a' }} />,
 }
-const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', discourse_mentions: 'Pour toi', rss: 'RSS', ci_failed: 'CI', ci_fixed: 'CI', gh_notification: 'Pour toi', pr_status: 'Ma PR', forum_reply: 'À répondre' }
+const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', discourse_mentions: 'Pour toi', rss: 'RSS', ci_failed: 'CI', ci_fixed: 'CI', gh_notification: 'Pour toi', pr_status: 'Ma PR', forum_reply: 'À répondre', forum_followed: 'Sujet suivi' }
 
 function ConvertModal({ entry, onClose, onDone }) {
   const { message } = App.useApp()
@@ -47,8 +49,20 @@ function ConvertModal({ entry, onClose, onDone }) {
   )
 }
 
+const FOLLOWABLE = ['discourse', 'discourse_mentions']
+
 export default function InboxList({ entries, loading, onChange, showProject = true }) {
+  const { message } = App.useApp()
   const [converting, setConverting] = useState(null)
+
+  const follow = async (entry) => {
+    try {
+      await followTopic({ project_id: entry.project_id, url: entry.url, title: entry.title })
+      message.success(t('Sujet suivi : chaque nouvelle réponse arrivera ici'))
+    } catch (err) {
+      message.error(err.message)
+    }
+  }
 
   const toggleRead = async (entry) => {
     await api.post(`/inbox/${entry.id}/read`, { read: !entry.read_at })
@@ -69,6 +83,9 @@ export default function InboxList({ entries, loading, onChange, showProject = tr
                 <Tag key="tracked" color="green">{t('Suivi')}</Tag>
               ) : !['release', 'ci_fixed', 'gh_notification'].includes(entry.kind) && entry.project_id ? (
                 <Tooltip key="convert" title={t('Transformer en bug / tâche')}><Button size="small" icon={<BugOutlined />} onClick={() => setConverting(entry)} /></Tooltip>
+              ) : null,
+              FOLLOWABLE.includes(entry.kind) && entry.project_id && /\/t\//.test(entry.url) ? (
+                <Tooltip key="follow" title={t('Suivre les réponses de ce sujet')}><Button size="small" icon={<EyeOutlined />} onClick={() => follow(entry)} /></Tooltip>
               ) : null,
               <Tooltip key="read" title={entry.read_at ? t('Marquer non lu') : t('Marquer lu')}>
                 <Button size="small" icon={entry.read_at ? <UndoOutlined /> : <CheckOutlined />} onClick={() => toggleRead(entry)} />
