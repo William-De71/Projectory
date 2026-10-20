@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.9.0 — 2026-10-20
+
+### ✨ Nouveautés
+
+- issues et PR suivies par projet (seulement les miennes sur les dépôts des autres), créer une tâche depuis Mon GitHub (#12) (26c0284)
+
+### 🐛 Corrections
+
+- notes créées dans un projet enregistrées sans leur projet ; Enregistrer ferme la note, bouton Fermer, confirmation avant de perdre une saisie, titre facultatif, notes dans l'aperçu du projet (#11) (0ce2562)
+
 ## v0.8.0 — 2026-10-20
 
 ### ✨ Nouveautés
