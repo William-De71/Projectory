@@ -76,7 +76,7 @@ export default function DocsPanel({ projectId, type, allowTypeFilter = false }) 
         doc={editing}
         withProjectPicker={!projectId}
         onClose={() => setEditing(null)}
-        onSaved={(saved) => { setEditing(saved); reload() }}
+        onSaved={() => { setEditing(null); reload() }}
         onDeleted={reload}
       />
     </Flex>

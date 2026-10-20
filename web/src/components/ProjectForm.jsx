@@ -85,6 +85,7 @@ export default function ProjectForm({ project, onClose, onSaved }) {
       title={project?.id ? t('Modifier {name}', { name: project.name }) : t('Nouveau projet')}
       saving={saving}
       onSave={save}
+      isDirty={() => form.isFieldsTouched()}
       onDelete={project?.id ? remove : null}
       deleteTitle={t('Supprimer le projet et tout son contenu (bugs, specs, notes) ?')}
     >

@@ -103,6 +103,7 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
       title={item?.id ? t('Modifier') : t('Nouveau bug / tâche')}
       saving={saving}
       onSave={save}
+      isDirty={() => form.isFieldsTouched()}
       onDelete={item?.id ? remove : null}
       deleteTitle={t('Supprimer ?')}
     >

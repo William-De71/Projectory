@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Alert, App, Badge, Button, Card, Descriptions, Empty, Flex, Result, Spin, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, GlobalOutlined, LinkOutlined, StarOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons'
+import { Alert, App, Badge, Button, Card, Descriptions, Empty, Flex, List, Result, Spin, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
+import { ArrowLeftOutlined, EditOutlined, GlobalOutlined, LinkOutlined, PlusOutlined, PushpinFilled, StarOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { FORGES, PROJECT_STATUS, repoUrl } from '../components/labels.js'
@@ -14,6 +14,7 @@ import RoadmapPanel from '../components/RoadmapPanel.jsx'
 import StatsPanel from '../components/StatsPanel.jsx'
 import ForgeIcon from '../components/ForgeIcon.jsx'
 import DocsPanel from '../components/DocsPanel.jsx'
+import DocEditor from '../components/DocEditor.jsx'
 import InboxList from '../components/InboxList.jsx'
 import ForumWatches from '../components/ForumWatches.jsx'
 import TimePanel from '../components/TimePanel.jsx'
@@ -22,6 +23,41 @@ import CiStatus, { CI } from '../components/CiStatus.jsx'
 import { t } from '../i18n/index.js'
 
 const VERSION_LABELS = { repo: 'Dépôt', github: 'GitHub', npm: 'npm', docker: 'Docker Hub' }
+
+// Latest notes and specs of the project, pinned first; opens them in the editor.
+function DocsCard({ projectId }) {
+  const { data } = useApi(`/docs?project_id=${projectId}`, { listen: true })
+  const [editing, setEditing] = useState(null)
+  const docs = (data || []).slice(0, 8)
+  return (
+    <Card
+      size="small"
+      title={t('Notes & specs')}
+      extra={<Button size="small" icon={<PlusOutlined />} onClick={() => setEditing({ type: 'note', project_id: Number(projectId) })}>{t('Note')}</Button>}
+    >
+      {docs.length ? (
+        <List
+          size="small"
+          dataSource={docs}
+          renderItem={(d) => (
+            <List.Item className="clickable" onClick={() => setEditing(d)} style={{ paddingInline: 0 }}>
+              <Flex gap={6} align="center" style={{ width: '100%', minWidth: 0 }}>
+                {d.pinned && <PushpinFilled style={{ color: '#fa8c16' }} />}
+                <Tag style={{ marginInlineEnd: 0 }}>{d.type === 'spec' ? t('Spec') : t('Note')}</Tag>
+                <Typography.Text ellipsis style={{ flex: 1 }}>{d.title}</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{dayjs.utc(d.updated_at).local().fromNow()}</Typography.Text>
+              </Flex>
+            </List.Item>
+          )}
+        />
+      ) : <Typography.Text type="secondary">{t('Aucune note pour l’instant')}</Typography.Text>}
+      {(data || []).length > docs.length && (
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t('… et {n} autre(s) dans les onglets Notes et Spécifications', { n: data.length - docs.length })}</Typography.Text>
+      )}
+      <DocEditor doc={editing} onClose={() => setEditing(null)} onSaved={() => setEditing(null)} onDeleted={() => setEditing(null)} />
+    </Card>
+  )
+}
 
 function Overview({ project: p }) {
   const versions = p.versions || []
@@ -33,6 +69,7 @@ function Overview({ project: p }) {
           {p.description ? <Markdown>{p.description}</Markdown> : <Typography.Text type="secondary">{t('Pas de description')}</Typography.Text>}
           {!!p.tags?.length && <Flex gap={4} wrap style={{ marginTop: 8 }}>{p.tags.map((t) => <Tag key={t}>{t}</Tag>)}</Flex>}
         </Card>
+        <DocsCard projectId={p.id} />
         <Card size="small" title={t('Liens')}>
           <Flex vertical gap={6}>
             {p.repo && <a href={repoUrl(p)} target="_blank" rel="noreferrer"><ForgeIcon forge={p.forge} /> {p.repo}</a>}
