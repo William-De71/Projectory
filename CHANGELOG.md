@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.0 — 2026-10-20
+
+### ✨ Nouveautés
+
+- sujets du forum suivis, annonce de release pour le forum, checklist de release, badge Mon GitHub; CI sans tâches planifiées ni workflows manuels (#10) (f9faa0a)
+
 ## v0.7.1 — 2026-10-19
 
 ### 🐛 Corrections
