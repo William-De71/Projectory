@@ -19,8 +19,10 @@ const MINE = {
 }
 const DEFAULT_FILTERS = { scope: 'all', labels: [], author: null, q: '' }
 
-function readFilters(key) {
-  try { return { ...DEFAULT_FILTERS, ...JSON.parse(localStorage.getItem(key) || '{}') } } catch { return DEFAULT_FILTERS }
+// Projects limited to the user's items open on "For me" until another view is chosen.
+function readFilters(key, mineOnly) {
+  const defaults = { ...DEFAULT_FILTERS, scope: mineOnly ? 'mine' : 'all' }
+  try { return { ...defaults, ...JSON.parse(localStorage.getItem(key) || '{}') } } catch { return defaults }
 }
 
 // Open issues & PRs / MRs mirrored by the last sync.
@@ -29,7 +31,7 @@ export default function GithubPanel({ projectId, project }) {
   const [type, setType] = useState('issue')
   // Filters are remembered per project: on a busy repository they are the default view.
   const storageKey = `projectory:gh-filters:${projectId || 'all'}`
-  const [filters, setFilters] = useState(() => readFilters(storageKey))
+  const [filters, setFilters] = useState(() => readFilters(storageKey, project?.mine_only))
   useEffect(() => {
     try { localStorage.setItem(storageKey, JSON.stringify({ ...filters, q: '' })) } catch { /* storage unavailable */ }
   }, [storageKey, filters])
@@ -115,7 +117,9 @@ export default function GithubPanel({ projectId, project }) {
           <List.Item
             actions={[
               it.comments ? <span key="c" style={{ opacity: 0.6 }}><CommentOutlined /> {it.comments}</span> : null,
-              <Tooltip key="t" title={t('Suivre dans Bugs & tâches')}><Button size="small" icon={<EyeOutlined />} onClick={() => track(it)} /></Tooltip>,
+              it.item_id
+                ? <Tag key="t" color="green" style={{ marginInlineEnd: 0 }}>{t('Suivi')}</Tag>
+                : <Tooltip key="t" title={t('Suivre dans Bugs & tâches')}><Button size="small" icon={<EyeOutlined />} onClick={() => track(it)} /></Tooltip>,
             ].filter(Boolean)}
           >
             <List.Item.Meta

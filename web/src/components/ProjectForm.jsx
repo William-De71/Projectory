@@ -50,7 +50,7 @@ export default function ProjectForm({ project, onClose, onSaved }) {
     if (!project) return
     form.resetFields()
     form.setFieldsValue({
-      status: 'active', tags: [], links: [], version_sources: [], forum_sources: [], pinned: false, notify: true, forge: 'github', forge_url: '',
+      status: 'active', tags: [], links: [], version_sources: [], forum_sources: [], pinned: false, notify: true, forge: 'github', forge_url: '', github_scope: 'auto',
       ...project,
     })
   }, [project, form])
@@ -133,6 +133,18 @@ export default function ProjectForm({ project, onClose, onSaved }) {
         <Flex gap={12} wrap>
           <Form.Item name="repo" label={t('Dépôt')} style={{ flex: 1, minWidth: 220 }} extra={t('{path} ou URL — issues, {prs} et CI seront suivies', { path: forge === 'gitlab' ? t('groupe / projet') : 'owner/repo', prs: forge === 'gitlab' ? 'MR' : 'PR' })}>
             <Input placeholder={forge === 'gitlab' ? 'mon-groupe/mon-projet' : 'GladysAssistant/Gladys'} />
+          </Form.Item>
+          <Form.Item
+            name="github_scope"
+            label={t('Issues et {prs} suivies', { prs: forge === 'gitlab' ? 'MR' : 'PR' })}
+            style={{ flex: 1, minWidth: 220 }}
+            extra={t('Sur un dépôt très actif (ex. Gladys), « Seulement celles qui me concernent » garde les compteurs, le tableau de bord et les notifications pour ce qui te concerne.')}
+          >
+            <Select options={[
+              { value: 'auto', label: t('Auto : tout sur mes dépôts, les miennes ailleurs') },
+              { value: 'all', label: t('Toutes') },
+              { value: 'mine', label: t('Seulement celles qui me concernent') },
+            ]} />
           </Form.Item>
           <Form.Item name="homepage" label={t('Site / démo')} style={{ flex: 1, minWidth: 220 }}>
             <Input placeholder="https://…" />

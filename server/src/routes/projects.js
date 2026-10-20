@@ -3,18 +3,22 @@ import { compareVersions } from '../sync/http.js'
 import { normalizeRepo } from '../sync/forges/index.js'
 import { syncProject } from '../sync/index.js'
 import { tr } from '../i18n.js'
+import { VISIBLE_ITEM, refreshMineOnly } from '../visibility.js'
 
 const FIELDS = [
   'name', 'description', 'category_id', 'status', 'tags', 'client', 'repo', 'homepage', 'links',
-  'deployed_version', 'version_sources', 'forum_sources', 'pinned', 'notify', 'forge', 'forge_url',
+  'deployed_version', 'version_sources', 'forum_sources', 'pinned', 'notify', 'forge', 'forge_url', 'github_scope',
 ]
+
+// Item of Bugs & tasks already created from this issue / PR, if any.
+const TRACKED = '(SELECT i.id FROM items i WHERE i.project_id = g.project_id AND i.issue_url = g.url LIMIT 1) AS item_id'
 
 const LIST_SQL = `
   SELECT p.*, c.name AS category_name, c.color AS category_color,
     (SELECT count(*) FROM items i WHERE i.project_id = p.id AND i.status IN ('todo', 'in_progress')) AS open_items,
     (SELECT count(*) FROM items i WHERE i.project_id = p.id AND i.status IN ('todo', 'in_progress') AND i.kind = 'bug') AS open_bugs,
-    (SELECT count(*) FROM github_items g WHERE g.project_id = p.id AND g.type = 'issue') AS open_issues,
-    (SELECT count(*) FROM github_items g WHERE g.project_id = p.id AND g.type = 'pr') AS open_prs,
+    (SELECT count(*) FROM github_items g WHERE g.project_id = p.id AND g.type = 'issue' AND ${VISIBLE_ITEM}) AS open_issues,
+    (SELECT count(*) FROM github_items g WHERE g.project_id = p.id AND g.type = 'pr' AND ${VISIBLE_ITEM}) AS open_prs,
     (SELECT count(*) FROM inbox x WHERE x.project_id = p.id AND x.read_at IS NULL) AS unread
   FROM projects p LEFT JOIN categories c ON c.id = p.category_id
 `
@@ -64,12 +68,14 @@ export default async function projectRoutes(app, { db }) {
   app.post('/projects', async (req, reply) => {
     if (!req.body?.name?.trim()) return reply.code(400).send({ error: tr('Le nom est obligatoire') })
     const id = insertRow(db, 'projects', clean(req.body), FIELDS)
+    refreshMineOnly(db, id)
     return reply.code(201).send(listProjects(db, { where: ['p.id = ?'], params: [id] })[0])
   })
 
   app.put('/projects/:id', async (req, reply) => {
     const id = Number(req.params.id)
     if (!updateRow(db, 'projects', id, clean(req.body || {}), FIELDS)) return reply.code(404).send({ error: tr('Projet introuvable') })
+    refreshMineOnly(db, id)
     return listProjects(db, { where: ['p.id = ?'], params: [id] })[0]
   })
 
@@ -86,7 +92,7 @@ export default async function projectRoutes(app, { db }) {
   // Open issues / PRs that concern the user, across every project.
   app.get('/my-github', async () =>
     db.prepare(
-      `SELECT g.*, p.name AS project_name, p.forge FROM github_items g JOIN projects p ON p.id = g.project_id
+      `SELECT g.*, p.name AS project_name, p.forge, ${TRACKED} FROM github_items g JOIN projects p ON p.id = g.project_id
        WHERE g.mine != '[]' AND p.status != 'archived' ORDER BY g.updated_at DESC`
     ).all().map(decode))
 
@@ -97,7 +103,7 @@ export default async function projectRoutes(app, { db }) {
     if (project_id) { where.push('g.project_id = ?'); params.push(Number(project_id)) }
     if (type) { where.push('g.type = ?'); params.push(type) }
     return db.prepare(
-      `SELECT g.*, p.name AS project_name FROM github_items g JOIN projects p ON p.id = g.project_id
+      `SELECT g.*, p.name AS project_name, ${TRACKED} FROM github_items g JOIN projects p ON p.id = g.project_id
        WHERE ${where.join(' AND ')} ORDER BY g.updated_at DESC`
     ).all(...params).map(decode)
   })

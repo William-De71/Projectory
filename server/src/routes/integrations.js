@@ -140,7 +140,7 @@ export default async function integrationRoutes(app, { db }) {
       project_id: g.project_id,
       kind: req.body?.kind || (g.type === 'pr' ? 'task' : 'bug'),
       priority: req.body?.priority || 'normal',
-      title: g.title,
+      title: String(req.body?.title || '').trim() || g.title,
       source: 'github',
       issue_number: g.type === 'issue' ? g.number : null,
       issue_url: g.url,

@@ -1,6 +1,7 @@
 import { decode, getConfig } from '../db.js'
 import { failedRun, forgeFor, normalizeRepo } from './forges/index.js'
 import { involvement } from './forges/common.js'
+import { computeMineOnly } from '../visibility.js'
 import { fetchForum, fetchTopic, forumSourceKey, latestVersion } from './sources.js'
 import { notifyProject } from './notify.js'
 import { tr } from '../i18n.js'
@@ -53,6 +54,9 @@ async function syncForge(db, project, fresh, errors) {
   const login = await forge.whoami?.().catch(() => null)
   const mentioned = login && forge.fetchMentions ? await forge.fetchMentions(repo, login).catch(() => new Set()) : new Set()
   const mineOf = new Map(items.map((it) => [it, involvement(it, login, mentioned)]))
+  // Someone else's busy repository: only the user's own issues / PRs count.
+  info.viewer = login || project.github?.viewer || null
+  const mineOnly = computeMineOnly({ ...project, github: info })
   // Review / CI / conflict state of the PRs that concern the user (capped: one
   // request set per PR). Fetched before the transaction, never fatal.
   const prStates = new Map()
@@ -100,7 +104,7 @@ async function syncForge(db, project, fresh, errors) {
       if (mineOf.get(it).includes('author')) {
         pushPrTransitions(db, project, baseKey, it, previousStates.get(it.number), prStates.get(it.number), { asRead, fresh })
       }
-      if (!existing.has(`${it.type}#${it.number}`)) {
+      if (!existing.has(`${it.type}#${it.number}`) && (!mineOnly || mineOf.get(it).length)) {
         pushInbox(db, {
           project_id: project.id,
           source,
@@ -124,7 +128,7 @@ async function syncForge(db, project, fresh, errors) {
       }
     }
     closeLinkedItems(db, project, items, baseKey, { asRead, fresh })
-    db.prepare('UPDATE projects SET github = ? WHERE id = ?').run(JSON.stringify(info), project.id)
+    db.prepare('UPDATE projects SET github = ?, mine_only = ? WHERE id = ?').run(JSON.stringify(info), mineOnly, project.id)
     markBaselined(db, baseKey)
     db.exec('COMMIT')
   } catch (err) {
