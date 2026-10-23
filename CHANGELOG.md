@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.0 — 2026-10-23
+
+### ✨ Nouveautés
+
+- PR liée aux bugs et tâches, statuts « En test » / « Bloqué », description plus grande et liste sans débordement (4d03e94)
+- miniatures des images jointes et prévisualisation du Markdown (#13) (acbab5a)
+
 ## v0.9.0 — 2026-10-20
 
 ### ✨ Nouveautés
