@@ -18,9 +18,13 @@ export const ITEM_KIND = {
 export const ITEM_STATUS = {
   todo: { label: 'À faire', color: 'default' },
   in_progress: { label: 'En cours', color: 'processing' },
+  testing: { label: 'En test', color: 'purple' },
+  blocked: { label: 'Bloqué', color: 'error' },
   done: { label: 'Terminé', color: 'success' },
   wontfix: { label: 'Abandonné', color: 'default' },
 }
+
+export const OPEN_STATUSES = ['todo', 'in_progress', 'testing', 'blocked']
 
 export const PRIORITY = {
   low: { label: 'Basse', color: 'default' },
@@ -70,6 +74,14 @@ export function repoUrl(p) {
   if (p.github?.html_url) return p.github.html_url
   const base = (p.forge === 'github' || !p.forge ? 'https://github.com' : p.forge_url || FORGES[p.forge]?.defaultUrl || '').replace(/\/+$/, '')
   return `${base}/${p.repo}`
+}
+
+// "PR #12" / "MR !12" from a pull / merge request URL, "PR" if no number is found.
+export function prLabel(url) {
+  const mr = url.match(/\/merge_requests\/(\d+)/)
+  if (mr) return `MR !${mr[1]}`
+  const pr = url.match(/\/pulls?\/(\d+)/)
+  return pr ? `PR #${pr[1]}` : 'PR'
 }
 
 // "!12" for GitLab merge requests, "#12" everywhere else.

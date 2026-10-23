@@ -197,7 +197,14 @@ const MIGRATIONS = [
   -- Effective value (1 = only those that concern the user), kept up to date.
   ALTER TABLE projects ADD COLUMN mine_only INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  -- Pull / merge request linked to a tracked item.
+  ALTER TABLE items ADD COLUMN pr_url TEXT NOT NULL DEFAULT '';
+  `,
 ]
+
+// Item statuses that still need work, as an SQL list.
+export const OPEN_STATUSES = "('todo', 'in_progress', 'testing', 'blocked')"
 
 export function openDb(file = join(DATA_PATH, 'projectory.db')) {
   if (file !== ':memory:') mkdirSync(DATA_PATH, { recursive: true })

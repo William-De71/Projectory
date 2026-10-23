@@ -1,4 +1,4 @@
-import { decode } from '../db.js'
+import { OPEN_STATUSES, decode } from '../db.js'
 import { listProjects } from './projects.js'
 import { syncAll, syncState } from '../sync/index.js'
 import { forgeContext } from '../sync/forges/index.js'
@@ -64,7 +64,7 @@ export default async function overviewRoutes(app, { db }) {
         open_prs: count(`SELECT count(*) n FROM github_items g JOIN projects p ON p.id = g.project_id WHERE g.type = 'pr' AND p.status != 'archived' AND ${VISIBLE_ITEM}`),
         ci_failing: projects.filter((p) => p.ci === 'failure').length,
         stale: findStale(db).length,
-        open_bugs: count("SELECT count(*) n FROM items WHERE kind = 'bug' AND status IN ('todo', 'in_progress')"),
+        open_bugs: count(`SELECT count(*) n FROM items WHERE kind = 'bug' AND status IN ${OPEN_STATUSES}`),
         unread: count('SELECT count(*) n FROM inbox WHERE read_at IS NULL'),
         minutes_this_month: count("SELECT coalesce(sum(minutes), 0) n FROM time_entries WHERE date >= date('now', 'start of month')"),
       },
@@ -74,7 +74,7 @@ export default async function overviewRoutes(app, { db }) {
       with_errors: projects.filter((p) => p.sync_error).map(({ id, name, sync_error }) => ({ id, name, sync_error })),
       urgent: db.prepare(
         `SELECT i.*, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id
-         WHERE i.status IN ('todo', 'in_progress') AND (i.priority IN ('high', 'critical') OR (i.due_date IS NOT NULL AND i.due_date <= date('now', '+7 days')))
+         WHERE i.status IN ${OPEN_STATUSES} AND (i.priority IN ('high', 'critical') OR (i.due_date IS NOT NULL AND i.due_date <= date('now', '+7 days')))
          ORDER BY CASE i.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END, i.due_date LIMIT 15`
       ).all(),
       inbox: db.prepare(`${INBOX_SQL} WHERE x.read_at IS NULL ORDER BY x.created_at DESC LIMIT 10`).all(),

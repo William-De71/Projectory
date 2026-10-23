@@ -2,6 +2,7 @@ import { Button, Tooltip, theme } from 'antd'
 import { SunFilled, SunOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange } from '../api/client.js'
+import { OPEN_STATUSES } from './labels.js'
 import { t } from '../i18n/index.js'
 
 export const todayDate = () => dayjs().format('YYYY-MM-DD')
@@ -16,7 +17,7 @@ export async function setFocus(item, on) {
 // Adds an open item to the "Today" list, or removes it.
 export default function TodayButton({ item, onChange }) {
   const { token } = theme.useToken()
-  if (!['todo', 'in_progress'].includes(item.status)) return null
+  if (!OPEN_STATUSES.includes(item.status)) return null
   const planned = isPlanned(item)
   return (
     <Tooltip title={planned ? t('Retirer de ma journée') : t('Ajouter à ma journée')}>

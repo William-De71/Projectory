@@ -141,7 +141,7 @@ function ReleaseModal({ state, project, onClose, onDone }) {
         {state?.mode !== 'forge' && (
           <>
             <Form.Item name="close_items" valuePropName="checked" style={{ marginBottom: 4 }}>
-              <Checkbox>{t('Passer les éléments « en cours » à « terminé »')}</Checkbox>
+              <Checkbox>{t('Passer les éléments « en cours » et « en test » à « terminé »')}</Checkbox>
             </Form.Item>
             <Form.Item name="save_note" valuePropName="checked" style={{ marginBottom: 4 }}>
               <Checkbox>{t('Enregistrer le changelog dans les notes')}</Checkbox>

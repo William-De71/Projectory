@@ -1,7 +1,7 @@
-import { decode, insertRow, updateRow } from '../db.js'
+import { OPEN_STATUSES, decode, insertRow, updateRow } from '../db.js'
 import { tr } from '../i18n.js'
 
-const ITEM_FIELDS = ['project_id', 'kind', 'title', 'body', 'status', 'priority', 'source', 'external_url', 'target_version', 'due_date', 'issue_number', 'issue_url', 'focus_date', 'forum_replied_at']
+const ITEM_FIELDS = ['project_id', 'kind', 'title', 'body', 'status', 'priority', 'source', 'external_url', 'target_version', 'due_date', 'issue_number', 'issue_url', 'focus_date', 'forum_replied_at', 'pr_url']
 const DOC_FIELDS = ['project_id', 'type', 'title', 'content', 'status', 'pinned']
 const CATEGORY_FIELDS = ['name', 'color', 'position']
 
@@ -17,7 +17,7 @@ export default async function contentRoutes(app, { db }) {
     if (project_id) { where.push('i.project_id = ?'); params.push(Number(project_id)) }
     if (status) { where.push('i.status = ?'); params.push(status) }
     if (kind) { where.push('i.kind = ?'); params.push(kind) }
-    if (open) where.push("i.status IN ('todo', 'in_progress')")
+    if (open) where.push(`i.status IN ${OPEN_STATUSES}`)
     return db.prepare(
       `SELECT i.*, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id
        WHERE ${where.join(' AND ')} ORDER BY ${PRIORITY_ORDER}, i.updated_at DESC`

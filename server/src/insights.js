@@ -1,5 +1,5 @@
 import { VISIBLE_ITEM } from './visibility.js'
-import { getConfig } from './db.js'
+import { OPEN_STATUSES, getConfig } from './db.js'
 import { tr } from './i18n.js'
 import { compareVersions } from './sync/http.js'
 
@@ -44,7 +44,7 @@ export function buildDigest(db, now = new Date()) {
   })
   const urgent = db.prepare(
     `SELECT i.title, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id
-     WHERE i.status IN ('todo', 'in_progress') AND i.priority IN ('high', 'critical')
+     WHERE i.status IN ${OPEN_STATUSES} AND i.priority IN ('high', 'critical')
      ORDER BY CASE i.priority WHEN 'critical' THEN 0 ELSE 1 END, i.updated_at`
   ).all()
   const in14 = new Date(now.getTime() + 14 * DAY).toISOString().slice(0, 10)
@@ -54,7 +54,7 @@ export function buildDigest(db, now = new Date()) {
       WHERE m.status = 'planned' AND m.due_date IS NOT NULL AND m.due_date <= ? ORDER BY m.due_date`).all(in14)
       .map((m) => ({ date: m.due_date, text: tr('{project} {v} (version)', { project: m.project_name, v: m.version }) })),
     ...db.prepare(`SELECT i.title, i.due_date, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id
-      WHERE i.status IN ('todo', 'in_progress') AND i.due_date IS NOT NULL AND i.due_date <= ? ORDER BY i.due_date`).all(in14)
+      WHERE i.status IN ${OPEN_STATUSES} AND i.due_date IS NOT NULL AND i.due_date <= ? ORDER BY i.due_date`).all(in14)
       .map((i) => ({ date: i.due_date, text: `${i.project_name} : ${i.title}` })),
   ].sort((a, b) => a.date.localeCompare(b.date))
   const unread = db.prepare('SELECT count(*) AS n FROM inbox WHERE read_at IS NULL').get().n

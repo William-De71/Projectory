@@ -4,7 +4,7 @@ import { Alert, App, Button, Card, Checkbox, Col, Empty, Flex, List, Row, Select
 import { CheckOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
-import { ITEM_KIND, PRIORITY, formatMinutes } from '../components/labels.js'
+import { ITEM_KIND, ITEM_STATUS, OPEN_STATUSES, PRIORITY, formatMinutes } from '../components/labels.js'
 import { LabelTag } from '../components/Tags.jsx'
 import { ItemForm } from '../components/ItemsPanel.jsx'
 import { setFocus, todayDate } from '../components/TodayButton.jsx'
@@ -13,7 +13,7 @@ import { t } from '../i18n/index.js'
 
 const FOCUS_LIMIT = 5
 const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1)
-const isOpen = (it) => ['todo', 'in_progress'].includes(it.status)
+const isOpen = (it) => OPEN_STATUSES.includes(it.status)
 
 function ItemTags({ item, today }) {
   return (
@@ -21,7 +21,7 @@ function ItemTags({ item, today }) {
       <Link to={`/projects/${item.project_id}/items`}><Tag>{item.project_name}</Tag></Link>
       <LabelTag map={ITEM_KIND} value={item.kind} />
       {item.priority !== 'normal' && <LabelTag map={PRIORITY} value={item.priority} />}
-      {item.status === 'in_progress' && <Tag color="processing">{t('En cours')}</Tag>}
+      {['in_progress', 'testing', 'blocked'].includes(item.status) && <LabelTag map={ITEM_STATUS} value={item.status} />}
       {item.due_date && (
         <Tag color={item.due_date < today ? 'red' : item.due_date === today ? 'orange' : 'default'}>
           {item.due_date < today ? t('en retard · {date}', { date: dayjs(item.due_date).format('D MMM') }) : item.due_date === today ? t('échéance aujourd’hui') : dayjs(item.due_date).format('D MMM')}

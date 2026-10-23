@@ -128,6 +128,19 @@ test('Discourse mentions: only posts by others that tag @user', async () => {
   await assert.rejects(fetchForum({ ...source, user: ' ' }), /utilisateur Discourse manquant/)
 })
 
+test('testing and blocked items stay open, PR link and release', async () => {
+  const { body: p } = await call('POST', '/api/projects', { name: 'Statuts' })
+  const pr_url = 'https://github.com/acme/app/pull/7'
+  const { body: a } = await call('POST', '/api/items', { project_id: p.id, title: 'En test', status: 'testing', target_version: '1.0.0', pr_url })
+  await call('POST', '/api/items', { project_id: p.id, title: 'Bloqué', status: 'blocked' })
+  await call('POST', '/api/items', { project_id: p.id, title: 'Fini', status: 'done' })
+  assert.equal(a.pr_url, pr_url)
+  assert.equal((await call('GET', `/api/items?project_id=${p.id}&open=1`)).body.length, 2)
+  assert.equal((await call('GET', `/api/projects/${p.id}`)).body.open_items, 2)
+  const res = (await call('POST', `/api/projects/${p.id}/release`, { version: '1.0.0', close_items: true })).body
+  assert.match(res.markdown, /En test \(\[PR\]\(https:\/\/github\.com\/acme\/app\/pull\/7\)\)/)
+})
+
 test('decodes HTML entities in forum titles', async () => {
   const { decodeEntities } = await import('../src/sync/sources.js')
   assert.equal(decodeEntities('Probl&egrave;me d&rsquo;int&#233;gration &#x2014; ok'), 'Probl&egrave;me d’intégration — ok')

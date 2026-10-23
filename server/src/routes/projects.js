@@ -1,4 +1,4 @@
-import { decode, insertRow, updateRow } from '../db.js'
+import { OPEN_STATUSES, decode, insertRow, updateRow } from '../db.js'
 import { compareVersions } from '../sync/http.js'
 import { normalizeRepo } from '../sync/forges/index.js'
 import { syncProject } from '../sync/index.js'
@@ -15,8 +15,8 @@ const TRACKED = '(SELECT i.id FROM items i WHERE i.project_id = g.project_id AND
 
 const LIST_SQL = `
   SELECT p.*, c.name AS category_name, c.color AS category_color,
-    (SELECT count(*) FROM items i WHERE i.project_id = p.id AND i.status IN ('todo', 'in_progress')) AS open_items,
-    (SELECT count(*) FROM items i WHERE i.project_id = p.id AND i.status IN ('todo', 'in_progress') AND i.kind = 'bug') AS open_bugs,
+    (SELECT count(*) FROM items i WHERE i.project_id = p.id AND i.status IN ${OPEN_STATUSES}) AS open_items,
+    (SELECT count(*) FROM items i WHERE i.project_id = p.id AND i.status IN ${OPEN_STATUSES} AND i.kind = 'bug') AS open_bugs,
     (SELECT count(*) FROM github_items g WHERE g.project_id = p.id AND g.type = 'issue' AND ${VISIBLE_ITEM}) AS open_issues,
     (SELECT count(*) FROM github_items g WHERE g.project_id = p.id AND g.type = 'pr' AND ${VISIBLE_ITEM}) AS open_prs,
     (SELECT count(*) FROM inbox x WHERE x.project_id = p.id AND x.read_at IS NULL) AS unread

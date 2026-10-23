@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { getConfig, setConfig } from './db.js'
+import { OPEN_STATUSES, getConfig, setConfig } from './db.js'
 import { tr } from './i18n.js'
 
 // Secret token in the subscription URL: calendar apps cannot send credentials.
@@ -57,7 +57,7 @@ export function buildCalendar(db, { appUrl = '', now = new Date() } = {}) {
   const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '')
   const items = db.prepare(
     `SELECT i.id, i.title, i.kind, i.priority, i.due_date, i.project_id, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id
-     WHERE i.status IN ('todo', 'in_progress') AND i.due_date IS NOT NULL`
+     WHERE i.status IN ${OPEN_STATUSES} AND i.due_date IS NOT NULL`
   ).all()
   const milestones = db.prepare(
     `SELECT m.id, m.version, m.title, m.status, m.due_date, m.released_at, m.project_id, p.name AS project_name FROM milestones m JOIN projects p ON p.id = m.project_id

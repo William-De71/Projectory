@@ -1,4 +1,4 @@
-import { decode, getConfig } from '../db.js'
+import { OPEN_STATUSES, decode, getConfig } from '../db.js'
 import { failedRun, forgeFor, normalizeRepo } from './forges/index.js'
 import { involvement } from './forges/common.js'
 import { computeMineOnly } from '../visibility.js'
@@ -144,7 +144,7 @@ function closeLinkedItems(db, project, items, baseKey, opts) {
   if (issues.length >= 250) return
   const open = new Set(issues.map((it) => it.number))
   const linked = db.prepare(
-    "SELECT id, title, source, external_url, issue_number FROM items WHERE project_id = ? AND issue_number IS NOT NULL AND status IN ('todo', 'in_progress')"
+    `SELECT id, title, source, external_url, issue_number FROM items WHERE project_id = ? AND issue_number IS NOT NULL AND status IN ${OPEN_STATUSES}`
   ).all(project.id)
   const close = db.prepare("UPDATE items SET status = 'done', updated_at = datetime('now') WHERE id = ?")
   for (const it of linked) {

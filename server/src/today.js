@@ -1,5 +1,6 @@
+import { OPEN_STATUSES } from './db.js'
 const ITEMS = 'SELECT i.*, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id'
-const OPEN = "i.status IN ('todo', 'in_progress')"
+const OPEN = `i.status IN ${OPEN_STATUSES}`
 const PRIORITY_ORDER = "CASE i.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END"
 export const REVIEW_REASONS = ['review_requested', 'approval_requested']
 

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Alert, App, Button, Card, DatePicker, Empty, Flex, Form, Input, Popconfirm, Segmented, Select, Table, Tag, Tooltip, Typography } from 'antd'
-import { IssuesCloseOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons'
+import { Alert, App, AutoComplete, Button, Card, DatePicker, Empty, Flex, Form, Input, Popconfirm, Segmented, Select, Table, Tag, Tooltip, Typography } from 'antd'
+import { BranchesOutlined, IssuesCloseOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
-import { ITEM_KIND, ITEM_STATUS, PRIORITY, SOURCE, options } from './labels.js'
+import { ITEM_KIND, ITEM_STATUS, OPEN_STATUSES, PRIORITY, SOURCE, options, prLabel } from './labels.js'
 import { LabelTag } from './Tags.jsx'
 import Markdown from './Markdown.jsx'
 import MarkdownInput from './MarkdownInput.jsx'
@@ -59,6 +59,26 @@ function IssueLink({ item, onLinked }) {
   )
 }
 
+// Open PRs / MRs of the project as suggestions; any URL can be pasted too.
+function PrInput({ projectId, value, onChange }) {
+  const { data } = useApi(projectId ? `/github-items?project_id=${projectId}&type=pr` : null)
+  const prOptions = (data || []).map((pr) => ({ value: pr.url, label: `#${pr.number} ${pr.title}` }))
+  return (
+    <Flex gap={8} align="center">
+      <AutoComplete
+        value={value}
+        onChange={onChange}
+        options={prOptions}
+        allowClear
+        style={{ flex: 1 }}
+        placeholder={prOptions.length ? t('Choisir une PR ouverte ou coller son URL') : 'https://…/pull/12'}
+        filterOption={(input, opt) => opt.label.toLowerCase().includes(input.toLowerCase()) || opt.value.includes(input)}
+      />
+      {value && <a href={value} target="_blank" rel="noreferrer"><LinkOutlined /></a>}
+    </Flex>
+  )
+}
+
 export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
   const { message } = App.useApp()
   const [form] = Form.useForm()
@@ -66,6 +86,7 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
   const [linked, setLinked] = useState(null)
   useEffect(() => setLinked(null), [item])
   const current = linked || item
+  const projectId = Form.useWatch('project_id', form) ?? item?.project_id
 
   useEffect(() => {
     if (!item) return
@@ -101,6 +122,7 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
       open={!!item}
       onClose={onClose}
       title={item?.id ? t('Modifier') : t('Nouveau bug / tâche')}
+      width={960}
       saving={saving}
       onSave={save}
       isDirty={() => form.isFieldsTouched()}
@@ -130,21 +152,26 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
           <Form.Item name="due_date" label={t('Échéance')} style={{ minWidth: 150, flex: 1 }}><DatePicker format="L" style={{ width: '100%' }} /></Form.Item>
         </Flex>
         <Form.Item name="external_url" label={t('Lien (post du forum, issue, mail…)')}><Input placeholder="https://…" /></Form.Item>
+        <Form.Item name="pr_url" label={t('Pull request / merge request liée')}>
+          <PrInput projectId={projectId} />
+        </Form.Item>
         <Form.Item name="body" label={t('Description / étapes de reproduction')} className="md-editor">
-          <MarkdownInput autoSize={{ minRows: 6, maxRows: 24 }} placeholder={[t('1. Aller sur…'), t('2. Cliquer sur…'), '', t('Attendu : …'), t('Obtenu : …'), t('Version : …')].join('\n')} />
+          <MarkdownInput autoSize={{ minRows: 12, maxRows: 40 }} placeholder={[t('1. Aller sur…'), t('2. Cliquer sur…'), '', t('Attendu : …'), t('Obtenu : …'), t('Version : …')].join('\n')} />
         </Form.Item>
       </Form>
     </FormModal>
   )
 }
 
-const BOARD_COLUMNS = ['todo', 'in_progress', 'done']
+const BOARD_COLUMNS = ['todo', 'in_progress', 'testing', 'done']
+// Statuses without their own column.
+const BOARD_FOLD = { blocked: 'in_progress', wontfix: 'done' }
 
 function Board({ items, onOpen, onMove }) {
   return (
     <Flex gap={12} align="start" style={{ overflowX: 'auto' }}>
       {BOARD_COLUMNS.map((status) => {
-        const col = items.filter((i) => i.status === status || (status === 'done' && i.status === 'wontfix'))
+        const col = items.filter((i) => (BOARD_FOLD[i.status] || i.status) === status)
         return (
           <Card
             key={status}
@@ -168,6 +195,7 @@ function Board({ items, onOpen, onMove }) {
                   <Typography.Text strong delete={it.status === 'wontfix'}>{it.title}</Typography.Text>
                   <Flex gap={2} wrap>
                     <LabelTag map={ITEM_KIND} value={it.kind} />
+                    {it.status === 'blocked' && <LabelTag map={ITEM_STATUS} value={it.status} />}
                     {it.priority !== 'normal' && <LabelTag map={PRIORITY} value={it.priority} />}
                     {it.project_name && <Tag>{it.project_name}</Tag>}
                   </Flex>
@@ -210,12 +238,17 @@ export default function ItemsPanel({ projectId }) {
       dataIndex: 'title',
       render: (title, it) => (
         <Flex vertical gap={2}>
-          <Flex gap={6} align="center">
+          <Flex gap={6} align="center" wrap>
             <TodayButton item={it} onChange={(updated) => setData((rows) => rows.map((r) => (r.id === updated.id ? { ...r, focus_date: updated.focus_date } : r)))} />
             <Typography.Link onClick={() => setEditing(it)} delete={it.status === 'wontfix'}>{title}</Typography.Link>
             {it.issue_url && (
               <Tooltip title={t('Issue sur le dépôt')}>
                 <a href={it.issue_url} target="_blank" rel="noreferrer"><Tag style={{ marginInlineEnd: 0 }}>{it.issue_number ? `#${it.issue_number}` : 'issue'}</Tag></a>
+              </Tooltip>
+            )}
+            {it.pr_url && (
+              <Tooltip title={t('Pull / merge request liée')}>
+                <a href={it.pr_url} target="_blank" rel="noreferrer"><Tag icon={<BranchesOutlined />} style={{ marginInlineEnd: 0 }}>{prLabel(it.pr_url)}</Tag></a>
               </Tooltip>
             )}
             {it.external_url && <a href={it.external_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}><LinkOutlined /></a>}
@@ -242,7 +275,7 @@ export default function ItemsPanel({ projectId }) {
       width: 130,
       responsive: ['md'],
       render: (_, it) => it.due_date
-        ? <Tag color={dayjs(it.due_date).isBefore(dayjs(), 'day') && ['todo', 'in_progress'].includes(it.status) ? 'red' : 'default'}>{dayjs(it.due_date).format('L')}</Tag>
+        ? <Tag color={dayjs(it.due_date).isBefore(dayjs(), 'day') && OPEN_STATUSES.includes(it.status) ? 'red' : 'default'}>{dayjs(it.due_date).format('L')}</Tag>
         : <span style={{ opacity: 0.6 }}>{dayjs.utc(it.updated_at).local().fromNow()}</span>,
     },
   ]
@@ -268,7 +301,7 @@ export default function ItemsPanel({ projectId }) {
           columns={columns}
           dataSource={items}
           pagination={{ pageSize: 25, hideOnSinglePage: true }}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: 960 }}
           expandable={{
             expandedRowKeys: expanded,
             onExpandedRowsChange: setExpanded,

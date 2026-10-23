@@ -24,7 +24,7 @@ export function changelog(db, projectId, version) {
     if (!list.length) continue
     lines.push('', `### ${tr(section.title)}`, '')
     for (const it of list) {
-      const link = it.issue_url ? ` ([#${it.issue_number ?? 'issue'}](${it.issue_url}))` : it.external_url ? ` ([${tr('lien')}](${it.external_url}))` : ''
+      const link = it.issue_url ? ` ([#${it.issue_number ?? 'issue'}](${it.issue_url}))` : it.pr_url ? ` ([PR](${it.pr_url}))` : it.external_url ? ` ([${tr('lien')}](${it.external_url}))` : ''
       lines.push(`- ${it.title}${link}`)
     }
   }
@@ -184,7 +184,7 @@ export default async function milestoneRoutes(app, { db }) {
        ON CONFLICT(project_id, version) DO UPDATE SET status = 'released', released_at = coalesce(released_at, excluded.released_at), updated_at = datetime('now')`
     ).run(projectId, version, today)
     if (req.body?.close_items) {
-      db.prepare("UPDATE items SET status = 'done', updated_at = datetime('now') WHERE project_id = ? AND target_version = ? AND status = 'in_progress'").run(projectId, version)
+      db.prepare("UPDATE items SET status = 'done', updated_at = datetime('now') WHERE project_id = ? AND target_version = ? AND status IN ('in_progress', 'testing')").run(projectId, version)
     }
     const markdown = changelog(db, projectId, version)
     let doc = null
