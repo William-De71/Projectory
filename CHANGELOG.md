@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.11.0 — 2026-10-24
+
+### ✨ Nouveautés
+
+- filtre « Avec du nouveau » sur la page Projets (d707d6c)
+
+### 🔧 Autres changements
+
+- actions Docker sur Node 24 (qemu/buildx/login v4, metadata v6, build-push v7) (48ebedd)
+
 ## v0.10.0 — 2026-10-23
 
 ### ✨ Nouveautés
