@@ -9,7 +9,7 @@ import { t } from '../i18n/index.js'
 
 const stripMarkdown = (md) => md.replace(/[*_`#>~]|\[([^\]]*)\]\([^)]*\)/g, (m, label) => label ?? '')
 
-function versionLabel(deployed, latest) {
+export function versionLabel(deployed, latest) {
   if (!deployed) return latest
   if (!latest || latest.replace(/^v/, '') === deployed.replace(/^v/, '')) return deployed
   return `${deployed} → ${latest}`
@@ -23,7 +23,7 @@ export default function ProjectCard({ project: p }) {
   const navigate = useNavigate()
   const latest = latestVersion(p)
   return (
-    <Badge.Ribbon text={p.unread ? `${p.unread} nouveau${p.unread > 1 ? 'x' : ''}` : null} color="red" style={{ display: p.unread ? undefined : 'none' }}>
+    <Badge.Ribbon text={p.unread ? (p.unread > 1 ? t('{n} nouveaux', { n: p.unread }) : t('{n} nouveau', { n: p.unread })) : null} color="red" style={{ display: p.unread ? undefined : 'none' }}>
       <Card hoverable size="small" onClick={() => navigate(`/projects/${p.id}`)} style={{ height: '100%', borderTop: `3px solid ${p.category_color || 'transparent'}` }}>
         <Flex vertical gap={8}>
           <Flex gap={6} align="center">

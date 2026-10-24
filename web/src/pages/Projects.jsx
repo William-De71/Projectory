@@ -1,19 +1,31 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Checkbox, Empty, Flex, Input, Segmented, Select, Spin, Typography } from 'antd'
-import { CloudDownloadOutlined, PlusOutlined } from '@ant-design/icons'
+import { AppstoreOutlined, CloudDownloadOutlined, PlusOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import { useApi } from '../api/client.js'
 import { PROJECT_STATUS, options } from '../components/labels.js'
 import ProjectCard from '../components/ProjectCard.jsx'
 import ProjectForm from '../components/ProjectForm.jsx'
+import ProjectTable from '../components/ProjectTable.jsx'
 import GithubImport from '../components/GithubImport.jsx'
 import { t } from '../i18n/index.js'
+
+const VIEW_KEY = 'projectory:projects-view'
+
+function savedView() {
+  try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'cards' } catch { return 'cards' }
+}
 
 export default function Projects() {
   const navigate = useNavigate()
   const [category, setCategory] = useState('all')
   const [status, setStatus] = useState(null)
   const [unreadOnly, setUnreadOnly] = useState(false)
+  const [view, setView] = useState(savedView)
+  const changeView = (v) => {
+    setView(v)
+    try { localStorage.setItem(VIEW_KEY, v) } catch { /* storage unavailable */ }
+  }
   const [searchParams, setSearchParams] = useSearchParams()
   const [q, setQ] = useState('')
   const [creating, setCreating] = useState(null)
@@ -59,9 +71,18 @@ export default function Projects() {
         <Select allowClear placeholder={t('Statut (hors archivés)')} style={{ width: 200 }} value={status} onChange={setStatus} options={options(PROJECT_STATUS)} />
         <Checkbox checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)}>{t('Avec du nouveau ({n})', { n: withUnread })}</Checkbox>
         <Input.Search placeholder={t('Filtrer par nom, client, tag…')} allowClear onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 280 }} />
+        <Segmented
+          value={view}
+          onChange={changeView}
+          style={{ marginLeft: 'auto' }}
+          options={[
+            { value: 'cards', icon: <AppstoreOutlined />, title: t('Cartes') },
+            { value: 'list', icon: <UnorderedListOutlined />, title: t('Liste') },
+          ]}
+        />
       </Flex>
       <Spin spinning={loading}>
-        {projects.length ? (
+        {projects.length ? view === 'list' ? <ProjectTable projects={projects} /> : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
             {projects.map((p) => <ProjectCard key={p.id} project={p} />)}
           </div>
