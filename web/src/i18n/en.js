@@ -69,6 +69,7 @@ export default {
   "Aujourd’hui": "Today",
   "Auteur": "Author",
   "Auto : tout sur mes dépôts, les miennes ailleurs": "Auto: everything on my repositories, mine elsewhere",
+  "Avec du nouveau ({n})": "With news ({n})",
   "Basse": "Low",
   "Bienvenue !": "Welcome!",
   "Bloqué": "Blocked",

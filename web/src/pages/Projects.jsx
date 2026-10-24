@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, Empty, Flex, Input, Segmented, Select, Spin, Typography } from 'antd'
+import { Button, Checkbox, Empty, Flex, Input, Segmented, Select, Spin, Typography } from 'antd'
 import { CloudDownloadOutlined, PlusOutlined } from '@ant-design/icons'
 import { useApi } from '../api/client.js'
 import { PROJECT_STATUS, options } from '../components/labels.js'
@@ -13,6 +13,7 @@ export default function Projects() {
   const navigate = useNavigate()
   const [category, setCategory] = useState('all')
   const [status, setStatus] = useState(null)
+  const [unreadOnly, setUnreadOnly] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [q, setQ] = useState('')
   const [creating, setCreating] = useState(null)
@@ -31,8 +32,10 @@ export default function Projects() {
 
   const projects = useMemo(() => (data || []).filter((p) =>
     (category === 'all' || String(p.category_id) === category || (category === 'none' && !p.category_id)) &&
+    (!unreadOnly || p.unread > 0) &&
     (!q || `${p.name} ${p.description} ${p.client} ${(p.tags || []).join(' ')}`.toLowerCase().includes(q.toLowerCase()))
-  ), [data, category, q])
+  ), [data, category, q, unreadOnly])
+  const withUnread = (data || []).filter((p) => p.unread > 0).length
 
   return (
     <Flex vertical gap={16}>
@@ -54,6 +57,7 @@ export default function Projects() {
           />
         </div>
         <Select allowClear placeholder={t('Statut (hors archivés)')} style={{ width: 200 }} value={status} onChange={setStatus} options={options(PROJECT_STATUS)} />
+        <Checkbox checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)}>{t('Avec du nouveau ({n})', { n: withUnread })}</Checkbox>
         <Input.Search placeholder={t('Filtrer par nom, client, tag…')} allowClear onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 280 }} />
       </Flex>
       <Spin spinning={loading}>
