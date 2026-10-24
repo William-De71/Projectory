@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13.0 — 2026-10-24
+
+### ✨ Nouveautés
+
+- notification de nouvelle version et bouton « Mettre à jour maintenant » (Watchtower) (e5358ea)
+
 ## v0.12.0 — 2026-10-24
 
 ### ✨ Nouveautés
