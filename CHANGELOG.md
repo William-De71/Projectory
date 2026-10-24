@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.12.0 — 2026-10-24
+
+### ✨ Nouveautés
+
+- vue liste des projets (tableau triable, choix cartes / liste mémorisé) (e7b961b)
+
 ## v0.11.0 — 2026-10-24
 
 ### ✨ Nouveautés
