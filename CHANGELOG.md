@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.14.0 — 2026-10-24
+
+### ✨ Nouveautés
+
+- PR fusionnée → « En test », page Dépendances, réponse au forum assistée, sous-tâches, liens, modèles, actions groupées, vues, raccourcis, recherche et mode hors ligne (b93ff48)
+
 ## v0.13.0 — 2026-10-24
 
 ### ✨ Nouveautés
