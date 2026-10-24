@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { getConfig, insertRow, setConfig } from '../db.js'
+import { decode, getConfig, insertRow, setConfig } from '../db.js'
 import { FORGE_LABELS, forgeAccounts, forgeContext, forgeFor, normalizeRepo } from '../sync/forges/index.js'
 import { NOTIFY_EVENTS, ntfyConfig, sendNtfy } from '../sync/notify.js'
 import { GH_NOTIFICATION_REASONS, ghNotificationConfig, syncAll } from '../sync/index.js'
 import { LANGS, getLocale, saveLocale, tr } from '../i18n.js'
 import { externalizeUploads } from '../uploads.js'
-import { fetchTopic, parseTopicUrl } from '../sync/sources.js'
+import { fetchPostAuthor, fetchTopic, parseTopicUrl } from '../sync/sources.js'
+import { VISIBLE_ITEM } from '../visibility.js'
 
 function forgeError(err, owner) {
   const hint = {
@@ -148,6 +149,56 @@ export default async function integrationRoutes(app, { db }) {
     return reply.code(201).send(db.prepare('SELECT * FROM items WHERE id = ?').get(id))
   })
 
+  // ---- Dependency updates (Dependabot, Renovate) ----
+  app.get('/dependency-prs', async () =>
+    db.prepare(
+      `SELECT g.*, p.name AS project_name, p.forge FROM github_items g JOIN projects p ON p.id = g.project_id
+       WHERE g.type = 'pr' AND ${VISIBLE_ITEM} AND (lower(g.author) LIKE '%dependabot%' OR lower(g.author) LIKE '%renovate%')
+       ORDER BY p.name COLLATE NOCASE, g.number`
+    ).all().map(decode))
+
+  // Merges a PR on its forge. only_green: checks again, right before, that the CI
+  // passed and there is no conflict.
+  app.post('/github-items/:id/merge', async (req, reply) => {
+    const g = db.prepare("SELECT g.*, p.repo, p.forge, p.forge_url FROM github_items g JOIN projects p ON p.id = g.project_id WHERE g.id = ? AND g.type = 'pr'").get(Number(req.params.id))
+    if (!g) return reply.code(404).send({ error: tr('PR introuvable') })
+    const forge = forgeFor(db, g)
+    const repo = normalizeRepo(g.repo)
+    if (!forge.mergePr) return reply.code(400).send({ error: tr('Fusion non prise en charge pour cette forge') })
+    try {
+      if (req.body?.only_green) {
+        if (!forge.fetchPrState) return reply.code(409).send({ error: tr('État de la CI inconnu sur cette forge : fusionne cette PR à l’unité') })
+        const state = await forge.fetchPrState(repo, g.number)
+        db.prepare('UPDATE github_items SET pr_state = ? WHERE id = ?').run(JSON.stringify(state), g.id)
+        if (state.ci !== 'success' || state.conflict) return reply.code(409).send({ error: tr('Pas fusionnée : CI pas au vert ou conflit'), pr_state: state })
+      }
+      await forge.mergePr(repo, g.number)
+    } catch (err) {
+      return reply.code(502).send({ error: forgeError(err) })
+    }
+    db.prepare('DELETE FROM github_items WHERE id = ?').run(g.id)
+    return { ok: true }
+  })
+
+  // Reply ready to post on the forum topic a fixed bug came from: greets the
+  // reporter and points to the release and the issue / PR.
+  app.get('/items/:id/forum-reply', async (req, reply) => {
+    const item = db.prepare('SELECT * FROM items WHERE id = ?').get(Number(req.params.id))
+    if (!item) return reply.code(404).send({ error: tr('Élément introuvable') })
+    const username = item.source === 'forum' ? await fetchPostAuthor(item.external_url).catch(() => null) : null
+    const milestone = item.target_version
+      ? db.prepare('SELECT release_url FROM milestones WHERE project_id = ? AND version = ?').get(item.project_id, item.target_version)
+      : null
+    const fixed = item.target_version ? tr('C’est corrigé dans la version {v} ✅', { v: item.target_version }) : tr('C’est corrigé ✅')
+    const text = [
+      username ? tr('Bonjour @{user},', { user: username }) : tr('Bonjour,'),
+      milestone?.release_url ? `${fixed}\n${milestone.release_url}` : fixed,
+      (item.issue_url || item.pr_url) && tr('Détails : {url}', { url: item.issue_url || item.pr_url }),
+      tr('Merci pour le signalement !'),
+    ].filter(Boolean).join('\n\n')
+    return { text, username }
+  })
+
   // ---- Forge accounts (tokens are write-only) ----
   app.get('/settings/forges', async () => ({ accounts: publicAccounts(db), labels: FORGE_LABELS }))
 
@@ -178,6 +229,19 @@ export default async function integrationRoutes(app, { db }) {
     for (const key of ['enabled', 'reasons']) if (key in (req.body || {})) next[key] = req.body[key]
     setConfig(db, 'github_notifications', next)
     return { ...ghNotificationConfig(db), available_reasons: translated(GH_NOTIFICATION_REASONS), token_set: !!forgeContext(db, 'github').token }
+  })
+
+  // ---- Saved filters of the bugs & tasks lists: [{ id, name, filters }] ----
+  app.get('/settings/views', async () => getConfig(db, 'views', { items: [] }).items || [])
+
+  app.put('/settings/views', async (req, reply) => {
+    const items = req.body?.items
+    if (!Array.isArray(items)) return reply.code(400).send({ error: tr('Liste de vues attendue') })
+    const clean = items
+      .filter((v) => String(v?.name || '').trim())
+      .map((v) => ({ id: v.id || randomUUID(), name: String(v.name).trim().slice(0, 60), filters: v.filters || {} }))
+    setConfig(db, 'views', { items: clean })
+    return clean
   })
 
   // ---- Language (UI choice, also used for changelogs, notifications and errors) ----

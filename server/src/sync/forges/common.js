@@ -32,6 +32,16 @@ export async function cachedLogin(key, fetchLogin) {
   return login
 }
 
+// Dependency update bots (Dependabot, Renovate), whatever the forge.
+export const isDependencyBot = (author) => /dependabot|renovate/i.test(author || '')
+
+// Number of a PR / MR from its web URL, only when it belongs to the repository at `repoUrl`.
+export function prNumberIn(url, repoUrl) {
+  if (!url || !repoUrl || !url.toLowerCase().startsWith(`${repoUrl.toLowerCase().replace(/\/+$/, '')}/`)) return null
+  const m = url.match(/\/(?:pull|pulls|merge_requests)\/(\d+)/)
+  return m ? Number(m[1]) : null
+}
+
 // Why an open issue / PR concerns the user: author, assignee, review, mention.
 export function involvement(item, login, mentioned = new Set()) {
   if (!login) return []

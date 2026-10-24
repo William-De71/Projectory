@@ -22,6 +22,8 @@ import Items from './pages/Items.jsx'
 import Notes from './pages/Notes.jsx'
 import TimeTracking from './pages/TimeTracking.jsx'
 import Settings from './pages/Settings.jsx'
+import Dependencies from './pages/Dependencies.jsx'
+import Search from './pages/Search.jsx'
 
 dayjs.extend(relativeTime)
 dayjs.extend(utc)
@@ -84,6 +86,8 @@ export default function App() {
               <Route path="notes" element={<Notes />} />
               <Route path="time" element={<TimeTracking />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="deps" element={<Dependencies />} />
+              <Route path="search" element={<Search />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

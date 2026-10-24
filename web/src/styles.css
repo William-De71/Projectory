@@ -10,3 +10,4 @@ body { margin: 0; }
 .unread-row { font-weight: 600; }
 .clickable { cursor: pointer; }
 .md-editor textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.row-focused > td { background: rgba(22, 119, 255, 0.10) !important; }

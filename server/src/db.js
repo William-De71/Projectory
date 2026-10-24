@@ -201,6 +201,23 @@ const MIGRATIONS = [
   -- Pull / merge request linked to a tracked item.
   ALTER TABLE items ADD COLUMN pr_url TEXT NOT NULL DEFAULT '';
   `,
+  `
+  -- Sub-tasks of an item: [{ label, done }].
+  ALTER TABLE items ADD COLUMN checklist TEXT;
+  -- Description templates of new items, per kind: { bug, feature, task, question }.
+  ALTER TABLE projects ADD COLUMN item_templates TEXT;
+
+  -- Relations between items: item_id is blocked by / a duplicate of / related to target_id.
+  CREATE TABLE item_links (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    target_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(item_id, target_id, type)
+  );
+  CREATE INDEX item_links_target ON item_links(target_id);
+  `,
 ]
 
 // Item statuses that still need work, as an SQL list.
@@ -226,7 +243,7 @@ export function openDb(file = join(DATA_PATH, 'projectory.db')) {
 }
 
 // JSON columns are stored as text; decode them on the way out.
-const JSON_COLUMNS = ['tags', 'links', 'version_sources', 'forum_sources', 'github', 'versions', 'labels', 'assignees', 'mine', 'pr_state', 'checklist']
+const JSON_COLUMNS = ['tags', 'links', 'version_sources', 'forum_sources', 'github', 'versions', 'labels', 'assignees', 'mine', 'pr_state', 'checklist', 'item_templates']
 
 export function decode(row) {
   if (!row) return row

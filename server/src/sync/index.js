@@ -1,10 +1,11 @@
 import { OPEN_STATUSES, decode, getConfig } from '../db.js'
 import { failedRun, forgeFor, normalizeRepo } from './forges/index.js'
-import { involvement } from './forges/common.js'
+import { involvement, isDependencyBot, prNumberIn } from './forges/common.js'
 import { computeMineOnly } from '../visibility.js'
 import { fetchForum, fetchTopic, forumSourceKey, latestVersion } from './sources.js'
 import { notifyProject } from './notify.js'
 import { tr } from '../i18n.js'
+import { unblockDependents } from '../items.js'
 
 export const syncState = { running: false, last_run_at: null, last_duration_ms: null, errors: [], notify_error: null }
 
@@ -20,7 +21,7 @@ function markBaselined(db, key) {
 }
 
 // Returns true when the entry is new and unread (i.e. worth a notification).
-function pushInbox(db, entry, { asRead, fresh }) {
+export function pushInbox(db, entry, { asRead, fresh }) {
   const { changes } = db.prepare(
     `INSERT OR IGNORE INTO inbox (project_id, source, kind, title, url, excerpt, external_key, reason, created_at, read_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, coalesce(?, datetime('now')), ${asRead ? "datetime('now')" : 'NULL'})`
@@ -57,11 +58,12 @@ async function syncForge(db, project, fresh, errors) {
   // Someone else's busy repository: only the user's own issues / PRs count.
   info.viewer = login || project.github?.viewer || null
   const mineOnly = computeMineOnly({ ...project, github: info })
-  // Review / CI / conflict state of the PRs that concern the user (capped: one
-  // request set per PR). Fetched before the transaction, never fatal.
+  // Review / CI / conflict state of the PRs that concern the user and of the
+  // dependency updates (capped: one request set per PR). Fetched before the
+  // transaction, never fatal.
   const prStates = new Map()
   if (forge.fetchPrState) {
-    const watched = items.filter((it) => it.type === 'pr' && mineOf.get(it).length).slice(0, 20)
+    const watched = items.filter((it) => it.type === 'pr' && (mineOf.get(it).length || (!mineOnly && isDependencyBot(it.author)))).slice(0, 40)
     await Promise.all(watched.map(async (it) => {
       try { prStates.set(it.number, await forge.fetchPrState(repo, it.number)) } catch { /* keep going */ }
     }))
@@ -70,6 +72,7 @@ async function syncForge(db, project, fresh, errors) {
     db.prepare("SELECT number, pr_state FROM github_items WHERE project_id = ? AND type = 'pr'").all(project.id)
       .map((r) => [r.number, r.pr_state ? JSON.parse(r.pr_state) : null])
   )
+  const merged = await mergedLinkedPrs(db, project, forge, repo, info, items)
   const baseKey = forgeKey(project, repo)
   const asRead = !isBaselined(db, baseKey)
   const source = project.forge
@@ -127,7 +130,8 @@ async function syncForge(db, project, fresh, errors) {
         del.run(project.id, type, Number(number))
       }
     }
-    closeLinkedItems(db, project, items, baseKey, { asRead, fresh })
+    closeLinkedItems(db, project, items, { asRead, fresh })
+    moveMergedToTesting(db, project, merged, baseKey, { asRead, fresh })
     db.prepare('UPDATE projects SET github = ?, mine_only = ? WHERE id = ?').run(JSON.stringify(info), mineOnly, project.id)
     markBaselined(db, baseKey)
     db.exec('COMMIT')
@@ -137,30 +141,71 @@ async function syncForge(db, project, fresh, errors) {
   }
 }
 
-// An item whose forge issue is no longer open gets closed too. Skipped when
-// the issue list may be truncated (adapters stop at 5 pages).
-function closeLinkedItems(db, project, items, baseKey, opts) {
+// Items waiting on a PR of this repository that is no longer open: asks the
+// forge whether it was merged (capped, never fatal).
+async function mergedLinkedPrs(db, project, forge, repo, info, items) {
+  if (!forge.fetchPrOutcome) return []
+  const open = new Set(items.filter((it) => it.type === 'pr').map((it) => it.number))
+  const candidates = db.prepare(
+    "SELECT id, title, pr_url FROM items WHERE project_id = ? AND pr_url != '' AND status IN ('todo', 'in_progress', 'blocked')"
+  ).all(project.id)
+    .map((it) => ({ ...it, number: prNumberIn(it.pr_url, info.html_url) }))
+    .filter((it) => it.number && !open.has(it.number))
+    .slice(0, 20)
+  const merged = []
+  await Promise.all(candidates.map(async (it) => {
+    try { if (await forge.fetchPrOutcome(repo, it.number) === 'merged') merged.push(it) } catch { /* next sync */ }
+  }))
+  return merged
+}
+
+// Merged PR: the work is done, it now has to be tested.
+function moveMergedToTesting(db, project, merged, baseKey, opts) {
+  const update = db.prepare("UPDATE items SET status = 'testing', updated_at = datetime('now') WHERE id = ?")
+  for (const it of merged) {
+    update.run(it.id)
+    pushInbox(db, {
+      project_id: project.id,
+      source: project.forge,
+      kind: 'pr_merged',
+      title: tr('PR fusionnée : « {title} » passe en test', { title: it.title }),
+      url: it.pr_url,
+      external_key: `${baseKey}:pr-merged:${it.id}:${it.number}`,
+    }, opts)
+  }
+}
+
+// One "reply on the forum" reminder per item, whether it comes from the sync or a release.
+export function remindForumReply(db, item, opts) {
+  if (item.source !== 'forum' || !item.external_url || item.forum_replied_at) return
+  if (db.prepare("SELECT 1 FROM inbox WHERE kind = 'forum_reply' AND external_key LIKE ?").get(`%:forum-reply:${item.id}`)) return
+  pushInbox(db, {
+    project_id: item.project_id,
+    source: 'forum',
+    kind: 'forum_reply',
+    title: tr('Corrigé : réponds sur le forum — {title}', { title: item.title }),
+    url: item.external_url,
+    external_key: `p${item.project_id}:forum-reply:${item.id}`,
+  }, opts)
+}
+
+// An item whose forge issue is no longer open gets closed too, unless it is
+// being tested. Skipped when the issue list may be truncated (adapters stop at 5 pages).
+function closeLinkedItems(db, project, items, opts) {
   const issues = items.filter((it) => it.type === 'issue')
   if (issues.length >= 250) return
   const open = new Set(issues.map((it) => it.number))
   const linked = db.prepare(
-    `SELECT id, title, source, external_url, issue_number FROM items WHERE project_id = ? AND issue_number IS NOT NULL AND status IN ${OPEN_STATUSES}`
+    `SELECT id, project_id, title, source, external_url, issue_number, forum_replied_at FROM items
+     WHERE project_id = ? AND issue_number IS NOT NULL AND status IN ${OPEN_STATUSES} AND status != 'testing'`
   ).all(project.id)
   const close = db.prepare("UPDATE items SET status = 'done', updated_at = datetime('now') WHERE id = ?")
   for (const it of linked) {
     if (open.has(it.issue_number)) continue
     close.run(it.id)
+    unblockDependents(db, it.id)
     // A bug reported on the forum: remind to tell the reporter it is fixed.
-    if (it.source === 'forum' && it.external_url) {
-      pushInbox(db, {
-        project_id: project.id,
-        source: 'forum',
-        kind: 'forum_reply',
-        title: tr('Corrigé : réponds sur le forum — {title}', { title: it.title }),
-        url: it.external_url,
-        external_key: `${baseKey}:forum-reply:${it.id}`,
-      }, opts)
-    }
+    remindForumReply(db, it, opts)
   }
 }
 

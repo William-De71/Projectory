@@ -10,6 +10,16 @@ import { VISIBLE_ITEM } from '../visibility.js'
 const REPO_SOURCES = "'github', 'gitlab', 'gitea'"
 const INBOX_SQL = `SELECT x.*, p.name AS project_name FROM inbox x LEFT JOIN projects p ON p.id = x.project_id`
 
+// ~200 characters of `text` around the first occurrence of `q`, on one line;
+// Markdown links and images are reduced to their text (attachment names).
+export function excerptAround(text, q, size = 200) {
+  const flat = String(text || '').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\s+/g, ' ').trim()
+  const at = flat.toLowerCase().indexOf(q.toLowerCase())
+  if (at < 0 || flat.length <= size) return flat.slice(0, size)
+  const start = Math.max(0, Math.min(at - Math.floor(size / 3), flat.length - size))
+  return `${start > 0 ? '…' : ''}${flat.slice(start, start + size)}${start + size < flat.length ? '…' : ''}`
+}
+
 // Inbox, dashboard, search, sync control and export.
 export default async function overviewRoutes(app, { db }) {
   app.get('/inbox', async (req) => {
@@ -93,19 +103,23 @@ export default async function overviewRoutes(app, { db }) {
     return { ...view, ci_failing }
   })
 
+  // Full-text search; `excerpt` is cut around the first match (attachment names
+  // are part of the Markdown, so they are found too). limit: per type.
   app.get('/search', async (req) => {
     const q = String(req.query.q || '').trim()
     if (q.length < 2) return []
     const like = `%${q}%`
+    const limit = Math.min(Number(req.query.limit) || 15, 100)
+    const around = (r) => ({ ...r, excerpt: excerptAround(r.excerpt, q) })
     const results = [
-      ...db.prepare('SELECT id, name AS title, description AS excerpt FROM projects WHERE name LIKE ? OR description LIKE ? OR client LIKE ? LIMIT 10')
-        .all(like, like, like).map((r) => ({ ...r, type: 'project', project_id: r.id })),
-      ...db.prepare(`SELECT i.id, i.title, i.body AS excerpt, i.project_id, i.kind, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id WHERE i.title LIKE ? OR i.body LIKE ? LIMIT 15`)
-        .all(like, like).map((r) => ({ ...r, type: 'item' })),
-      ...db.prepare(`SELECT d.id, d.title, substr(d.content, 1, 200) AS excerpt, d.project_id, d.type AS kind, p.name AS project_name FROM docs d LEFT JOIN projects p ON p.id = d.project_id WHERE d.title LIKE ? OR d.content LIKE ? LIMIT 15`)
-        .all(like, like).map((r) => ({ ...r, type: 'doc' })),
-      ...db.prepare(`SELECT g.id, '#' || g.number || ' ' || g.title AS title, g.url, g.project_id, g.type AS kind, p.name AS project_name FROM github_items g JOIN projects p ON p.id = g.project_id WHERE g.title LIKE ? LIMIT 10`)
-        .all(like).map((r) => ({ ...r, type: 'github' })),
+      ...db.prepare('SELECT id, name AS title, description AS excerpt FROM projects WHERE name LIKE ? OR description LIKE ? OR client LIKE ? LIMIT ?')
+        .all(like, like, like, limit).map((r) => ({ ...around(r), type: 'project', project_id: r.id })),
+      ...db.prepare(`SELECT i.id, i.title, i.body AS excerpt, i.project_id, i.kind, i.status, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id WHERE i.title LIKE ? OR i.body LIKE ? ORDER BY i.updated_at DESC LIMIT ?`)
+        .all(like, like, limit).map((r) => ({ ...around(r), type: 'item' })),
+      ...db.prepare(`SELECT d.id, d.title, d.content AS excerpt, d.project_id, d.type AS kind, p.name AS project_name FROM docs d LEFT JOIN projects p ON p.id = d.project_id WHERE d.title LIKE ? OR d.content LIKE ? ORDER BY d.updated_at DESC LIMIT ?`)
+        .all(like, like, limit).map((r) => ({ ...around(r), type: 'doc' })),
+      ...db.prepare(`SELECT g.id, '#' || g.number || ' ' || g.title AS title, g.url, g.project_id, g.type AS kind, p.name AS project_name FROM github_items g JOIN projects p ON p.id = g.project_id WHERE g.title LIKE ? LIMIT ?`)
+        .all(like, limit).map((r) => ({ ...r, type: 'github' })),
     ]
     return results
   })

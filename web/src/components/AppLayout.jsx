@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { App, AutoComplete, Badge, Button, Flex, Grid, Input, Layout, Menu, Segmented, Tag, Tooltip, theme } from 'antd'
+import { App, AutoComplete, Badge, Button, Flex, Grid, Input, Layout, Menu, Segmented, Tag, Tooltip, Typography, theme } from 'antd'
 import {
-  AppstoreOutlined, BugOutlined, ClockCircleOutlined, DashboardOutlined, EditOutlined,
+  AppstoreOutlined, BugOutlined, ClockCircleOutlined, DashboardOutlined, DeploymentUnitOutlined, EditOutlined,
   InboxOutlined, MoonOutlined, CheckSquareOutlined, GithubOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import { api, notifyChange, useChangeListener } from '../api/client.js'
 import DocEditor from './DocEditor.jsx'
 import CommandPalette, { isPaletteShortcut } from './CommandPalette.jsx'
 import UpdateNotice from './UpdateNotice.jsx'
+import { resultPath } from '../pages/Search.jsx'
+import { isGreen } from '../pages/Dependencies.jsx'
+import OfflineBanner from './OfflineBanner.jsx'
 import { ItemForm } from './ItemsPanel.jsx'
 import { t } from '../i18n/index.js'
 
@@ -27,7 +30,10 @@ function GlobalSearch({ onOpenPalette }) {
     setValue(q)
     if (q.trim().length < 2) return setOptions([])
     const results = await api.get(`/search?q=${encodeURIComponent(q)}`).catch(() => [])
-    setOptions(results.map((r) => ({
+    setOptions([{
+      value: 'all',
+      label: <Typography.Text type="secondary">{t('Voir tous les résultats pour « {q} »', { q: q.trim() })}</Typography.Text>,
+    }, ...results.map((r) => ({
       value: `${r.type}-${r.id}`,
       result: r,
       label: (
@@ -37,16 +43,16 @@ function GlobalSearch({ onOpenPalette }) {
           {r.project_name && <span style={{ opacity: 0.55, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{r.project_name}</span>}
         </Flex>
       ),
-    })))
+    }))])
   }
 
   const select = (_, { result: r }) => {
+    const q = value
     setValue('')
     setOptions([])
-    if (r.type === 'github') return window.open(r.url, '_blank', 'noopener')
-    if (r.type === 'project') return navigate(`/projects/${r.id}`)
-    if (r.type === 'item') return navigate(`/projects/${r.project_id}/items`)
-    if (r.type === 'doc') return navigate(r.project_id ? `/projects/${r.project_id}/${r.kind === 'spec' ? 'specs' : 'notes'}?doc=${r.id}` : `/notes?doc=${r.id}`)
+    if (!r) return navigate(`/search?q=${encodeURIComponent(q.trim())}`)
+    const path = resultPath(r)
+    return path ? navigate(path) : window.open(r.url, '_blank', 'noopener')
   }
 
   return (
@@ -87,11 +93,14 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const mobile = !screens.lg
 
   const [githubTodo, setGithubTodo] = useState(0)
+  const [depsGreen, setDepsGreen] = useState(0)
   const refreshUnread = useCallback(() => {
     api.get('/inbox?unread=1&limit=1000').then((rows) => setUnread(rows.length)).catch(() => {})
     // "My GitHub" badge: reviews to do, and my PRs that need something from me.
     api.get('/my-github').then((rows) => setGithubTodo(rows.filter((it) => it.mine.includes('review')
       || (it.type === 'pr' && it.mine.includes('author') && (it.pr_state?.review === 'changes_requested' || it.pr_state?.conflict || it.pr_state?.ci === 'failure'))).length)).catch(() => {})
+    // "Dependencies" badge: updates ready to merge.
+    api.get('/dependency-prs').then((rows) => setDepsGreen(rows.filter(isGreen).length)).catch(() => {})
   }, [])
   useEffect(() => {
     refreshUnread()
@@ -119,6 +128,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
     { key: '/', icon: <DashboardOutlined />, label: t('Tableau de bord') },
     { key: '/today', icon: <CheckSquareOutlined />, label: t('Aujourd’hui') },
     { key: '/mine', icon: <GithubOutlined />, label: <Flex justify="space-between" align="center">{t('Mon GitHub') + ' '}<Badge count={githubTodo} size="small" color="magenta" title={t('Reviews à faire et PR qui demandent une action')} /></Flex> },
+    { key: '/deps', icon: <DeploymentUnitOutlined />, label: <Flex justify="space-between" align="center">{t('Dépendances') + ' '}<Badge count={depsGreen} size="small" color="green" title={t('Mises à jour au vert, prêtes à fusionner')} /></Flex> },
     { key: '/projects', icon: <AppstoreOutlined />, label: t('Projets') },
     { key: '/inbox', icon: <InboxOutlined />, label: <Flex justify="space-between" align="center">{t('Boîte de réception') + ' '}<Badge count={unread} size="small" /></Flex> },
     { key: '/items', icon: <BugOutlined />, label: t('Bugs & tâches') },
@@ -126,7 +136,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
     { key: '/time', icon: <ClockCircleOutlined />, label: t('Temps passé') },
     { key: '/settings', icon: <SettingOutlined />, label: t('Paramètres') },
   ]
-  const selected = items.map((i) => i.key).filter((k) => k !== '/' && location.pathname.startsWith(k))[0] || '/'
+  const selected = items.map((i) => i.key).filter((k) => k !== '/' && location.pathname.startsWith(k))[0] || (location.pathname === '/' ? '/' : '')
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -175,6 +185,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
             </Tooltip>
           </Flex>
         </Header>
+        <OfflineBanner />
         <Content style={{ padding: mobile ? 12 : 24, maxWidth: 1400, width: '100%', margin: '0 auto' }}>
           <Outlet />
         </Content>

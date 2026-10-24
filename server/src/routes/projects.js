@@ -7,7 +7,7 @@ import { VISIBLE_ITEM, refreshMineOnly } from '../visibility.js'
 
 const FIELDS = [
   'name', 'description', 'category_id', 'status', 'tags', 'client', 'repo', 'homepage', 'links',
-  'deployed_version', 'version_sources', 'forum_sources', 'pinned', 'notify', 'forge', 'forge_url', 'github_scope',
+  'deployed_version', 'version_sources', 'forum_sources', 'pinned', 'notify', 'forge', 'forge_url', 'github_scope', 'item_templates',
 ]
 
 // Item of Bugs & tasks already created from this issue / PR, if any.

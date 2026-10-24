@@ -1,14 +1,26 @@
 import { OPEN_STATUSES, decode, insertRow, updateRow } from '../db.js'
+import { unblockDependents } from '../items.js'
 import { tr } from '../i18n.js'
 
-const ITEM_FIELDS = ['project_id', 'kind', 'title', 'body', 'status', 'priority', 'source', 'external_url', 'target_version', 'due_date', 'issue_number', 'issue_url', 'focus_date', 'forum_replied_at', 'pr_url']
+const ITEM_FIELDS = ['project_id', 'kind', 'title', 'body', 'status', 'priority', 'source', 'external_url', 'target_version', 'due_date', 'issue_number', 'issue_url', 'focus_date', 'forum_replied_at', 'pr_url', 'checklist']
+// Fields a bulk edit may change.
+const BULK_FIELDS = ['status', 'priority', 'kind', 'target_version']
+export const LINK_TYPES = ['blocked_by', 'duplicate_of', 'relates_to']
 const DOC_FIELDS = ['project_id', 'type', 'title', 'content', 'status', 'pinned']
 const CATEGORY_FIELDS = ['name', 'color', 'position']
 
 const PRIORITY_ORDER = "CASE i.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END"
 
+// Open items that `blocked_by` points to, per item (for the "blocked" hint in lists).
+const OPEN_BLOCKERS = `(SELECT count(*) FROM item_links l JOIN items b ON b.id = l.target_id
+  WHERE l.item_id = i.id AND l.type = 'blocked_by' AND b.status IN ${OPEN_STATUSES}) AS open_blockers`
+
+const isFinished = (status) => status === 'done' || status === 'wontfix'
+
 // Items (bugs / features / tasks), docs (specs / notes), categories and time entries.
 export default async function contentRoutes(app, { db }) {
+  const getItem = (id) => decode(db.prepare('SELECT * FROM items WHERE id = ?').get(id))
+
   // ---- Items ----
   app.get('/items', async (req) => {
     const { project_id, status, kind, open } = req.query
@@ -19,22 +31,79 @@ export default async function contentRoutes(app, { db }) {
     if (kind) { where.push('i.kind = ?'); params.push(kind) }
     if (open) where.push(`i.status IN ${OPEN_STATUSES}`)
     return db.prepare(
-      `SELECT i.*, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id
+      `SELECT i.*, p.name AS project_name, ${OPEN_BLOCKERS} FROM items i JOIN projects p ON p.id = i.project_id
        WHERE ${where.join(' AND ')} ORDER BY ${PRIORITY_ORDER}, i.updated_at DESC`
-    ).all(...params)
+    ).all(...params).map(decode)
+  })
+
+  app.get('/items/:id', async (req, reply) => {
+    const item = db.prepare('SELECT i.*, p.name AS project_name FROM items i JOIN projects p ON p.id = i.project_id WHERE i.id = ?').get(Number(req.params.id))
+    return item ? decode(item) : reply.code(404).send({ error: tr('Élément introuvable') })
   })
 
   app.post('/items', async (req, reply) => {
     if (!req.body?.title?.trim() || !req.body?.project_id) return reply.code(400).send({ error: tr('Titre et projet obligatoires') })
     const id = insertRow(db, 'items', req.body, ITEM_FIELDS)
     db.prepare("UPDATE projects SET updated_at = datetime('now') WHERE id = ?").run(req.body.project_id)
-    return reply.code(201).send(db.prepare('SELECT * FROM items WHERE id = ?').get(id))
+    return reply.code(201).send(getItem(id))
   })
 
   app.put('/items/:id', async (req, reply) => {
     const id = Number(req.params.id)
     if (!updateRow(db, 'items', id, req.body || {}, ITEM_FIELDS)) return reply.code(404).send({ error: tr('Élément introuvable') })
-    return db.prepare('SELECT * FROM items WHERE id = ?').get(id)
+    if (isFinished(req.body?.status)) unblockDependents(db, id)
+    return getItem(id)
+  })
+
+  // Same change on several items at once (status, priority, kind, version), or deletion.
+  app.post('/items/bulk', async (req, reply) => {
+    const ids = (req.body?.ids || []).map(Number).filter(Boolean)
+    if (!ids.length) return reply.code(400).send({ error: tr('Aucun élément sélectionné') })
+    const changes = Object.fromEntries(Object.entries(req.body?.changes || {}).filter(([k]) => BULK_FIELDS.includes(k)))
+    db.exec('BEGIN')
+    try {
+      if (req.body?.delete) {
+        const del = db.prepare('DELETE FROM items WHERE id = ?')
+        for (const id of ids) del.run(id)
+      } else {
+        if (!Object.keys(changes).length) throw Object.assign(new Error(tr('Rien à modifier')), { statusCode: 400 })
+        for (const id of ids) {
+          updateRow(db, 'items', id, changes, BULK_FIELDS)
+          if (isFinished(changes.status)) unblockDependents(db, id)
+        }
+      }
+      db.exec('COMMIT')
+    } catch (err) {
+      db.exec('ROLLBACK')
+      throw err
+    }
+    return { updated: ids.length }
+  })
+
+  // Relations of an item, both ways: what it points to and what points to it.
+  app.get('/items/:id/links', async (req) => {
+    const id = Number(req.params.id)
+    const cols = 'l.id, l.type, i.id AS item_id, i.title, i.status, i.kind, i.project_id, p.name AS project_name'
+    return [
+      ...db.prepare(`SELECT ${cols}, 'out' AS direction FROM item_links l JOIN items i ON i.id = l.target_id JOIN projects p ON p.id = i.project_id WHERE l.item_id = ?`).all(id),
+      ...db.prepare(`SELECT ${cols}, 'in' AS direction FROM item_links l JOIN items i ON i.id = l.item_id JOIN projects p ON p.id = i.project_id WHERE l.target_id = ?`).all(id),
+    ]
+  })
+
+  app.post('/items/:id/links', async (req, reply) => {
+    const id = Number(req.params.id)
+    const target = Number(req.body?.target_id)
+    const type = req.body?.type
+    if (!LINK_TYPES.includes(type)) return reply.code(400).send({ error: tr('Type de lien inconnu') })
+    if (!target || target === id) return reply.code(400).send({ error: tr('Choisis un autre élément') })
+    if (!getItem(id) || !getItem(target)) return reply.code(404).send({ error: tr('Élément introuvable') })
+    db.prepare('INSERT OR IGNORE INTO item_links (item_id, target_id, type) VALUES (?, ?, ?)').run(id, target, type)
+    return reply.code(201).send({ ok: true })
+  })
+
+  app.delete('/item-links/:id', async (req) => {
+    db.prepare('DELETE FROM item_links WHERE id = ?').run(Number(req.params.id))
+    return { ok: true }
   })
 
   app.delete('/items/:id', async (req) => {

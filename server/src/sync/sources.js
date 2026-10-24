@@ -102,6 +102,19 @@ export function parseTopicUrl(url) {
   return { base_url: `${u.origin}${u.pathname.slice(0, at)}`, topic_id: Number(id) }
 }
 
+// Username of the post a topic URL points to (…/t/slug/123/45), or of the
+// topic's first post when the URL has no post number.
+export async function fetchPostAuthor(url) {
+  const topic = parseTopicUrl(url)
+  if (!topic) return null
+  const segments = new URL(String(url).trim()).pathname.split('/')
+  const after = segments.slice(segments.indexOf(String(topic.topic_id)) + 1)
+  const number = Number(after.find((seg) => /^\d+$/.test(seg))) || 1
+  const page = await fetchJson(`${topic.base_url}/t/${topic.topic_id}/${number}.json`)
+  const posts = page.post_stream?.posts || []
+  return (posts.find((p) => p.post_number === number) || posts[0])?.username || null
+}
+
 // Title, last post number and the posts after `after` of a Discourse topic.
 export async function fetchTopic({ base_url, topic_id }, after = null) {
   const topic = await fetchJson(`${base_url}/t/${topic_id}.json`)

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { App, Button, Divider, Flex, Form, Input, Select, Switch, Typography } from 'antd'
+import { App, Button, Divider, Flex, Form, Input, Select, Switch, Tabs, Typography } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { api, notifyChange, useApi } from '../api/client.js'
-import { FORGES, PROJECT_STATUS, options } from './labels.js'
+import { FORGES, ITEM_KIND, PROJECT_STATUS, options } from './labels.js'
 import { t } from '../i18n/index.js'
 import FormModal from './FormModal.jsx'
 
@@ -52,6 +52,8 @@ export default function ProjectForm({ project, onClose, onSaved }) {
     form.setFieldsValue({
       status: 'active', tags: [], links: [], version_sources: [], forum_sources: [], pinned: false, notify: true, forge: 'github', forge_url: '', github_scope: 'auto',
       ...project,
+      // Stored as JSON: an empty column decodes to [].
+      item_templates: project.item_templates && !Array.isArray(project.item_templates) ? project.item_templates : {},
     })
   }, [project, form])
 
@@ -223,6 +225,24 @@ export default function ProjectForm({ project, onClose, onSaved }) {
             )
           }}
         </SourceList>
+
+        <Divider titlePlacement="start">{t('Modèles des bugs et tâches')}</Divider>
+        <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>{t(
+          'Texte placé dans la description d’un nouvel élément de ce projet, selon son type (étapes de reproduction, version, logs…).'
+        )}</Typography.Paragraph>
+        <Tabs
+          size="small"
+          items={Object.entries(ITEM_KIND).map(([kind, { label }]) => ({
+            key: kind,
+            label: t(label),
+            forceRender: true,
+            children: (
+              <Form.Item name={['item_templates', kind]} className="md-editor" style={{ marginBottom: 0 }}>
+                <Input.TextArea autoSize={{ minRows: 4, maxRows: 16 }} placeholder={kind === 'bug' ? [t('## Étapes'), '1. ', '', t('## Attendu'), '', t('## Obtenu'), '', t('## Version / logs')].join('\n') : ''} />
+              </Form.Item>
+            ),
+          }))}
+        />
       </Form>
     </FormModal>
   )

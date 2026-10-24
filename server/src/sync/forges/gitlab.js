@@ -72,6 +72,16 @@ export default function gitlab({ url = 'https://gitlab.com', token }) {
       return ciConclusion([{ id: p.id, name: 'Pipeline', status, conclusion, url: p.web_url, updated_at: p.updated_at, sha: p.sha?.slice(0, 7) }])
     },
 
+    async fetchPrOutcome(repo, iid) {
+      const mr = await api(`/projects/${pid(repo)}/merge_requests/${iid}`)
+      return mr.state === 'merged' ? 'merged' : mr.state === 'opened' ? 'open' : 'closed'
+    },
+
+    // Squash or not follows the project's settings.
+    async mergePr(repo, iid) {
+      return api(`/projects/${pid(repo)}/merge_requests/${iid}/merge`, { method: 'PUT', body: {} })
+    },
+
     async latestRelease(repo) {
       const [rel] = await api(`/projects/${pid(repo)}/releases?per_page=1`)
       if (rel) return { version: rel.tag_name, url: rel._links?.self || `${base}/${repo}/-/releases`, published_at: rel.released_at }

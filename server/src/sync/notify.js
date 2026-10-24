@@ -12,12 +12,13 @@ export const NOTIFY_EVENTS = {
   forum_mention: 'Mention sur le forum',
   forum_followed: 'Réponse sur un sujet suivi',
   pr_status: 'Mes PR : approuvée, changements demandés, conflit, CI',
+  pr_merged: 'PR liée fusionnée (élément passé en test)',
 }
 // Events that existed before the list became extensible: anything newer is
 // switched on for users who saved their choice before it existed.
 const LEGACY_EVENTS = ['issue', 'pr', 'release', 'forum', 'ci_failed', 'ci_fixed', 'gh_notification']
 
-const TAGS = { gh_notification: 'bell', issue: 'beetle', pr: 'twisted_rightwards_arrows', release: 'package', forum: 'speech_balloon', forum_mention: 'speaking_head', forum_followed: 'speech_balloon', pr_status: 'eyes', ci_failed: 'rotating_light', ci_fixed: 'white_check_mark' }
+const TAGS = { gh_notification: 'bell', issue: 'beetle', pr: 'twisted_rightwards_arrows', release: 'package', forum: 'speech_balloon', forum_mention: 'speaking_head', forum_followed: 'speech_balloon', pr_status: 'eyes', pr_merged: 'twisted_rightwards_arrows', ci_failed: 'rotating_light', ci_fixed: 'white_check_mark' }
 const PRIORITY = { ci_failed: 4, gh_notification: 4, forum_mention: 4, pr_status: 4 }
 // Beyond this many entries for one project in one sync, send a single summary.
 const GROUP_THRESHOLD = 3

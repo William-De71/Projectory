@@ -1,4 +1,4 @@
-import { fetchJson } from '../http.js'
+import { fetchJson, fetchText } from '../http.js'
 import { cachedLogin, ciConclusion, paginate } from './common.js'
 import { tr } from '../../i18n.js'
 
@@ -75,6 +75,25 @@ export default function gitea({ url, token }) {
         return { id: s.id, name: s.context, status, conclusion, url: s.target_url || `${base}/${repo}`, updated_at: s.updated_at, sha: combined.sha?.slice(0, 7) }
       })
       return ciConclusion(runs)
+    },
+
+    async fetchPrOutcome(repo, number) {
+      const pr = await api(`/repos/${repo}/pulls/${number}`)
+      return pr.merged ? 'merged' : pr.state === 'open' ? 'open' : 'closed'
+    },
+
+    // The merge endpoint answers with an empty body; 405 = style not allowed (or not mergeable).
+    async mergePr(repo, number) {
+      let lastError
+      for (const style of ['squash', 'merge', 'rebase']) {
+        try {
+          return await fetchText(`${base}/api/v1/repos/${repo}/pulls/${number}/merge`, { method: 'POST', headers, body: { Do: style } })
+        } catch (err) {
+          lastError = err
+          if (err.status !== 405) throw err
+        }
+      }
+      throw lastError
     },
 
     async latestRelease(repo) {

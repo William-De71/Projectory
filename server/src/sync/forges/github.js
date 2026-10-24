@@ -96,6 +96,26 @@ export default function github({ token }) {
       }
     },
 
+    // What became of a PR that is no longer open: merged or just closed.
+    async fetchPrOutcome(repo, number) {
+      const pr = await gh(`/repos/${repo}/pulls/${number}`)
+      return pr.merged ? 'merged' : pr.state === 'open' ? 'open' : 'closed'
+    },
+
+    // Squash first, then the other methods the repository may allow instead.
+    async mergePr(repo, number) {
+      let lastError
+      for (const method of ['squash', 'merge', 'rebase']) {
+        try {
+          return await gh(`/repos/${repo}/pulls/${number}/merge`, { method: 'PUT', body: { merge_method: method } })
+        } catch (err) {
+          lastError = err
+          if (!(err.status === 405 && /not allowed/i.test(err.message))) throw err
+        }
+      }
+      throw lastError
+    },
+
     // Latest GitHub Actions run of each workflow on the default branch.
     async fetchCi(repo, branch) {
       const data = await gh(`/repos/${repo}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=50&exclude_pull_requests=true`)

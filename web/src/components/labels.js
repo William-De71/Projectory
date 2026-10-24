@@ -26,6 +26,13 @@ export const ITEM_STATUS = {
 
 export const OPEN_STATUSES = ['todo', 'in_progress', 'testing', 'blocked']
 
+// Relations between items, read from either end (A blocked by B, B blocks A).
+export const LINK_TYPES = {
+  blocked_by: { out: 'Bloqué par', in: 'Bloque', color: 'error' },
+  duplicate_of: { out: 'Doublon de', in: 'A pour doublon', color: 'warning' },
+  relates_to: { out: 'Lié à', in: 'Lié à', color: 'default' },
+}
+
 export const PRIORITY = {
   low: { label: 'Basse', color: 'default' },
   normal: { label: 'Normale', color: 'blue' },

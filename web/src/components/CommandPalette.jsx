@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Empty, Flex, Input, Modal, Tag, theme, Typography } from 'antd'
 import {
-  AppstoreOutlined, BugOutlined, CheckSquareOutlined, GithubOutlined, ClockCircleOutlined, CloudDownloadOutlined, DashboardOutlined, EditOutlined, FileTextOutlined,
+  AppstoreOutlined, BugOutlined, CheckSquareOutlined, GithubOutlined, ClockCircleOutlined, CloudDownloadOutlined, DashboardOutlined, DeploymentUnitOutlined, EditOutlined, FileTextOutlined,
   GlobalOutlined, InboxOutlined, MoonOutlined, PlusOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import { api } from '../api/client.js'
 import { t } from '../i18n/index.js'
+import { resultPath } from '../pages/Search.jsx'
 
 const SEARCH_TYPES = { project: 'Projet', item: 'Suivi', doc: 'Doc', github: 'GitHub' }
 const normalize = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -45,6 +46,8 @@ export default function CommandPalette({ open, onClose, actions }) {
       { label: t('Tableau de bord'), icon: <DashboardOutlined />, run: () => navigate('/') },
       { label: t('Aujourd’hui'), icon: <CheckSquareOutlined />, run: () => navigate('/today') },
       { label: t('Mon GitHub'), icon: <GithubOutlined />, run: () => navigate('/mine') },
+      { label: t('Dépendances'), icon: <DeploymentUnitOutlined />, run: () => navigate('/deps'), keywords: 'dependabot renovate' },
+      { label: t('Recherche'), icon: <SearchOutlined />, run: () => navigate('/search') },
       { label: t('Projets'), icon: <AppstoreOutlined />, run: () => navigate('/projects') },
       { label: t('Boîte de réception'), icon: <InboxOutlined />, run: () => navigate('/inbox') },
       { label: t('Bugs & tâches'), icon: <BugOutlined />, run: () => navigate('/items') },
@@ -71,11 +74,13 @@ export default function CommandPalette({ open, onClose, actions }) {
       group: t('Résultats'),
       always: true,
       run: () => {
-        if (r.type === 'github') return window.open(r.url, '_blank', 'noopener')
-        if (r.type === 'item') return navigate(`/projects/${r.project_id}/items`)
-        if (r.type === 'doc') return navigate(r.project_id ? `/projects/${r.project_id}/${r.kind === 'spec' ? 'specs' : 'notes'}?doc=${r.id}` : `/notes?doc=${r.id}`)
+        const path = resultPath(r)
+        return path ? navigate(path) : window.open(r.url, '_blank', 'noopener')
       },
     }))
+    if (q.trim().length >= 2) {
+      searchEntries.unshift({ label: t('Voir tous les résultats pour « {q} »', { q: q.trim() }), icon: <SearchOutlined />, group: t('Résultats'), always: true, run: () => navigate(`/search?q=${encodeURIComponent(q.trim())}`) })
+    }
     const filtered = [...commands, ...pages, ...projectEntries].filter((e) => match(`${e.label} ${e.hint || ''} ${e.keywords || ''}`))
     return [...filtered.slice(0, needle ? 12 : 8 + 9), ...searchEntries.slice(0, 10)]
   }, [q, projects, results, actions, navigate])

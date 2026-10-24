@@ -2,6 +2,8 @@ import { decode, getConfig, insertRow, setConfig, updateRow } from '../db.js'
 import { compareVersions } from '../sync/http.js'
 import { forgeFor, normalizeRepo } from '../sync/forges/index.js'
 import { tr } from '../i18n.js'
+import { unblockDependents } from '../items.js'
+import { remindForumReply } from '../sync/index.js'
 
 const FIELDS = ['project_id', 'version', 'title', 'description', 'due_date', 'status', 'released_at', 'checklist']
 const DONE = ['done', 'wontfix']
@@ -184,7 +186,16 @@ export default async function milestoneRoutes(app, { db }) {
        ON CONFLICT(project_id, version) DO UPDATE SET status = 'released', released_at = coalesce(released_at, excluded.released_at), updated_at = datetime('now')`
     ).run(projectId, version, today)
     if (req.body?.close_items) {
-      db.prepare("UPDATE items SET status = 'done', updated_at = datetime('now') WHERE project_id = ? AND target_version = ? AND status IN ('in_progress', 'testing')").run(projectId, version)
+      const closing = db.prepare("SELECT id FROM items WHERE project_id = ? AND target_version = ? AND status IN ('in_progress', 'testing')").all(projectId, version)
+      const close = db.prepare("UPDATE items SET status = 'done', updated_at = datetime('now') WHERE id = ?")
+      for (const { id } of closing) {
+        close.run(id)
+        unblockDependents(db, id)
+      }
+    }
+    // Bugs reported on the forum and shipped in this version: time to tell the reporters.
+    for (const item of db.prepare("SELECT * FROM items WHERE project_id = ? AND target_version = ? AND status = 'done'").all(projectId, version)) {
+      remindForumReply(db, item, { asRead: false })
     }
     const markdown = changelog(db, projectId, version)
     let doc = null
