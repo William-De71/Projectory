@@ -12,4 +12,25 @@ services:
         required: false
     environment:
       - TZ=${TZ:-Europe/Paris}
+      # "Update now" button: Projectory asks Watchtower to pull and recreate it.
+      - IMAGE_TAG=${PROJECTORY_TAG:-latest}
+      - UPDATER_URL=http://watchtower:8080
+      - UPDATER_TOKEN=${WATCHTOWER_TOKEN:-}
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    restart: unless-stopped
+
+  # Optional, enabled by COMPOSE_PROFILES=updater in .env. Only acts when asked
+  # through its API (no periodic polling), and only on labelled containers.
+  watchtower:
+    image: nickfedor/watchtower:1.23
+    container_name: projectory-watchtower
+    profiles: [updater]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_HTTP_API_ENDPOINTS=update
+      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_TOKEN:-}
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_CLEANUP=true
     restart: unless-stopped

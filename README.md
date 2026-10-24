@@ -92,11 +92,22 @@ docker compose up -d
 
 Ouvre http://localhost:3001. Les données sont dans `./data/projectory.db`.
 
-- Mise à jour : `docker compose pull && docker compose up -d`
+- Mise à jour : `docker compose pull && docker compose up -d`, ou le bouton **Mettre à jour maintenant** (voir ci-dessous)
 - Tester la version de dev : `PROJECTORY_TAG=dev` dans `.env`
 - Construire depuis les sources : `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`
 
 > Le premier push d'une image sur GHCR crée un paquet **privé**. Rends-le public (GitHub → ton profil → Packages → projectory → Package settings → Change visibility) ou fais `docker login ghcr.io` avant le `pull`.
+
+### Mise à jour depuis l'interface
+
+Projectory vérifie les releases GitHub : quand une nouvelle version sort, une notification apparaît et un lien « vX.Y.Z disponible » s'affiche en bas du menu, avec les notes de version. Pour avoir aussi le bouton **Mettre à jour maintenant**, active [Watchtower](https://github.com/nicholas-fedor/watchtower) dans `.env` :
+
+```bash
+COMPOSE_PROFILES=updater
+WATCHTOWER_TOKEN=$(openssl rand -hex 32)   # colle la valeur générée
+```
+
+puis `docker compose up -d`. Watchtower n'agit que sur demande (pas de vérification périodique) et uniquement sur le conteneur Projectory ; c'est lui, et non Projectory, qui a accès au socket Docker. Le bouton n'apparaît pas si `PROJECTORY_TAG` est une version fixe (`1.2.3`).
 
 ### Configuration (`.env`)
 
@@ -106,6 +117,7 @@ Ouvre http://localhost:3001. Les données sont dans `./data/projectory.db`.
 | `GITLAB_TOKEN` | — | Token GitLab par défaut (scope `api`, ou `read_api` sans création d'issues). |
 | `GITEA_URL`, `GITEA_TOKEN` | — | Instance Gitea / Forgejo par défaut et son token (droits repository + issue). |
 | `PROJECTORY_TAG` | `latest` | Tag de l'image Docker utilisée par `docker-compose.yml`. |
+| `COMPOSE_PROFILES`, `WATCHTOWER_TOKEN` | — | `updater` et un jeton secret pour le bouton de mise à jour (voir ci-dessus). |
 | `SYNC_INTERVAL_MINUTES` | `30` | Synchro automatique (0 = uniquement via le bouton 🔄). |
 | `APP_PASSWORD` | — | Active une authentification HTTP basique (identifiant libre). À mettre si l'app est exposée hors de ton réseau. |
 | `PROJECTORY_PORT` | `3001` | Port exposé sur l'hôte. |

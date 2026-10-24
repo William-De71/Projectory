@@ -93,9 +93,20 @@ docker compose up -d
 
 Open http://localhost:3001. Data lives in `./data/projectory.db`.
 
-- Update: `docker compose pull && docker compose up -d`
+- Update: `docker compose pull && docker compose up -d`, or the **Update now** button (see below)
 - Try the development build: `PROJECTORY_TAG=dev` in `.env`
 - Build from source: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`
+
+### Updating from the interface
+
+Projectory checks the GitHub releases: when a new version is out, a notification pops up and a "vX.Y.Z available" link shows at the bottom of the menu, with the release notes. To also get the **Update now** button, enable [Watchtower](https://github.com/nicholas-fedor/watchtower) in `.env`:
+
+```bash
+COMPOSE_PROFILES=updater
+WATCHTOWER_TOKEN=$(openssl rand -hex 32)   # paste the generated value
+```
+
+then `docker compose up -d`. Watchtower only acts when asked (no periodic checks) and only on the Projectory container; it holds the Docker socket, not Projectory. The button is hidden when `PROJECTORY_TAG` is a fixed version (`1.2.3`).
 
 ### Configuration (`.env`)
 
@@ -105,6 +116,7 @@ Open http://localhost:3001. Data lives in `./data/projectory.db`.
 | `GITLAB_TOKEN` | — | Default GitLab token (`api` scope, or `read_api` without issue creation). |
 | `GITEA_URL`, `GITEA_TOKEN` | — | Default Gitea / Forgejo instance and its token (repository + issue permissions). |
 | `PROJECTORY_TAG` | `latest` | Docker image tag used by `docker-compose.yml`. |
+| `COMPOSE_PROFILES`, `WATCHTOWER_TOKEN` | — | `updater` and a secret token for the update button (see above). |
 | `SYNC_INTERVAL_MINUTES` | `30` | Automatic sync (0 = only with the 🔄 button). |
 | `APP_PASSWORD` | — | Enables HTTP basic authentication (any username). Set it if the app is reachable outside your network. |
 | `PROJECTORY_PORT` | `3001` | Port exposed on the host. |

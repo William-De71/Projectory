@@ -8,6 +8,7 @@ import {
 import { api, notifyChange, useChangeListener } from '../api/client.js'
 import DocEditor from './DocEditor.jsx'
 import CommandPalette, { isPaletteShortcut } from './CommandPalette.jsx'
+import UpdateNotice from './UpdateNotice.jsx'
 import { ItemForm } from './ItemsPanel.jsx'
 import { t } from '../i18n/index.js'
 
@@ -143,15 +144,18 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
           <div style={{ padding: '18px 20px', fontWeight: 700, fontSize: 18 }}><img src="/icons/icon.svg" alt="" width={24} height={24} style={{ verticalAlign: '-5px', marginRight: 8 }} />Projectory</div>
           <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={({ key }) => navigate(key)} style={{ borderInlineEnd: 0, flex: 1, overflowY: 'auto' }} />
           {version && (
-            <a
-              href={/^\d+\.\d+\.\d+$/.test(version) ? `${RELEASES_URL}/tag/v${version}` : RELEASES_URL}
-              target="_blank"
-              rel="noreferrer"
-              title={t('Notes de version')}
-              style={{ padding: '12px 20px', fontSize: 12, color: token.colorTextTertiary, borderTop: `1px solid ${token.colorBorderSecondary}` }}
-            >
-              {/^\d/.test(version) ? `v${version}` : version}
-            </a>
+            <Flex vertical gap={4} style={{ padding: '12px 20px', fontSize: 12, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
+              <a
+                href={/^\d+\.\d+\.\d+$/.test(version) ? `${RELEASES_URL}/tag/v${version}` : RELEASES_URL}
+                target="_blank"
+                rel="noreferrer"
+                title={t('Notes de version')}
+                style={{ color: token.colorTextTertiary }}
+              >
+                {/^\d/.test(version) ? `v${version}` : version}
+              </a>
+              <UpdateNotice />
+            </Flex>
           )}
         </Flex>
       </Sider>
