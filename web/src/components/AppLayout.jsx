@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { App, AutoComplete, Badge, Button, Flex, Grid, Input, Layout, Menu, Segmented, Tag, Tooltip, Typography, theme } from 'antd'
+import { App, AutoComplete, Badge, Button, Dropdown, Flex, Grid, Input, Layout, Menu, Tag, Tooltip, Typography, theme } from 'antd'
 import {
-  AppstoreOutlined, BugOutlined, ClockCircleOutlined, DashboardOutlined, DeploymentUnitOutlined, EditOutlined,
-  InboxOutlined, MoonOutlined, CheckSquareOutlined, GithubOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined,
+  AppstoreOutlined, BugOutlined, ClockCircleOutlined, DashboardOutlined, DeploymentUnitOutlined, EditOutlined, FileTextOutlined, GlobalOutlined,
+  InboxOutlined, MoonOutlined, CheckSquareOutlined, GithubOutlined, PlusOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined,
 } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { api, notifyChange, useChangeListener } from '../api/client.js'
 import DocEditor from './DocEditor.jsx'
 import CommandPalette, { isPaletteShortcut } from './CommandPalette.jsx'
@@ -12,12 +13,15 @@ import UpdateNotice from './UpdateNotice.jsx'
 import { resultPath } from '../pages/Search.jsx'
 import { isGreen } from '../pages/Dependencies.jsx'
 import OfflineBanner from './OfflineBanner.jsx'
-import { ItemForm } from './ItemsPanel.jsx'
+import { isTyping } from './ItemsPanel.jsx'
+import { overlayOpen, useItemPanel } from './ItemPanel.jsx'
 import { t } from '../i18n/index.js'
 
 const { Sider, Header, Content } = Layout
 
 const RELEASES_URL = 'https://github.com/William-De71/Projectory/releases'
+
+const NEW_ITEM_KEY = 'N'
 
 const SEARCH_TYPES = { project: 'Projet', item: 'Suivi', doc: 'Doc', github: 'GitHub' }
 
@@ -67,6 +71,41 @@ function GlobalSearch({ onOpenPalette }) {
   )
 }
 
+// Sync button showing how fresh the data is; a dot warns about failed sources.
+function SyncButton({ compact, syncing, onSync }) {
+  const [status, setStatus] = useState(null)
+  const refresh = useCallback(() => { api.get('/sync/status').then(setStatus).catch(() => {}) }, [])
+  useEffect(() => {
+    refresh()
+    // Also re-renders the "x min ago" label.
+    const timer = setInterval(refresh, 60_000)
+    return () => clearInterval(timer)
+  }, [refresh])
+  useChangeListener(refresh)
+
+
+  const running = syncing || status?.running
+  const when = status?.last_run_at ? dayjs(status.last_run_at).fromNow() : null
+  const errors = status?.errors?.length || 0
+  return (
+    <Tooltip
+      title={(
+        <Flex vertical>
+          <span>{t('Synchroniser GitHub, versions et forums')}</span>
+          <span style={{ opacity: 0.75 }}>{running ? t('Synchronisation en cours…') : when ? t('Dernière synchro {when}', { when }) : t('Pas encore synchronisé')}</span>
+          {errors > 0 && <span style={{ opacity: 0.75 }}>{t('{n} erreur(s) à la dernière synchro', { n: errors })}</span>}
+        </Flex>
+      )}
+    >
+      <Badge dot={errors > 0} color="orange" offset={[-4, 4]}>
+        <Button icon={<SyncOutlined spin={running} />} onClick={onSync} disabled={running}>
+          {compact ? null : running ? t('Synchro…') : when || t('Synchroniser')}
+        </Button>
+      </Badge>
+    </Tooltip>
+  )
+}
+
 export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -75,16 +114,33 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const [unread, setUnread] = useState(0)
   const [syncing, setSyncing] = useState(false)
   const [quickNote, setQuickNote] = useState(null)
-  const [newItem, setNewItem] = useState(null)
   const [palette, setPalette] = useState(false)
+  const { newItem } = useItemPanel()
+
+  // "+ New": the project of the current page is filled in.
+  const projectId = Number(location.pathname.match(/^\/projects\/(\d+)/)?.[1]) || undefined
+  const create = (what) => {
+    if (what === 'item') return newItem({ project_id: projectId })
+    if (what === 'project') return navigate('/projects?new=1')
+    return setQuickNote({ type: what, project_id: projectId })
+  }
+  const createRef = useRef(create)
+  createRef.current = create
   const [version, setVersion] = useState(null)
   useEffect(() => { api.get('/health').then((h) => setVersion(h.version)).catch(() => {}) }, [])
 
   useEffect(() => {
     const onKey = (e) => {
-      if (!isPaletteShortcut(e)) return
-      e.preventDefault()
-      setPalette((open) => !open)
+      if (isPaletteShortcut(e)) {
+        e.preventDefault()
+        setPalette((open) => !open)
+        return
+      }
+      // N: new bug / task, from any page.
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTyping(e.target) && !overlayOpen()) {
+        e.preventDefault()
+        createRef.current('item')
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -122,6 +178,25 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
     } finally {
       setSyncing(false)
     }
+  }
+
+  const newMenu = [
+    { key: 'item', icon: <BugOutlined />, label: t('Bug / tâche'), extra: NEW_ITEM_KEY },
+    { key: 'note', icon: <EditOutlined />, label: t('Note') },
+    { key: 'spec', icon: <FileTextOutlined />, label: t('Spécification') },
+    { type: 'divider' },
+    { key: 'project', icon: <AppstoreOutlined />, label: t('Projet') },
+  ]
+  const prefsMenu = [
+    { key: 'theme', icon: dark ? <SunOutlined /> : <MoonOutlined />, label: dark ? t('Thème clair') : t('Thème sombre') },
+    { key: 'lang', icon: <GlobalOutlined />, label: lang === 'fr' ? 'English' : 'Français' },
+    { type: 'divider' },
+    { key: 'settings', icon: <SettingOutlined />, label: t('Tous les paramètres') },
+  ]
+  const onPrefs = ({ key }) => {
+    if (key === 'theme') onToggleDark()
+    else if (key === 'lang') onChangeLang(lang === 'fr' ? 'en' : 'fr')
+    else navigate('/settings')
   }
 
   const items = [
@@ -173,16 +248,13 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
         <Header style={{ background: token.colorBgContainer, padding: mobile ? '0 12px 0 56px' : '0 16px', lineHeight: 'normal', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', alignItems: 'center', gap: 8 }}>
           <GlobalSearch onOpenPalette={() => setPalette(true)} />
           <Flex gap={8} style={{ marginLeft: 'auto' }}>
-            <Tooltip title={mobile ? t('Note rapide') : null}>
-              <Button icon={<EditOutlined />} onClick={() => setQuickNote({ type: 'note' })}>{mobile ? null : t('Note rapide')}</Button>
-            </Tooltip>
-            <Tooltip title={t('Synchroniser GitHub, versions et forums')}>
-              <Button icon={<SyncOutlined spin={syncing} />} onClick={syncAll} disabled={syncing} />
-            </Tooltip>
-            <Segmented size="middle" value={lang} onChange={onChangeLang} options={[{ value: 'fr', label: 'FR' }, { value: 'en', label: 'EN' }]} />
-            <Tooltip title={dark ? t('Thème clair') : t('Thème sombre')}>
-              <Button icon={dark ? <SunOutlined /> : <MoonOutlined />} onClick={onToggleDark} />
-            </Tooltip>
+            <Dropdown menu={{ items: newMenu, onClick: ({ key }) => create(key) }} trigger={['click']}>
+              <Button type="primary" icon={<PlusOutlined />} aria-label={t('Nouveau')}>{mobile ? null : t('Nouveau')}</Button>
+            </Dropdown>
+            <SyncButton compact={mobile} syncing={syncing} onSync={syncAll} />
+            <Dropdown menu={{ items: prefsMenu, onClick: onPrefs }} trigger={['click']}>
+              <Button icon={<SettingOutlined />} aria-label={t('Préférences')} />
+            </Dropdown>
           </Flex>
         </Header>
         <OfflineBanner />
@@ -191,14 +263,13 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
         </Content>
       </Layout>
       <DocEditor doc={quickNote} withProjectPicker onClose={() => setQuickNote(null)} onSaved={() => { setQuickNote(null); notifyChange() }} />
-      <ItemForm item={newItem} withProjectPicker onClose={() => setNewItem(null)} onSaved={() => { setNewItem(null); notifyChange() }} />
       <CommandPalette
         open={palette}
         onClose={() => setPalette(false)}
         actions={{
-          newItem: () => setNewItem({}),
-          quickNote: () => setQuickNote({ type: 'note' }),
-          newSpec: () => setQuickNote({ type: 'spec' }),
+          newItem: () => create('item'),
+          quickNote: () => create('note'),
+          newSpec: () => create('spec'),
           sync: syncAll,
           toggleDark: onToggleDark,
           toggleLang: () => onChangeLang(lang === 'fr' ? 'en' : 'fr'),

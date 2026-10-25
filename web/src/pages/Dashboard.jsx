@@ -7,11 +7,13 @@ import { ITEM_KIND, PRIORITY, formatMinutes, refLabel } from '../components/labe
 import StaleTag from '../components/StaleTag.jsx'
 import { LabelTag } from '../components/Tags.jsx'
 import InboxList from '../components/InboxList.jsx'
+import { useItemPanel } from '../components/ItemPanel.jsx'
 import ProjectCard, { latestVersion } from '../components/ProjectCard.jsx'
 import { t } from '../i18n/index.js'
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { openItem } = useItemPanel()
   const { data, loading, reload } = useApi('/dashboard', { listen: true })
   if (!data) return <Spin spinning={loading}><div style={{ height: 300 }} /></Spin>
   const { stats } = data
@@ -46,7 +48,7 @@ export default function Dashboard() {
         <List
           dataSource={data.urgent}
           renderItem={(it) => (
-            <List.Item className="clickable" onClick={() => navigate(`/projects/${it.project_id}/items`)}>
+            <List.Item className="clickable" onClick={() => openItem(it.id)}>
               <Flex vertical gap={2} style={{ width: '100%' }}>
                 <Typography.Text strong ellipsis>{it.title}</Typography.Text>
                 <Flex gap={4} wrap>

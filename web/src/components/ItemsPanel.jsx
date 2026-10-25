@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Alert, App, AutoComplete, Button, Card, DatePicker, Empty, Flex, Form, Input, Modal, Popconfirm, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
-import { BranchesOutlined, CloseOutlined, DeleteOutlined, IssuesCloseOutlined, LinkOutlined, PlusOutlined, QuestionCircleOutlined, SaveOutlined, SearchOutlined } from '@ant-design/icons'
+import { BranchesOutlined, CloseOutlined, DeleteOutlined, DownOutlined, IssuesCloseOutlined, LinkOutlined, PlusOutlined, QuestionCircleOutlined, SaveOutlined, SearchOutlined, UpOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { ITEM_KIND, ITEM_STATUS, OPEN_STATUSES, PRIORITY, SOURCE, options, prLabel } from './labels.js'
@@ -15,6 +15,7 @@ import { t } from '../i18n/index.js'
 import FormModal from './FormModal.jsx'
 import ItemChecklist, { ChecklistTag } from './ItemChecklist.jsx'
 import ItemLinks from './ItemLinks.jsx'
+import { overlayOpen, useItemPanel } from './ItemPanel.jsx'
 
 // Opens an issue on the project's forge; the issue link then lives on the item.
 function IssueLink({ item, onLinked }) {
@@ -81,11 +82,24 @@ function PrInput({ projectId, value, onChange }) {
   )
 }
 
-export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
+const MORE_KEY = 'projectory:item-more'
+function readMore() {
+  try { return localStorage.getItem(MORE_KEY) === '1' } catch { return false }
+}
+
+// Side panel to create or edit a bug / task. `item` null = closed. A new item
+// starts with the essentials only; the other fields wait behind "More options".
+export function ItemForm({ item, onClose, onSaved }) {
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [linked, setLinked] = useState(null)
+  const [more, setMore] = useState(readMore)
+  const toggleMore = () => setMore((m) => {
+    try { localStorage.setItem(MORE_KEY, m ? '0' : '1') } catch { /* storage unavailable */ }
+    return !m
+  })
+  const showAll = !!item?.id || more
   useEffect(() => setLinked(null), [item])
   const current = linked || item
   const projectId = Form.useWatch('project_id', form) ?? item?.project_id
@@ -139,7 +153,8 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
       open={!!item}
       onClose={onClose}
       title={item?.id ? t('Modifier') : t('Nouveau bug / tâche')}
-      width={960}
+      width={showAll ? 820 : 560}
+      drawer
       saving={saving}
       onSave={save}
       isDirty={() => form.isFieldsTouched()}
@@ -148,36 +163,44 @@ export function ItemForm({ item, onClose, onSaved, withProjectPicker }) {
     >
       <IssueLink item={current} onLinked={setLinked} />
       <Form form={form} layout="vertical">
-        {withProjectPicker && (
-          <Form.Item name="project_id" label={t('Projet')} rules={[{ required: true, message: t('Projet obligatoire') }]}>
-            <ProjectSelect />
-          </Form.Item>
-        )}
         <Form.Item name="title" label={t('Titre')} rules={[{ required: true, message: t('Titre obligatoire') }]}>
           <Input autoFocus />
         </Form.Item>
         <Flex gap={12} wrap>
+          <Form.Item name="project_id" label={t('Projet')} rules={[{ required: true, message: t('Projet obligatoire') }]} style={{ minWidth: 220, flex: 2 }}>
+            <ProjectSelect />
+          </Form.Item>
           <Form.Item name="kind" label={t('Type')} style={{ minWidth: 150, flex: 1 }}><Select options={options(ITEM_KIND)} /></Form.Item>
+        </Flex>
+        {!item?.id && (
+          <Button type="link" size="small" icon={more ? <UpOutlined /> : <DownOutlined />} onClick={toggleMore} style={{ padding: 0, marginBottom: 16 }}>
+            {more ? t('Moins d’options') : t('Plus d’options : statut, priorité, échéance, description…')}
+          </Button>
+        )}
+        {/* Hidden, not unmounted: defaults and the project template keep their values. */}
+        <div style={showAll ? undefined : { display: 'none' }}>
+        <Flex gap={12} wrap>
           <Form.Item name="status" label={t('Statut')} style={{ minWidth: 150, flex: 1 }}><Select options={options(ITEM_STATUS)} /></Form.Item>
           <Form.Item name="priority" label={t('Priorité')} style={{ minWidth: 150, flex: 1 }}><Select options={options(PRIORITY)} /></Form.Item>
+          <Form.Item name="due_date" label={t('Échéance')} style={{ minWidth: 150, flex: 1 }}><DatePicker format="L" style={{ width: '100%' }} /></Form.Item>
         </Flex>
         <Flex gap={12} wrap>
           <Form.Item name="source" label={t('Source')} style={{ minWidth: 150, flex: 1 }}>
             <Select options={options(SOURCE).filter((o) => o.value !== 'version')} />
           </Form.Item>
           <Form.Item name="target_version" label={t('Version cible')} style={{ minWidth: 120, flex: 1 }}><Input placeholder={t('ex. 1.3.0')} /></Form.Item>
-          <Form.Item name="due_date" label={t('Échéance')} style={{ minWidth: 150, flex: 1 }}><DatePicker format="L" style={{ width: '100%' }} /></Form.Item>
         </Flex>
         <Form.Item name="external_url" label={t('Lien (post du forum, issue, mail…)')}><Input placeholder="https://…" /></Form.Item>
         <Form.Item name="pr_url" label={t('Pull request / merge request liée')}>
           <PrInput projectId={projectId} />
         </Form.Item>
         <Form.Item name="body" label={t('Description / étapes de reproduction')} className="md-editor">
-          <MarkdownInput autoSize={{ minRows: 12, maxRows: 40 }} placeholder={[t('1. Aller sur…'), t('2. Cliquer sur…'), '', t('Attendu : …'), t('Obtenu : …'), t('Version : …')].join('\n')} />
+          <MarkdownInput autoSize={{ minRows: 10, maxRows: 40 }} placeholder={[t('1. Aller sur…'), t('2. Cliquer sur…'), '', t('Attendu : …'), t('Obtenu : …'), t('Version : …')].join('\n')} />
         </Form.Item>
         <Form.Item name="checklist" label={t('Sous-tâches')}>
           <ItemChecklist />
         </Form.Item>
+        </div>
         {item?.id && (
           <Form.Item label={t('Liens avec d’autres éléments')}>
             <ItemLinks item={item} />
@@ -331,20 +354,19 @@ const NEXT_STATUS = { todo: 'in_progress', in_progress: 'testing', testing: 'don
 const PAGE_SIZE = 25
 const DEFAULT_FILTERS = { scope: 'open', kind: null, priority: null, status: null, q: '' }
 
-const isTyping = (el) => el && ((el.tagName === 'INPUT' && !['checkbox', 'radio'].includes(el.type)) || ['TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable)
+export const isTyping = (el) => el && ((el.tagName === 'INPUT' && !['checkbox', 'radio'].includes(el.type)) || ['TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable)
 
 // Bugs / tasks list for one project (projectId) or across all projects.
 export default function ItemsPanel({ projectId }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [view, setView] = useState('table')
-  const [editing, setEditing] = useState(null)
+  const { openItem, newItem } = useItemPanel()
   const [expanded, setExpanded] = useState([])
   const [replyTo, setReplyTo] = useState(null)
   const [selected, setSelected] = useState([])
   const [focused, setFocused] = useState(-1)
   const [page, setPage] = useState(1)
   const searchRef = useRef(null)
-  const [searchParams, setSearchParams] = useSearchParams()
   const query = new URLSearchParams()
   if (projectId) query.set('project_id', projectId)
   if (filters.scope === 'open' && view === 'table') query.set('open', '1')
@@ -359,15 +381,6 @@ export default function ItemsPanel({ projectId }) {
   }, [data, filters.priority, filters.q])
   const setFilter = (key) => (value) => { setFilters((f) => ({ ...f, [key]: value })); setPage(1); setFocused(-1) }
 
-  // Opened from the search: ?item=<id>.
-  useEffect(() => {
-    const id = Number(searchParams.get('item'))
-    if (!id) return
-    api.get(`/items/${id}`).then(setEditing).catch(() => {})
-    searchParams.delete('item')
-    setSearchParams(searchParams, { replace: true })
-  }, [searchParams, setSearchParams])
-
   const updateStatus = async (id, status) => {
     setData((rows) => rows.map((r) => (r.id === id ? { ...r, status } : r)))
     const updated = await api.put(`/items/${id}`, { status })
@@ -378,12 +391,11 @@ export default function ItemsPanel({ projectId }) {
 
   // Keyboard navigation of the list (ignored while typing or in a dialog).
   const keys = useRef({})
-  keys.current = { items, focused, editing, replyTo, view }
+  keys.current = { items, focused, replyTo, view, openItem }
   useEffect(() => {
     const onKey = (e) => {
-      const { items: rows, focused: index, editing: open, replyTo: replying, view: mode } = keys.current
-      if (mode !== 'table' || open || replying || isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey) return
-      if (document.querySelector('.ant-modal-wrap:not([style*="display: none"])')) return
+      const { items: rows, focused: index, replyTo: replying, view: mode, openItem: open } = keys.current
+      if (mode !== 'table' || replying || isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey || overlayOpen()) return
       const move = (to) => {
         const next = Math.max(0, Math.min(rows.length - 1, to))
         setFocused(next)
@@ -396,11 +408,10 @@ export default function ItemsPanel({ projectId }) {
         ArrowDown: () => move(index + 1),
         k: () => move(index < 0 ? 0 : index - 1),
         ArrowUp: () => move(index < 0 ? 0 : index - 1),
-        Enter: () => row && setEditing(row),
-        e: () => row && setEditing(row),
+        Enter: () => row && open(row),
+        e: () => row && open(row),
         s: () => row && updateStatus(row.id, NEXT_STATUS[row.status] || 'todo'),
         x: () => row && setSelected((ids) => (ids.includes(row.id) ? ids.filter((id) => id !== row.id) : [...ids, row.id])),
-        n: () => setEditing({ project_id: projectId }),
         '/': () => searchRef.current?.focus(),
         Escape: () => setSelected([]),
       }
@@ -411,7 +422,7 @@ export default function ItemsPanel({ projectId }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [projectId])
+  }, [])
 
   const columns = [
     {
@@ -421,7 +432,7 @@ export default function ItemsPanel({ projectId }) {
         <Flex vertical gap={2}>
           <Flex gap={6} align="center" wrap>
             <TodayButton item={it} onChange={(updated) => setData((rows) => rows.map((r) => (r.id === updated.id ? { ...r, focus_date: updated.focus_date } : r)))} />
-            <Typography.Link onClick={() => setEditing(it)} delete={it.status === 'wontfix'}>{title}</Typography.Link>
+            <Typography.Link onClick={() => openItem(it)} delete={it.status === 'wontfix'}>{title}</Typography.Link>
             {it.issue_url && (
               <Tooltip title={t('Issue sur le dépôt')}>
                 <a href={it.issue_url} target="_blank" rel="noreferrer"><Tag style={{ marginInlineEnd: 0 }}>{it.issue_number ? `#${it.issue_number}` : 'issue'}</Tag></a>
@@ -471,7 +482,7 @@ export default function ItemsPanel({ projectId }) {
         {view === 'table' && (
           <Segmented value={filters.scope} onChange={setFilter('scope')} options={[{ value: 'open', label: t('Ouverts') }, { value: 'all', label: t('Tous') }]} />
         )}
-        <Button type="primary" icon={<PlusOutlined />} style={{ marginLeft: 'auto' }} onClick={() => setEditing({ project_id: projectId })}>{t('Bug / tâche')}</Button>
+        <Button type="primary" icon={<PlusOutlined />} style={{ marginLeft: 'auto' }} onClick={() => newItem({ project_id: projectId ? Number(projectId) : undefined })}>{t('Bug / tâche')}</Button>
       </Flex>
       <Flex gap={8} wrap align="center">
         <Select allowClear placeholder={t('Type')} style={{ width: 135 }} value={filters.kind} onChange={setFilter('kind')} options={options(ITEM_KIND)} />
@@ -498,7 +509,7 @@ export default function ItemsPanel({ projectId }) {
         <BulkBar ids={selected} onClear={() => setSelected([])} onDone={() => { setSelected([]); reload() }} />
       )}
       {view === 'board' ? (
-        items.length ? <Board items={items} onOpen={setEditing} onMove={updateStatus} /> : <Empty description={t('Rien à suivre pour l\'instant')} />
+        items.length ? <Board items={items} onOpen={openItem} onMove={updateStatus} /> : <Empty description={t('Rien à suivre pour l\'instant')} />
       ) : (
         <Table
           rowKey="id"
@@ -519,7 +530,6 @@ export default function ItemsPanel({ projectId }) {
           locale={{ emptyText: <Empty description={t('Aucun bug ni tâche ouverts 🎉')} /> }}
         />
       )}
-      <ItemForm item={editing} withProjectPicker={!projectId} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload() }} />
       <ForumReplyModal item={replyTo} onClose={() => { setReplyTo(null); reload() }} />
     </Flex>
   )

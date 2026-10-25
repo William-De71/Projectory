@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { ITEM_KIND, ITEM_STATUS, OPEN_STATUSES, PRIORITY, formatMinutes } from '../components/labels.js'
 import { LabelTag } from '../components/Tags.jsx'
-import { ItemForm } from '../components/ItemsPanel.jsx'
+import { useItemPanel } from '../components/ItemPanel.jsx'
 import { setFocus, todayDate } from '../components/TodayButton.jsx'
 import ForumReplyModal, { needsForumReply } from '../components/ForumReplyModal.jsx'
 import { t } from '../i18n/index.js'
@@ -63,7 +63,7 @@ export default function Today() {
   const today = todayDate()
   const { data, loading, setData } = useApi(`/today?date=${today}`, { listen: true })
   const { data: openItems } = useApi('/items?open=1', { listen: true })
-  const [editing, setEditing] = useState(null)
+  const { openItem, newItem } = useItemPanel()
   const [replyTo, setReplyTo] = useState(null)
 
   if (!data) return <Spin spinning={loading}><div style={{ height: 300 }} /></Spin>
@@ -132,7 +132,7 @@ export default function Today() {
                   onChange={(id) => add(pickable.find((i) => i.id === id))}
                   notFoundContent={t('Aucun élément ouvert')}
                 />
-                <Button icon={<PlusOutlined />} onClick={() => setEditing({ kind: 'task', focus_date: today })}>{t('Nouvelle tâche')}</Button>
+                <Button icon={<PlusOutlined />} onClick={() => newItem({ kind: 'task', focus_date: today })}>{t('Nouvelle tâche')}</Button>
               </Flex>
               {open.length > FOCUS_LIMIT && (
                 <Alert type="warning" showIcon message={t('Plus de {n} tâches ouvertes : garde l’essentiel, le reste attendra demain.', { n: FOCUS_LIMIT })} />
@@ -145,7 +145,7 @@ export default function Today() {
                     <Flex gap={12} align="start" style={{ minWidth: 0, width: '100%' }}>
                       <Checkbox checked={!isOpen(it)} onChange={(e) => toggleDone(it, e.target.checked)} style={{ marginTop: 2 }} aria-label={t('Terminé')} />
                       <Flex vertical gap={4} style={{ minWidth: 0, flex: 1 }}>
-                        <Typography.Link onClick={() => setEditing(it)} delete={!isOpen(it)} type={isOpen(it) ? undefined : 'secondary'}>{it.title}</Typography.Link>
+                        <Typography.Link onClick={() => openItem(it)} delete={!isOpen(it)} type={isOpen(it) ? undefined : 'secondary'}>{it.title}</Typography.Link>
                         <Flex gap={2} wrap>
                           <ItemTags item={it} today={today} />
                           {isOpen(it) && it.focus_date < today && <Tag color="gold">{t('reportée depuis {date}', { date: dayjs(it.focus_date).format('D MMM') })}</Tag>}
@@ -179,7 +179,7 @@ export default function Today() {
                 />
               </Card>
             )}
-            <Candidates title={t('À échéance')} items={data.due} today={today} onAdd={add} onOpen={setEditing} empty={t('Aucune échéance dépassée ni pour aujourd’hui')} />
+            <Candidates title={t('À échéance')} items={data.due} today={today} onAdd={add} onOpen={openItem} empty={t('Aucune échéance dépassée ni pour aujourd’hui')} />
             <Card size="small" title={t('Reviews demandées')}>
               <List
                 size="small"
@@ -201,12 +201,11 @@ export default function Today() {
                 )}
               />
             </Card>
-            <Candidates title={t('Suggestions')} items={data.suggestions} today={today} onAdd={add} onOpen={setEditing} empty={t('Rien en cours ni de prioritaire')} />
+            <Candidates title={t('Suggestions')} items={data.suggestions} today={today} onAdd={add} onOpen={openItem} empty={t('Rien en cours ni de prioritaire')} />
           </Flex>
         </Col>
       </Row>
       <ForumReplyModal item={replyTo} onClose={() => setReplyTo(null)} />
-      <ItemForm item={editing} withProjectPicker={!editing?.project_id} onClose={() => setEditing(null)} onSaved={() => setEditing(null)} />
     </Flex>
   )
 }

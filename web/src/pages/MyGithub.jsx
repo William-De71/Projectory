@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { refLabel } from '../components/labels.js'
 import PrStatus from '../components/PrStatus.jsx'
+import { useItemPanel } from '../components/ItemPanel.jsx'
 import { t } from '../i18n/index.js'
 
 const SECTIONS = [
@@ -28,6 +29,7 @@ function taskFor(it) {
 
 function Row({ it }) {
   const { message } = App.useApp()
+  const { openItem } = useItemPanel()
   const createTask = async () => {
     try {
       await api.post(`/github-items/${it.id}/track`, { kind: 'task', ...taskFor(it) })
@@ -41,7 +43,7 @@ function Row({ it }) {
     <List.Item
       actions={[
         it.item_id
-          ? <Link key="t" to={`/projects/${it.project_id}/items`}><Tag color="green" style={{ marginInlineEnd: 0 }}>{t('Tâche créée')}</Tag></Link>
+          ? <Tag key="t" color="green" className="clickable" style={{ marginInlineEnd: 0 }} onClick={() => openItem(it.item_id)}>{t('Tâche créée')}</Tag>
           : <Tooltip key="t" title={t('Créer une tâche : « {title} »', { title: taskFor(it).title })}><Button size="small" icon={<PlusSquareOutlined />} aria-label={t('Créer une tâche')} onClick={createTask} /></Tooltip>,
       ]}
     >

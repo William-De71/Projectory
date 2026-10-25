@@ -16,6 +16,7 @@
 - Pièces jointes (`server/src/uploads.js`) : fichiers dans `UPLOADS_DIR` (défaut `DATA_PATH/uploads`), référencés uniquement depuis le Markdown (`/api/uploads/<fichier>`), sans table ; les orphelins sont supprimés au moment de la sauvegarde. Côté front, `MarkdownInput` remplace `Input.TextArea` pour tout champ Markdown. Vue « Aujourd'hui » : colonne `items.focus_date` (`server/src/today.js`).
 - Réglages applicatifs : `getConfig` / `setConfig` (clés `config:*` de la table `settings`). Le token ntfy n'est jamais renvoyé au front (`token_set`).
 - Les tests suppriment `GITHUB_TOKEN` & co de l'environnement : garder ce bloc en tête de chaque fichier de test.
+- Bugs / tâches : un seul panneau latéral pour toute l'app (`ItemPanelProvider`, `web/src/components/ItemPanel.jsx`). Ouvrir avec `useItemPanel().openItem(item ou id)` (paramètre d'URL `?item=`), créer avec `newItem(defaults)` ; ne jamais instancier `ItemForm` dans une page. Les raccourcis de page s'effacent quand `overlayOpen()` est vrai.
 - Après une mutation côté front, appeler `notifyChange()` pour rafraîchir les composants qui écoutent (`useApi(url, { listen: true })`).
 - Tests : `cd server && npm test` (fetch simulé, base en mémoire) et `node --test .github/scripts/*.test.mjs`. Build front : `cd web && npm run build`. Workflows : `actionlint`.
 - Commits : préfixes `feat:` / `fix:` — le workflow Release s'en sert pour classer le changelog. Ne pas modifier la version des `package.json` à la main : c'est le workflow Release qui le fait.

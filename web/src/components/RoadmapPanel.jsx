@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import { FORGES, ITEM_KIND, ITEM_STATUS, MILESTONE_STATUS } from './labels.js'
 import { LabelTag } from './Tags.jsx'
-import { ItemForm } from './ItemsPanel.jsx'
+import { useItemPanel } from './ItemPanel.jsx'
 import AnnouncementModal from './AnnouncementModal.jsx'
 import Markdown from './Markdown.jsx'
 import { compareVersions } from './versions.js'
@@ -175,7 +175,7 @@ export default function RoadmapPanel({ projectId, project }) {
   const { data, loading, reload } = useApi(`/projects/${projectId}/roadmap`, { listen: true })
   const [editing, setEditing] = useState(null)
   const [changelog, setChangelog] = useState(null)
-  const [item, setItem] = useState(null)
+  const { openItem } = useItemPanel()
   const [releasing, setReleasing] = useState(null)
   const [announcing, setAnnouncing] = useState(null)
 
@@ -282,7 +282,7 @@ export default function RoadmapPanel({ projectId, project }) {
               size="small"
               dataSource={m.items}
               renderItem={(it) => (
-                <List.Item className="clickable" onClick={() => setItem(it)}>
+                <List.Item className="clickable" onClick={() => openItem(it)}>
                   <Flex gap={6} align="center" style={{ width: '100%' }}>
                     <LabelTag map={ITEM_STATUS} value={it.status} />
                     <Typography.Text delete={it.status === 'wontfix'} style={{ flex: 1 }} ellipsis>{it.title}</Typography.Text>
@@ -307,7 +307,7 @@ export default function RoadmapPanel({ projectId, project }) {
                     options={planned.map((v) => ({ value: v.version, label: v.version }))} onChange={(v) => assign(it, v)} />,
                 ]}
               >
-                <Flex gap={6} align="center" className="clickable" onClick={() => setItem(it)}>
+                <Flex gap={6} align="center" className="clickable" onClick={() => openItem(it)}>
                   <LabelTag map={ITEM_KIND} value={it.kind} />
                   <Typography.Text>{it.title}</Typography.Text>
                 </Flex>
@@ -331,7 +331,6 @@ export default function RoadmapPanel({ projectId, project }) {
           if (res) setChangelog({ title: `Changelog ${m.version}`, markdown: res.markdown, filename: `CHANGELOG-${m.version}.md` })
         }}
       />
-      <ItemForm item={item} onClose={() => setItem(null)} onSaved={() => { setItem(null); reload() }} />
     </Flex>
   )
 }

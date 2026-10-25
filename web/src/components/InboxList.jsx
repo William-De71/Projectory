@@ -7,6 +7,7 @@ import { api, notifyChange } from '../api/client.js'
 import { ITEM_KIND, PRIORITY, options } from './labels.js'
 import { t } from '../i18n/index.js'
 import { followTopic } from './ForumWatches.jsx'
+import { useItemPanel } from './ItemPanel.jsx'
 
 const ICONS = {
   issue: <GithubOutlined />,
@@ -55,6 +56,7 @@ const FOLLOWABLE = ['discourse', 'discourse_mentions']
 export default function InboxList({ entries, loading, onChange, showProject = true }) {
   const { message } = App.useApp()
   const [converting, setConverting] = useState(null)
+  const { openItem } = useItemPanel()
 
   const follow = async (entry) => {
     try {
@@ -81,7 +83,7 @@ export default function InboxList({ entries, loading, onChange, showProject = tr
           <List.Item
             actions={[
               entry.item_id ? (
-                <Tag key="tracked" color="green">{t('Suivi')}</Tag>
+                <Tag key="tracked" color="green" className="clickable" onClick={() => openItem(entry.item_id)}>{t('Suivi')}</Tag>
               ) : !['release', 'ci_fixed', 'gh_notification', 'pr_merged'].includes(entry.kind) && entry.project_id ? (
                 <Tooltip key="convert" title={t('Transformer en bug / tâche')}><Button size="small" icon={<BugOutlined />} onClick={() => setConverting(entry)} /></Tooltip>
               ) : null,
