@@ -5,7 +5,7 @@ test.beforeAll(async ({ request }) => { project = await seed(request) })
 
 test('chaque entrée du menu ouvre sa page', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('Ma journée')).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Ma journée' })).toBeVisible()
   const menu = page.getByRole('menu')
   for (const [entry, heading] of [['À traiter', 'À traiter'], ['Projets', 'Projets'], ['Bugs & tâches', 'Bugs & tâches'], ['Notes & specs', 'Notes & spécifications'], ['Accueil', 'Aujourd’hui']]) {
     await menu.getByText(entry, { exact: true }).click()
@@ -71,7 +71,7 @@ test('une liste filtrée sans résultat propose d’effacer les filtres', async 
 
 test('« ? » affiche les raccourcis', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('Ma journée')).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Ma journée' })).toBeVisible()
   await page.keyboard.press('?')
   await expect(page.getByRole('dialog')).toContainText('Partout')
 })
@@ -96,4 +96,13 @@ test('revue de la semaine : une tâche en retard se reporte et sort de la revue'
   await page.getByRole('button', { name: 'Terminer la revue' }).click()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('button', { name: 'Commencer' })).toHaveCount(0)
+})
+
+test('l’accueil sépare la journée et la vue d’ensemble en onglets', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('tab', { name: 'Vue d’ensemble' }).click()
+  await expect(page).toHaveURL(/\?view=overview$/)
+  await expect(page.getByText('Projets actifs')).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('tab', { name: 'Vue d’ensemble', selected: true })).toBeVisible()
 })

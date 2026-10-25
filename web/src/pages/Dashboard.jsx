@@ -61,8 +61,9 @@ export default function Dashboard({ data }) {
     { title: t('PR / MR'), value: stats.open_prs, to: '/inbox/github' },
     { title: t('CI en échec'), value: stats.ci_failing, to: '/projects', color: stats.ci_failing ? '#ff4d4f' : undefined },
     { title: t('En attente'), value: stats.stale, to: '/inbox/stale', tip: t('Issues sans réponse et PR / MR sans activité') },
-    { title: t('Temps ce mois'), value: formatMinutes(stats.minutes_this_month), to: '/settings/time' },
-  ]
+    // Only for those who log their time.
+    stats.minutes_this_month > 0 && { title: t('Temps ce mois'), value: formatMinutes(stats.minutes_this_month), to: '/settings/time' },
+  ].filter(Boolean)
 
   return (
     <Flex vertical gap={16}>

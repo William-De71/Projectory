@@ -14,14 +14,14 @@ import { t } from '../i18n/index.js'
 const FOCUS_LIMIT = 5
 const isOpen = (it) => OPEN_STATUSES.includes(it.status)
 
-// Candidate list (due, suggestions) with a button to plan the item for today.
-function Candidates({ title, items, onAdd, empty }) {
+// Candidate list (due, suggestions) with a button to plan the item for today;
+// only shown when it has something.
+function Candidates({ title, items, onAdd }) {
   return (
     <Card size="small" title={title}>
       <List
         size="small"
         dataSource={items}
-        locale={{ emptyText: <Typography.Text type="secondary">{empty}</Typography.Text> }}
         renderItem={(it) => (
           <List.Item>
             <ItemRow
@@ -76,18 +76,19 @@ export default function Today() {
   const done = data.focus.length - open.length
   const planned = new Set(data.focus.map((i) => i.id))
   const pickable = (openItems || []).filter((i) => !planned.has(i.id))
+  // Empty cards are left out; with none at all the plan takes the full width.
+  const side = data.forum_replies.length + data.due.length + data.reviews.length + data.suggestions.length > 0
 
   return (
     <Flex vertical gap={16}>
       <Row gutter={[16, 16]}>
-        <Col xs={24} lg={14}>
+        <Col xs={24} lg={side ? 14 : 24}>
           <Card
             title={(
               // Wraps on phones instead of cutting the title.
               <Flex gap={8} align="center" wrap style={{ padding: '8px 0' }}>
-                <span style={{ marginRight: 'auto' }}>{t('Ma journée')}</span>
-                <Typography.Text type={open.length > FOCUS_LIMIT ? 'warning' : 'secondary'} style={{ fontWeight: 'normal' }}>{t('{done} / {total} terminées', { done, total: data.focus.length })}</Typography.Text>
-                <Link to="/settings/time"><Tag style={{ marginInlineEnd: 0 }}>{t('{time} passées aujourd’hui', { time: formatMinutes(data.minutes) })}</Tag></Link>
+                <Typography.Text type={open.length > FOCUS_LIMIT ? 'warning' : 'secondary'} style={{ fontWeight: 'normal', marginRight: 'auto' }}>{t('{done} / {total} terminées', { done, total: data.focus.length })}</Typography.Text>
+                {data.minutes > 0 && <Link to="/settings/time"><Tag style={{ marginInlineEnd: 0 }}>{t('{time} passées aujourd’hui', { time: formatMinutes(data.minutes) })}</Tag></Link>}
               </Flex>
             )}
           >
@@ -129,49 +130,52 @@ export default function Today() {
             </Flex>
           </Card>
         </Col>
-        <Col xs={24} lg={10}>
-          <Flex vertical gap={16}>
-            {data.forum_replies.length > 0 && (
-              <Card size="small" title={t('À répondre sur le forum')}>
-                <List
-                  size="small"
-                  dataSource={data.forum_replies}
-                  renderItem={(it) => (
-                    <List.Item actions={[<Button key="reply" size="small" onClick={() => setReplyTo(it)}>{t('Répondre')}</Button>]}>
-                      <Flex vertical gap={2} style={{ minWidth: 0 }}>
-                        <Typography.Text ellipsis>{it.title}</Typography.Text>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{it.project_name}{it.target_version ? ` · ${it.target_version}` : ''}</Typography.Text>
-                      </Flex>
-                    </List.Item>
-                  )}
-                />
-              </Card>
-            )}
-            <Candidates title={t('À échéance')} items={data.due} onAdd={add} empty={t('Aucune échéance dépassée ni pour aujourd’hui')} />
-            <Card size="small" title={t('Reviews demandées')}>
-              <List
-                size="small"
-                dataSource={data.reviews}
-                locale={{ emptyText: <Typography.Text type="secondary">{t('Aucune review en attente (notifications GitHub perso)')}</Typography.Text> }}
-                renderItem={(r) => (
-                  <List.Item
-                    actions={[
-                      <Tooltip key="read" title={t('Marquer comme lue')}>
-                        <Button size="small" type="text" icon={<CheckOutlined />} aria-label={t('Marquer comme lue')} onClick={() => run(() => api.post(`/inbox/${r.id}/read`))} />
-                      </Tooltip>,
-                    ]}
-                  >
-                    <Flex vertical gap={2} style={{ minWidth: 0 }}>
-                      <a href={r.url} target="_blank" rel="noreferrer">{r.title}</a>
-                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>{[r.project_name, dayjs.utc(r.created_at).local().fromNow()].filter(Boolean).join(' · ')}</Typography.Text>
-                    </Flex>
-                  </List.Item>
-                )}
-              />
-            </Card>
-            <Candidates title={t('Suggestions')} items={data.suggestions} onAdd={add} empty={t('Rien en cours ni de prioritaire')} />
-          </Flex>
-        </Col>
+        {side && (
+          <Col xs={24} lg={10}>
+            <Flex vertical gap={16}>
+              {data.forum_replies.length > 0 && (
+                <Card size="small" title={t('À répondre sur le forum')}>
+                  <List
+                    size="small"
+                    dataSource={data.forum_replies}
+                    renderItem={(it) => (
+                      <List.Item actions={[<Button key="reply" size="small" onClick={() => setReplyTo(it)}>{t('Répondre')}</Button>]}>
+                        <Flex vertical gap={2} style={{ minWidth: 0 }}>
+                          <Typography.Text ellipsis>{it.title}</Typography.Text>
+                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>{it.project_name}{it.target_version ? ` · ${it.target_version}` : ''}</Typography.Text>
+                        </Flex>
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              )}
+              {!!data.due.length && <Candidates title={t('À échéance')} items={data.due} onAdd={add} />}
+              {!!data.reviews.length && (
+                <Card size="small" title={t('Reviews demandées')}>
+                  <List
+                    size="small"
+                    dataSource={data.reviews}
+                    renderItem={(r) => (
+                      <List.Item
+                        actions={[
+                          <Tooltip key="read" title={t('Marquer comme lue')}>
+                            <Button size="small" type="text" icon={<CheckOutlined />} aria-label={t('Marquer comme lue')} onClick={() => run(() => api.post(`/inbox/${r.id}/read`))} />
+                          </Tooltip>,
+                        ]}
+                      >
+                        <Flex vertical gap={2} style={{ minWidth: 0 }}>
+                          <a href={r.url} target="_blank" rel="noreferrer">{r.title}</a>
+                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>{[r.project_name, dayjs.utc(r.created_at).local().fromNow()].filter(Boolean).join(' · ')}</Typography.Text>
+                        </Flex>
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              )}
+              {!!data.suggestions.length && <Candidates title={t('Suggestions')} items={data.suggestions} onAdd={add} />}
+            </Flex>
+          </Col>
+        )}
       </Row>
       <ForumReplyModal item={replyTo} onClose={() => setReplyTo(null)} />
     </Flex>
