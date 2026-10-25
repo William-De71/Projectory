@@ -23,8 +23,9 @@ const ICONS = {
   forum_followed: <MessageOutlined style={{ color: '#13c2c2' }} />,
   forum_reply: <MessageOutlined style={{ color: '#52c41a' }} />,
   pr_merged: <PullRequestOutlined style={{ color: '#722ed1' }} />,
+  release_failed: <RocketOutlined style={{ color: '#ff4d4f' }} />,
 }
-const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', discourse_mentions: 'Pour toi', rss: 'RSS', ci_failed: 'CI', ci_fixed: 'CI', gh_notification: 'Pour toi', pr_status: 'Ma PR', forum_reply: 'À répondre', forum_followed: 'Sujet suivi', pr_merged: 'À tester' }
+const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', discourse_mentions: 'Pour toi', rss: 'RSS', ci_failed: 'CI', ci_fixed: 'CI', gh_notification: 'Pour toi', pr_status: 'Ma PR', forum_reply: 'À répondre', forum_followed: 'Sujet suivi', pr_merged: 'À tester', release_failed: 'Release' }
 
 function ConvertModal({ entry, onClose, onDone }) {
   const { message } = App.useApp()
@@ -84,7 +85,7 @@ export default function InboxList({ entries, loading, onChange, showProject = tr
             actions={[
               entry.item_id ? (
                 <Tag key="tracked" color="green" className="clickable" onClick={() => openItem(entry.item_id)}>{t('Suivi')}</Tag>
-              ) : !['release', 'ci_fixed', 'gh_notification', 'pr_merged'].includes(entry.kind) && entry.project_id ? (
+              ) : !['release', 'release_failed', 'ci_fixed', 'gh_notification', 'pr_merged'].includes(entry.kind) && entry.project_id ? (
                 <Tooltip key="convert" title={t('Transformer en bug / tâche')}><Button size="small" icon={<BugOutlined />} onClick={() => setConverting(entry)} /></Tooltip>
               ) : null,
               FOLLOWABLE.includes(entry.kind) && entry.project_id && /\/t\//.test(entry.url) ? (

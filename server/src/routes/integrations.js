@@ -8,7 +8,7 @@ import { externalizeUploads } from '../uploads.js'
 import { fetchPostAuthor, fetchTopic, parseTopicUrl } from '../sync/sources.js'
 import { VISIBLE_ITEM } from '../visibility.js'
 
-function forgeError(err, owner) {
+export function forgeError(err, owner) {
   const hint = {
     401: tr('La forge refuse le token (invalide ou expiré)'),
     403: tr("La forge refuse l'accès (droits du token insuffisants ou limite de requêtes atteinte)"),

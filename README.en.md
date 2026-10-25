@@ -41,13 +41,15 @@ Self-hosted (Docker), single-user, all data in one SQLite file.
 | **Screenshots and attachments** | Paste (<kbd>Ctrl</kbd>+<kbd>V</kbd>) or drop a screenshot or a file into a bug description, a note or a spec: it is stored in `data/uploads/` and inserted as Markdown (images shown inline, other files linked). Images show as thumbnails below the field (click to enlarge) and “Preview” shows the rendered text. 25 MB maximum per file. |
 | **Manual bugs & tasks** | Bug / feature / task / question, priority, status (to do, in progress, testing, blocked, done, won't fix), due date, target version, external link, **linked PR / MR** (once merged, the item moves to "Testing" by itself). **Sub-tasks** with progress (☑ 2/5), **links** between items (blocked by — the item goes back to "To do" once its blocker is done —, duplicate of, related to), **description templates** per project and kind. List or Kanban board (drag and drop). In the list: **bulk actions** (status, priority, version, deletion), **saved views** (named filters) and **keyboard shortcuts** (<kbd>j</kbd>/<kbd>k</kbd>, <kbd>e</kbd>, <kbd>s</kbd>, <kbd>x</kbd>, <kbd>n</kbd>, <kbd>/</kbd>; <kbd>?</kbd> shows every shortcut). |
 | **Dependencies** | Dependabot and Renovate PRs of all your projects in a tab of "To do", with their CI state. Merge them one by one, or every green one in a click (CI and conflicts checked again on the forge right before each merge). The token must be allowed to merge. |
+| **To release** | A tab of "To do" showing, for each of your GitHub repositories, the commits not released yet (grouped as feat / fix / others, with the version they call for: `v1.2.0 → v1.3.0`) and the last run of the release workflow. A release that **failed** or has been **stuck** for more than 30 minutes also lands in what's new and on ntfy; "Relaunch" cancels the stuck run, then runs only its failed jobs again (a version already created is not made twice). "Release" launches the release workflow with its own inputs (patch / minor / major…), the suggested kind of version preselected; workflows that release on their own on every push are just followed. The same state shows at the top of the project's Versions tab. The token must be allowed to run workflows (Actions write). |
 | **Specifications** | Markdown documents per project with a pre-filled template (context, goals, acceptance criteria…) and draft / in review / approved status. |
 | **Notes** | Markdown notes per project or global, "+ New" button everywhere in the app. |
 | **Time tracking** | In Settings → Time spent: quick entry per project, monthly and per-project totals (handy for freelance invoicing). |
-| **To do** | Everything waiting for an action, in four tabs: what's new since the last sync (read/unread, filters by source and project), My GitHub, Dependencies and Stale. A single counter in the menu. |
+| **To do** | Everything waiting for an action, in five tabs: what's new since the last sync (read/unread, filters by source and project), My GitHub, Dependencies, To release and Stale. A single counter in the menu. |
 | **Home** | Alerts (failing CI, sync errors), your day, then the overview: key figures (each opens the matching list), pinned projects, available updates, recent PRs. |
 | **Stale issues and PRs** | Issues without a reply for N days, PRs / MRs without activity for N days (adjustable thresholds): flagged in "To do" → Stale and in the repository tab. |
 | **Weekly digest** | One ntfy notification a week (day and time of your choice): failing CI, waiting PRs, unanswered issues, high priority items, due dates in the next 14 days, updates, time spent. Preview and send now from the settings. |
+| **Weekly review** | Once a week, the home page offers to go through what was left aside: past due items, items in test or in progress unchanged for a week, to do or blocked for three weeks, planned versions past their date. One decision per line (done, keep, postpone, drop, add to my day) and the item leaves the review. The weekly digest notification opens the review. |
 | **Statistics** | At the bottom of each project overview (**Statistics**) over 3, 6 or 12 months: commits, issues and PRs / MRs opened and closed per week, median resolution time, bugs & tasks, time spent — charts or table. |
 | **Calendar (ICS)** | Subscription link for Google Calendar, Apple Calendar, Thunderbird…: due dates of bugs & tasks, planned and released versions. Secret link, can be regenerated. |
 | **Command palette** | <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on Mac): go to a page or a project, search, create a bug, a note, a spec, sync, switch theme or language. |
@@ -176,13 +178,16 @@ cd web && npm install && npm run dev
 
 # API tests (forges, forums and ntfy are mocked)
 cd server && npm test
+
+# UI walkthroughs in a real browser, on an empty database
+cd web && npx playwright install chromium && npm run build && npm run e2e
 ```
 
 ### CI, development images and releases (GitHub Actions)
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| **CI** (`ci.yml`) | push to `main`, pull request, manual run | API tests, front-end build, then Docker image. On `main`: publishes `ghcr.io/william-de71/projectory:dev` and `:dev-<sha>` (amd64 + arm64). On PRs: build only, nothing published. Manual run from a branch: publishes `:dev-<branch>`. |
+| **CI** (`ci.yml`) | push to `main`, pull request, manual run | API tests, front-end build, UI walkthroughs in Chromium, then Docker image. On `main`: publishes `ghcr.io/william-de71/projectory:dev` and `:dev-<sha>` (amd64 + arm64). On PRs: build only, nothing published. Manual run from a branch: publishes `:dev-<branch>`. |
 | **Release** (`release.yml`) | **Actions → Release → Run workflow**, choose `patch` / `minor` / `major` | Tests, next version computed from the latest `vX.Y.Z` tag, `package.json` files and `CHANGELOG.md` updated (commits grouped as features / fixes / other), commit + tag on `main`, GitHub release with the notes, images `:X.Y.Z`, `:X.Y`, `:X` and `:latest`. |
 
 For a clean changelog, prefix commits with `feat: …` (feature) or `fix: …` (fix); everything else goes under "other changes".

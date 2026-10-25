@@ -11,6 +11,7 @@ import ProjectForm from '../components/ProjectForm.jsx'
 import ItemsPanel from '../components/ItemsPanel.jsx'
 import GithubPanel from '../components/GithubPanel.jsx'
 import RoadmapPanel from '../components/RoadmapPanel.jsx'
+import ReleaseCard from '../components/ReleaseCard.jsx'
 import StatsPanel from '../components/StatsPanel.jsx'
 import ForgeIcon from '../components/ForgeIcon.jsx'
 import DocsPanel from '../components/DocsPanel.jsx'
@@ -225,6 +226,7 @@ export default function ProjectDetail() {
       label: t('Versions'),
       children: (
         <Flex vertical gap={16}>
+          <ReleaseCard projectId={id} />
           <VersionsCard project={p} />
           <RoadmapPanel projectId={id} project={p} />
         </Flex>

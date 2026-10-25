@@ -40,13 +40,15 @@ Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 | **Captures et pièces jointes** | Colle (<kbd>Ctrl</kbd>+<kbd>V</kbd>) ou glisse une capture d'écran ou un fichier dans la description d'un bug, une note ou une spec : il est enregistré dans `data/uploads/` et inséré en Markdown (image affichée, autres fichiers en lien). Les images apparaissent en miniatures sous le champ (clic pour agrandir) et « Prévisualiser » affiche le rendu. 25 Mo maximum par fichier. |
 | **Bugs & tâches manuels** | Bug / fonctionnalité / tâche / question, priorité, statut (à faire, en cours, en test, bloqué, terminé, abandonné), échéance, version cible, lien externe, **PR / MR liée** (quand elle est fusionnée, l'élément passe tout seul « En test »). **Sous-tâches** avec avancement (☑ 2/5), **liens** entre éléments (bloqué par — l'élément repasse « À faire » quand ce qui le bloquait est terminé —, doublon de, lié à), **modèles de description** par projet et par type. Vue liste ou tableau Kanban (glisser-déposer). Dans la liste : **actions groupées** (statut, priorité, version, suppression), **vues enregistrées** (filtres nommés) et **raccourcis clavier** (<kbd>j</kbd>/<kbd>k</kbd>, <kbd>e</kbd>, <kbd>s</kbd>, <kbd>x</kbd>, <kbd>n</kbd>, <kbd>/</kbd> ; <kbd>?</kbd> affiche tous les raccourcis). |
 | **Dépendances** | Les PR de Dependabot et Renovate de tous tes projets dans un onglet de « À traiter », avec l'état de leur CI. Fusion à l'unité, ou de toutes celles au vert en un clic (CI et conflits revérifiés sur la forge juste avant chaque fusion). Le token doit avoir le droit de fusionner. |
+| **À publier** | Un onglet de « À traiter » qui montre, pour chacun de tes dépôts GitHub, les commits pas encore publiés (classés feat / fix / autres, avec la version qu'ils appellent : `v1.2.0 → v1.3.0`) et le dernier run du workflow de release. Une release **en échec** ou **bloquée** depuis plus de 30 minutes arrive aussi dans les nouveautés et sur ntfy ; « Relancer » annule le run bloqué puis relance seulement ses étapes en échec (une version déjà créée n'est pas refaite). « Publier » lance le workflow de release avec ses propres paramètres (patch / minor / major…), le type de version suggéré présélectionné ; les workflows qui publient tout seuls à chaque push sont simplement suivis. Le même état apparaît en haut de l'onglet Versions du projet. Le token doit pouvoir lancer les workflows (Actions en écriture). |
 | **Spécifications** | Documents Markdown par projet avec modèle prérempli (contexte, objectifs, critères d'acceptation…) et statut brouillon / à relire / validée. |
 | **Notes** | Notes Markdown par projet ou globales, bouton « + Nouveau » partout dans l'app. |
 | **Temps passé** | Dans Paramètres → Temps passé : saisie rapide par projet, total du mois et par projet (pratique pour facturer le freelance). |
-| **À traiter** | Tout ce qui attend une action, en quatre onglets : nouveautés depuis la dernière synchro (lu/non lu, filtres par source et projet), Mon GitHub, Dépendances et En attente. Un seul compteur dans le menu. |
+| **À traiter** | Tout ce qui attend une action, en cinq onglets : nouveautés depuis la dernière synchro (lu/non lu, filtres par source et projet), Mon GitHub, Dépendances, À publier et En attente. Un seul compteur dans le menu. |
 | **Accueil** | Alertes (CI en échec, synchros en erreur), ta journée, puis la vue d'ensemble : chiffres clés (chacun ouvre la liste correspondante), projets épinglés, mises à jour dispo, PR récentes. |
 | **Issues et PR qui dorment** | Issues sans réponse depuis N jours, PR / MR sans activité depuis N jours (seuils réglables) : signalées dans « À traiter » → En attente et dans l'onglet du dépôt. |
 | **Résumé hebdomadaire** | Une notification ntfy par semaine (jour et heure au choix) : CI en échec, PR en attente, issues sans réponse, prioritaires, échéances des 14 jours, mises à jour, temps passé. Aperçu et envoi immédiat dans les paramètres. |
+| **Revue de la semaine** | Une fois par semaine, l'accueil propose de passer en revue ce qui a été laissé de côté : échéances dépassées, éléments en test ou en cours sans changement depuis une semaine, à faire ou bloqués depuis trois semaines, versions prévues dont la date est passée. Une décision par ligne (terminé, garder, reporter, abandonner, ajouter à ma journée) et l'élément sort de la revue. La notification du résumé hebdomadaire ouvre la revue. |
 | **Statistiques** | En bas de l'aperçu de chaque projet (**Statistiques**) sur 3, 6 ou 12 mois : commits, issues et PR / MR ouvertes et fermées par semaine, délai médian de résolution, bugs & tâches, temps passé — graphiques ou tableau. |
 | **Calendrier (ICS)** | Lien d'abonnement pour Google Agenda, Apple Calendrier, Thunderbird… : échéances des bugs & tâches, versions prévues et publiées. Lien secret régénérable. |
 | **Palette de commandes** | <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> sur Mac) : aller à une page ou un projet, chercher, créer un bug, une note, une spec, synchroniser, changer de thème ou de langue. |
@@ -177,13 +179,16 @@ cd web && npm install && npm run dev
 
 # Tests de l'API (forges, forums et ntfy simulés)
 cd server && npm test
+
+# Parcours de l'interface dans un vrai navigateur, sur une base vide
+cd web && npx playwright install chromium && npm run build && npm run e2e
 ```
 
 ### CI, images de dev et releases (GitHub Actions)
 
 | Workflow | Déclencheur | Ce qu'il fait |
 |---|---|---|
-| **CI** (`ci.yml`) | push sur `main`, pull request, lancement manuel | Tests de l'API, build du front, puis image Docker. Sur `main` : publie `ghcr.io/william-de71/projectory:dev` et `:dev-<sha>` (amd64 + arm64). En PR : build seul, rien n'est publié. En manuel depuis une branche : publie `:dev-<branche>`. |
+| **CI** (`ci.yml`) | push sur `main`, pull request, lancement manuel | Tests de l'API, build du front, parcours de l'interface dans Chromium, puis image Docker. Sur `main` : publie `ghcr.io/william-de71/projectory:dev` et `:dev-<sha>` (amd64 + arm64). En PR : build seul, rien n'est publié. En manuel depuis une branche : publie `:dev-<branche>`. |
 | **Release** (`release.yml`) | **Actions → Release → Run workflow**, choix `patch` / `minor` / `major` | Tests, calcul de la version suivante depuis le dernier tag `vX.Y.Z`, mise à jour des `package.json` et de `CHANGELOG.md` (commits classés en nouveautés / corrections / autres), commit + tag sur `main`, release GitHub avec les notes, images `:X.Y.Z`, `:X.Y`, `:X` et `:latest`. |
 
 Pour un changelog propre, préfixe tes commits : `feat: …` (nouveauté), `fix: …` (correction) ; le reste va dans « Autres changements ».

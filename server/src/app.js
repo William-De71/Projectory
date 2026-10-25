@@ -8,6 +8,7 @@ import contentRoutes from './routes/content.js'
 import overviewRoutes from './routes/overview.js'
 import integrationRoutes from './routes/integrations.js'
 import milestoneRoutes from './routes/milestones.js'
+import releaseRoutes from './routes/releases.js'
 import { tr } from './i18n.js'
 import { loadLocale } from './i18n.js'
 import insightRoutes from './routes/insights.js'
@@ -54,6 +55,7 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
   await app.register(overviewRoutes, { prefix: '/api', db })
   await app.register(integrationRoutes, { prefix: '/api', db })
   await app.register(milestoneRoutes, { prefix: '/api', db })
+  await app.register(releaseRoutes, { prefix: '/api', db })
   await app.register(insightRoutes, { prefix: '/api', db })
   await app.register(uploadRoutes, { prefix: '/api', db })
   await app.register(updateRoutes, { prefix: '/api', db, version: APP_VERSION })

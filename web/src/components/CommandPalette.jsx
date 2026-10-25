@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Empty, Flex, Input, Modal, Tag, theme, Typography } from 'antd'
 import {
-  AppstoreOutlined, BugOutlined, GithubOutlined, ClockCircleOutlined, CloudDownloadOutlined, DeploymentUnitOutlined, EditOutlined, FileTextOutlined,
-  GlobalOutlined, HomeOutlined, InboxOutlined, MoonOutlined, PlusOutlined, QuestionCircleOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SyncOutlined,
+  AppstoreOutlined, BugOutlined, CheckSquareOutlined, GithubOutlined, ClockCircleOutlined, CloudDownloadOutlined, DeploymentUnitOutlined, EditOutlined, FileTextOutlined,
+  GlobalOutlined, HomeOutlined, InboxOutlined, MoonOutlined, PlusOutlined, QuestionCircleOutlined, ReadOutlined, RocketOutlined, SearchOutlined, SettingOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import { api } from '../api/client.js'
 import { t } from '../i18n/index.js'
@@ -48,6 +48,8 @@ export default function CommandPalette({ open, onClose, actions }) {
       { label: t('Nouveautés'), hint: t('À traiter'), icon: <InboxOutlined />, run: () => navigate('/inbox/news'), keywords: t('Boîte de réception') },
       { label: t('Mon GitHub'), hint: t('À traiter'), icon: <GithubOutlined />, run: () => navigate('/inbox/github') },
       { label: t('Dépendances'), hint: t('À traiter'), icon: <DeploymentUnitOutlined />, run: () => navigate('/inbox/deps'), keywords: 'dependabot renovate' },
+      { label: t('À publier'), hint: t('À traiter'), icon: <RocketOutlined />, run: () => navigate('/inbox/releases'), keywords: 'release version workflow' },
+      { label: t('Revue de la semaine'), icon: <CheckSquareOutlined />, run: () => navigate('/review'), keywords: t('tâches qui traînent') },
       { label: t('Projets'), icon: <AppstoreOutlined />, run: () => navigate('/projects') },
       { label: t('Bugs & tâches'), icon: <BugOutlined />, run: () => navigate('/items') },
       { label: t('Notes & specs'), icon: <ReadOutlined />, run: () => navigate('/notes') },

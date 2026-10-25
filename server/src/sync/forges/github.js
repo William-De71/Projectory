@@ -1,5 +1,6 @@
-import { fetchJson } from '../http.js'
+import { fetchJson, fetchText } from '../http.js'
 import { FAILED, cachedLogin, ciConclusion, paginate } from './common.js'
+import { pickReleaseWorkflow } from '../../releases.js'
 import { tr } from '../../i18n.js'
 
 const CODE_EVENTS = ['push', 'merge_group']
@@ -141,6 +142,57 @@ export default function github({ token }) {
       const tags = await gh(`/repos/${repo}/tags?per_page=1`)
       if (!tags.length) return null
       return { version: tags[0].name, url: `https://github.com/${repo}/releases/tag/${encodeURIComponent(tags[0].name)}` }
+    },
+
+    // Last version, commits since then and the last run of the release workflow.
+    async fetchReleaseState(repo, branch) {
+      const latest = await this.latestRelease(repo)
+      const state = { tag: latest?.version || null, tag_url: latest?.url || null, published_at: latest?.published_at || null, ahead_by: 0, commits: [], workflow: null, run: null }
+      if (latest) {
+        const cmp = await gh(`/repos/${repo}/compare/${encodeURIComponent(latest.version)}...${encodeURIComponent(branch)}`)
+        state.ahead_by = cmp.ahead_by || 0
+        state.commits = (cmp.commits || []).slice(-100).reverse().map((c) => ({
+          sha: c.sha.slice(0, 7),
+          message: String(c.commit?.message || '').slice(0, 500),
+          url: c.html_url,
+          date: c.commit?.committer?.date || null,
+        }))
+      }
+      const { workflows } = await gh(`/repos/${repo}/actions/workflows?per_page=100`)
+      const wf = pickReleaseWorkflow(workflows)
+      if (wf) {
+        state.workflow = { id: wf.id, name: wf.name, path: wf.path, url: wf.html_url }
+        const { workflow_runs: runs = [] } = await gh(`/repos/${repo}/actions/workflows/${wf.id}/runs?per_page=1`)
+        const r = runs[0]
+        if (r) state.run = { id: r.id, status: r.status, conclusion: r.conclusion, event: r.event, created_at: r.created_at, updated_at: r.updated_at, url: r.html_url, sha: r.head_sha?.slice(0, 7) }
+      }
+      return state
+    },
+
+    // Text of a file on a branch (workflow definitions).
+    async fetchFile(repo, path, ref) {
+      const file = await gh(`/repos/${repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`)
+      return Buffer.from(file.content || '', 'base64').toString('utf8')
+    },
+
+    // Answers 204 without a body.
+    async dispatchWorkflow(repo, workflowId, ref, inputs) {
+      await fetchText(`${api}/repos/${repo}/actions/workflows/${workflowId}/dispatches`, { method: 'POST', headers, body: { ref, inputs } })
+    },
+
+    async fetchRun(repo, runId) {
+      const r = await gh(`/repos/${repo}/actions/runs/${runId}`)
+      return { id: r.id, status: r.status, conclusion: r.conclusion }
+    },
+
+    async cancelRun(repo, runId) {
+      await fetchText(`${api}/repos/${repo}/actions/runs/${runId}/cancel`, { method: 'POST', headers })
+    },
+
+    // Only the failed or cancelled jobs run again, in the same run: what already
+    // succeeded (a version bump, a tag) is not done twice.
+    async rerunFailedJobs(repo, runId) {
+      await fetchText(`${api}/repos/${repo}/actions/runs/${runId}/rerun-failed-jobs`, { method: 'POST', headers })
     },
 
     // Commits and issues / PRs active since `since` (ISO date), for statistics.

@@ -72,6 +72,8 @@ jobs:
     name: Images Docker de release
     needs: release
     runs-on: ubuntu-latest
+    # A stuck build (QEMU, registry) would otherwise hold the release for 6 h.
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write

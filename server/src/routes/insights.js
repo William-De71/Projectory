@@ -5,6 +5,7 @@ import { backupConfig, backupStream, createBackup, listBackups } from '../backup
 import { buildCalendar, calendarToken } from '../calendar.js'
 import { projectStats } from '../stats.js'
 import { ntfyConfig, sendNtfy } from '../sync/notify.js'
+import { buildReview, markReviewDone } from '../review.js'
 
 const clampInt = (v, min, max, fallback) => {
   const n = Number(v)
@@ -14,7 +15,9 @@ const clampInt = (v, min, max, fallback) => {
 export async function sendDigest(db, now = new Date()) {
   const digest = buildDigest(db, now)
   const config = ntfyConfig(db)
-  await sendNtfy(config, { title: digest.title, message: digest.message, tags: ['calendar'], priority: 3, click: config.app_url || undefined })
+  // The notification opens the weekly review.
+  const appUrl = config.app_url.replace(/\/+$/, '')
+  await sendNtfy(config, { title: digest.title, message: digest.message, tags: ['calendar'], priority: 3, click: appUrl ? `${appUrl}/review` : undefined })
   setConfig(db, 'digest', { ...getConfig(db, 'digest'), last_sent_at: now.toISOString() })
   return digest
 }
@@ -22,6 +25,13 @@ export async function sendDigest(db, now = new Date()) {
 // Waiting issues / PRs, weekly digest, calendar feed, backups and statistics.
 export default async function insightRoutes(app, { db }) {
   app.get('/stale', async () => ({ ...staleConfig(db), items: findStale(db) }))
+
+  app.get('/review', async () => buildReview(db))
+
+  app.post('/review/done', async () => {
+    markReviewDone(db)
+    return buildReview(db)
+  })
 
   app.put('/settings/stale', async (req) => {
     const current = staleConfig(db)

@@ -2,6 +2,7 @@ import { VISIBLE_ITEM } from './visibility.js'
 import { OPEN_STATUSES, getConfig } from './db.js'
 import { tr } from './i18n.js'
 import { compareVersions } from './sync/http.js'
+import { buildReview } from './review.js'
 
 const DAY = 24 * 3600 * 1000
 const daysAgo = (n, now = new Date()) => new Date(now.getTime() - n * DAY).toISOString()
@@ -75,6 +76,8 @@ export function buildDigest(db, now = new Date()) {
   section(tr('📅 Dans les 14 jours ({n})', { n: upcoming.length }), upcoming, (u) => `${u.date} — ${u.text}`, 4)
   section(tr('⬆️ Mises à jour disponibles ({n})', { n: outdated.length }), outdated, (o) => o)
   if (unread) lines.push(tr('📥 {n} non lu(s) dans la boîte de réception', { n: unread }))
+  const review = buildReview(db, now).count
+  if (review) lines.push(tr('🧹 {n} élément(s) à revoir : ouvre la revue de la semaine', { n: review }))
   if (minutes) lines.push(tr('⏱️ {h} h passées les 7 derniers jours', { h: Math.round((minutes / 60) * 10) / 10 }))
   if (!lines.length) lines.push(tr('Rien à signaler cette semaine 🎉'))
 

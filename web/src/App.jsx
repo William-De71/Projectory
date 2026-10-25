@@ -21,6 +21,7 @@ import Items from './pages/Items.jsx'
 import Notes from './pages/Notes.jsx'
 import Settings from './pages/Settings.jsx'
 import Search from './pages/Search.jsx'
+import Review from './pages/Review.jsx'
 
 dayjs.extend(relativeTime)
 dayjs.extend(utc)
@@ -89,6 +90,7 @@ export default function App() {
                 <Route path="deps" element={<Navigate to="/inbox/deps" replace />} />
                 <Route path="time" element={<Navigate to="/settings/time" replace />} />
                 <Route path="search" element={<Search />} />
+                <Route path="review" element={<Review />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>

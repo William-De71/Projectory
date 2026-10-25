@@ -6,6 +6,7 @@ import { fetchForum, fetchTopic, forumSourceKey, latestVersion } from './sources
 import { notifyProject } from './notify.js'
 import { tr } from '../i18n.js'
 import { unblockDependents } from '../items.js'
+import { STUCK_MINUTES, releaseView } from '../releases.js'
 
 export const syncState = { running: false, last_run_at: null, last_duration_ms: null, errors: [], notify_error: null }
 
@@ -85,6 +86,16 @@ async function syncForge(db, project, fresh, errors) {
     if (err.status !== 404) errors.push(`CI : ${err.message}`)
   }
 
+  // Release state, only on the user's own repositories (never fatal).
+  if (forge.fetchReleaseState && !mineOnly) {
+    try {
+      info.release = { ...await forge.fetchReleaseState(repo, info.default_branch), checked_at: new Date().toISOString() }
+    } catch (err) {
+      info.release = project.github?.release ?? null
+      if (err.status !== 404) errors.push(tr('Release : {error}', { error: err.message }))
+    }
+  }
+
   const existing = new Set(
     db.prepare('SELECT type, number FROM github_items WHERE project_id = ?').all(project.id).map((r) => `${r.type}#${r.number}`)
   )
@@ -121,6 +132,7 @@ async function syncForge(db, project, fresh, errors) {
       }
     }
     pushCiTransition(db, project, baseKey, info.ci, { asRead, fresh })
+    pushReleaseProblem(db, project, baseKey, info.release, { asRead, fresh })
     // Anything no longer listed was closed or merged.
     const open = new Set(items.map((it) => `${it.type}#${it.number}`))
     const del = db.prepare('DELETE FROM github_items WHERE project_id = ? AND type = ? AND number = ?')
@@ -262,6 +274,24 @@ function pushCiTransition(db, project, baseKey, ci, { asRead, fresh }) {
       external_key: `${baseKey}:ci-fixed:${run.id}`,
     }, { asRead, fresh })
   }
+}
+
+// A release run that failed or hangs: one entry per run and outcome.
+export function pushReleaseProblem(db, project, baseKey, release, opts) {
+  const view = releaseView(release)
+  if (!view || !['failed', 'stuck'].includes(view.status)) return
+  const { run, workflow } = view
+  pushInbox(db, {
+    project_id: project.id,
+    source: project.forge,
+    kind: 'release_failed',
+    title: view.status === 'stuck'
+      ? tr('Release bloquée depuis plus de {n} min : {name}', { n: STUCK_MINUTES, name: workflow.name })
+      : tr('Release en échec : {name}', { name: workflow.name }),
+    url: run.url,
+    excerpt: run.sha ? tr('Commit {sha}', { sha: run.sha }) : '',
+    external_key: `${baseKey}:release:${run.id}:${view.status}:${view.status === 'failed' ? run.updated_at : ''}`,
+  }, opts)
 }
 
 async function syncVersions(db, project, errors, fresh) {

@@ -9,6 +9,7 @@ import { refLabel } from '../components/labels.js'
 import { useTodoCounts } from '../components/todoCounts.js'
 import MyGithub from './MyGithub.jsx'
 import Dependencies from './Dependencies.jsx'
+import Releases from './Releases.jsx'
 import { t } from '../i18n/index.js'
 
 // News found by the syncs, read / unread.
@@ -81,6 +82,7 @@ const TABS = [
   { key: 'news', label: 'Nouveautés', Panel: News },
   { key: 'github', label: 'Mon GitHub', color: 'magenta', title: 'Reviews à faire et PR qui demandent une action', Panel: MyGithub },
   { key: 'deps', label: 'Dépendances', color: 'green', title: 'Mises à jour au vert, prêtes à fusionner', Panel: Dependencies },
+  { key: 'releases', label: 'À publier', color: 'orange', title: 'Releases en échec, bloquées ou à lancer', Panel: Releases },
   { key: 'stale', label: 'En attente', color: 'gray', Panel: Stale },
 ]
 

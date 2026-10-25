@@ -154,7 +154,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
 
   // One badge for the "To do" page: unread news, GitHub actions, green updates.
   const counts = useTodoCounts()
-  const todo = counts.news + counts.github + counts.deps
+  const todo = counts.news + counts.github + counts.deps + counts.releases
 
   const syncAll = async () => {
     setSyncing(true)
