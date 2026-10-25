@@ -1,6 +1,7 @@
 // English translations. Keys are the French source texts used in the code.
 export default {
   " · spec": " · spec",
+  "… et {n} autre(s) dans l’onglet Notes & specs": "… and {n} more in the Notes & specs tab",
   "{n} erreur(s) à la dernière synchro": "{n} error(s) in the last sync",
   "## Attendu": "## Expected",
   "## Obtenu": "## Actual",
@@ -473,7 +474,6 @@ export default {
   "Spec": "Spec",
   "Specs": "Specs",
   "Spécification": "Specification",
-  "Spécifications": "Specifications",
   "Statistiques": "Statistics",
   "Statut": "Status",
   "Statut (hors archivés)": "Status (archived excluded)",
@@ -584,6 +584,7 @@ export default {
   "Version {v} publiée": "Version {v} published",
   "Version {v} publiée et release créée sur {forge}": "Version {v} published and release created on {forge}",
   "Versions": "Versions",
+  "Versions surveillées": "Watched versions",
   "Voir": "View",
   "Voir sur GitHub": "View on GitHub",
   "Voir tous les résultats pour « {q} »": "See all results for “{q}”",
@@ -688,5 +689,4 @@ export default {
   "échéance aujourd’hui": "due today",
   "écriture des issues": "write access to issues",
   "•••••••• (inchangé)": "•••••••• (unchanged)",
-  "… et {n} autre(s) dans les onglets Notes et Spécifications": "… and {n} more in the Notes and Specifications tabs",
 }

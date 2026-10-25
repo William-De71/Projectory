@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { Alert, App, Badge, Button, Card, Descriptions, Empty, Flex, List, Result, Spin, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Alert, App, Badge, Button, Card, Descriptions, Empty, Flex, List, Result, Segmented, Spin, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
 import { ArrowLeftOutlined, EditOutlined, GlobalOutlined, LinkOutlined, PlusOutlined, PushpinFilled, StarOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
@@ -52,15 +52,87 @@ function DocsCard({ projectId }) {
         />
       ) : <Typography.Text type="secondary">{t('Aucune note pour l’instant')}</Typography.Text>}
       {(data || []).length > docs.length && (
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t('… et {n} autre(s) dans les onglets Notes et Spécifications', { n: data.length - docs.length })}</Typography.Text>
+        <Link to={`/projects/${projectId}/docs`} style={{ fontSize: 12 }}>{t('… et {n} autre(s) dans l’onglet Notes & specs', { n: data.length - docs.length })}</Link>
       )}
       <DocEditor doc={editing} onClose={() => setEditing(null)} onSaved={() => setEditing(null)} onDeleted={() => setEditing(null)} />
     </Card>
   )
 }
 
-function Overview({ project: p }) {
+// Versions in use and the latest ones found by the sources (npm, Docker Hub, releases…).
+function VersionsCard({ project: p }) {
   const versions = p.versions || []
+  return (
+    <Card size="small" title={<>{t('Versions surveillées') + ' '}{p.deployed_version && <Tag style={{ marginLeft: 8 }}>{t('utilisée :') + ' '}{p.deployed_version}</Tag>}</>}>
+      {versions.length ? (
+        <Table
+          rowKey={(v) => `${v.type}:${v.ref}`}
+          size="small"
+          pagination={false}
+          scroll={{ x: 'max-content' }}
+          dataSource={versions}
+          columns={[
+            { title: t('Source'), render: (_, v) => <>{t(VERSION_LABELS[v.type] || v.type)} <Typography.Text type="secondary">{v.ref || p.repo}</Typography.Text></> },
+            {
+              title: t('Dernière version'),
+              render: (_, v) => v.error ? <Tooltip title={v.error}><Tag color="red">{t('erreur')}</Tag></Tooltip> : (
+                <Flex gap={6} align="center">
+                  {v.url ? <a href={v.url} target="_blank" rel="noreferrer">{v.version}</a> : v.version}
+                  {p.deployed_version && v.version && compareVersions(v.version, p.deployed_version) > 0 && <Tag color="orange"><WarningOutlined />{' ' + t('à mettre à jour')}</Tag>}
+                </Flex>
+              ),
+            },
+            { title: t('Publiée'), render: (_, v) => (v.published_at ? dayjs(v.published_at).format('L') : '—') },
+            { title: t('Vérifiée'), responsive: ['md'], render: (_, v) => (v.checked_at ? dayjs(v.checked_at).fromNow() : '—') },
+          ]}
+        />
+      ) : (
+        <Typography.Text type="secondary">{t(
+          'Aucune source de version — ajoute-en dans « Modifier » (releases du dépôt, npm, Docker Hub).'
+        )}</Typography.Text>
+      )}
+    </Card>
+  )
+}
+
+// Bottom of the overview: the project's activity, time spent and statistics.
+function ProjectActivity({ project: p, section, onSection, onRead }) {
+  const inbox = useApi(`/inbox?project_id=${p.id}`, { listen: true })
+  const markAllRead = async () => {
+    await api.post('/inbox/read-all', { project_id: p.id })
+    notifyChange()
+  }
+  return (
+    <Card
+      size="small"
+      title={(
+        <Segmented
+          value={section}
+          onChange={onSection}
+          options={[
+            { value: 'inbox', label: <Flex gap={6} align="center">{t('Activité')}<Badge count={p.unread} size="small" /></Flex> },
+            { value: 'time', label: t('Temps') },
+            { value: 'stats', label: t('Statistiques') },
+          ]}
+        />
+      )}
+      extra={section === 'inbox' && p.unread > 0 && <Button size="small" onClick={markAllRead}>{t('Tout marquer comme lu')}</Button>}
+    >
+      {section === 'time' && <TimePanel projectId={p.id} />}
+      {section === 'stats' && <StatsPanel projectId={p.id} project={p} />}
+      {section === 'inbox' && (
+        <Flex vertical gap={8}>
+          <ForumWatches projectId={p.id} />
+          {inbox.data?.length || inbox.loading ? <InboxList entries={inbox.data} loading={inbox.loading} onChange={() => { inbox.reload(); onRead() }} showProject={false} /> : <Empty description={t(
+            'Aucune activité — configure le dépôt, les forums ou les versions puis synchronise'
+          )} />}
+        </Flex>
+      )}
+    </Card>
+  )
+}
+
+function Overview({ project: p, section, onSection, onRead }) {
   return (
     <Flex vertical gap={16}>
       {p.sync_error && <Alert type="warning" showIcon message={t('Erreurs à la dernière synchro')} description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{p.sync_error}</pre>} />}
@@ -103,38 +175,14 @@ function Overview({ project: p }) {
           </Card>
         )}
       </div>
-      <Card size="small" title={<>{t('Versions') + ' '}{p.deployed_version && <Tag style={{ marginLeft: 8 }}>{t('utilisée :') + ' '}{p.deployed_version}</Tag>}</>}>
-        {versions.length ? (
-          <Table
-            rowKey={(v) => `${v.type}:${v.ref}`}
-            size="small"
-            pagination={false}
-            scroll={{ x: 'max-content' }}
-            dataSource={versions}
-            columns={[
-              { title: t('Source'), render: (_, v) => <>{t(VERSION_LABELS[v.type] || v.type)} <Typography.Text type="secondary">{v.ref || p.repo}</Typography.Text></> },
-              {
-                title: t('Dernière version'),
-                render: (_, v) => v.error ? <Tooltip title={v.error}><Tag color="red">{t('erreur')}</Tag></Tooltip> : (
-                  <Flex gap={6} align="center">
-                    {v.url ? <a href={v.url} target="_blank" rel="noreferrer">{v.version}</a> : v.version}
-                    {p.deployed_version && v.version && compareVersions(v.version, p.deployed_version) > 0 && <Tag color="orange"><WarningOutlined />{' ' + t('à mettre à jour')}</Tag>}
-                  </Flex>
-                ),
-              },
-              { title: t('Publiée'), render: (_, v) => (v.published_at ? dayjs(v.published_at).format('L') : '—') },
-              { title: t('Vérifiée'), responsive: ['md'], render: (_, v) => (v.checked_at ? dayjs(v.checked_at).fromNow() : '—') },
-            ]}
-          />
-        ) : (
-          <Typography.Text type="secondary">{t(
-            'Aucune source de version — ajoute-en dans « Modifier » (releases du dépôt, npm, Docker Hub).'
-          )}</Typography.Text>
-        )}
-      </Card>
+      <ProjectActivity project={p} section={section} onSection={onSection} onRead={onRead} />
     </Flex>
   )
 }
+
+// Former tabs, now inside another one (old links, ntfy notifications).
+const MOVED_TABS = { specs: 'docs', notes: 'docs', inbox: 'overview', time: 'overview', stats: 'overview' }
+const SECTIONS = ['inbox', 'time', 'stats']
 
 export default function ProjectDetail() {
   const { id, tab = 'overview' } = useParams()
@@ -143,7 +191,6 @@ export default function ProjectDetail() {
   const [editing, setEditing] = useState(null)
   const [syncing, setSyncing] = useState(false)
   const { data: p, error, loading, reload, setData } = useApi(`/projects/${id}`, { listen: true })
-  const inbox = useApi(`/inbox?project_id=${id}`, { listen: true })
 
   if (error) return <Result status="404" title={t('Projet introuvable')} extra={<Button onClick={() => navigate('/projects')}>{t('Retour')}</Button>} />
   if (!p) return <Spin spinning={loading}><div style={{ height: 200 }} /></Spin>
@@ -163,33 +210,27 @@ export default function ProjectDetail() {
     }
   }
 
-  const markAllRead = async () => {
-    await api.post('/inbox/read-all', { project_id: Number(id) })
-    notifyChange()
-  }
-
+  const active = MOVED_TABS[tab] || tab
+  const section = SECTIONS.includes(tab) ? tab : 'inbox'
   const tabs = [
-    { key: 'overview', label: t('Aperçu'), children: <Overview project={p} /> },
+    {
+      key: 'overview',
+      label: <>{t('Aperçu') + ' '}<Badge count={p.unread} size="small" /></>,
+      children: <Overview project={p} section={section} onSection={(s) => navigate(`/projects/${id}/${s}`, { replace: true })} onRead={reload} />,
+    },
     { key: 'items', label: <>{t('Bugs & tâches') + ' '}<Badge count={p.open_items} size="small" color="blue" /></>, children: <ItemsPanel projectId={id} /> },
     { key: 'github', label: <>{FORGES[p.forge]?.label || t('Dépôt')} <Badge count={p.open_issues + p.open_prs} size="small" color="geekblue" /></>, children: <GithubPanel projectId={id} project={p} /> },
-    { key: 'roadmap', label: t('Versions'), children: <RoadmapPanel projectId={id} project={p} /> },
-    { key: 'specs', label: t('Spécifications'), children: <DocsPanel projectId={id} type="spec" /> },
-    { key: 'notes', label: t('Notes'), children: <DocsPanel projectId={id} type="note" /> },
     {
-      key: 'inbox',
-      label: <>{t('Activité') + ' '}<Badge count={p.unread} size="small" /></>,
+      key: 'roadmap',
+      label: t('Versions'),
       children: (
-        <Flex vertical gap={8}>
-          <ForumWatches projectId={id} />
-          {p.unread > 0 && <Button style={{ alignSelf: 'end' }} onClick={markAllRead}>{t('Tout marquer comme lu')}</Button>}
-          {inbox.data?.length || inbox.loading ? <InboxList entries={inbox.data} loading={inbox.loading} onChange={() => { inbox.reload(); reload() }} showProject={false} /> : <Empty description={t(
-            'Aucune activité — configure le dépôt, les forums ou les versions puis synchronise'
-          )} />}
+        <Flex vertical gap={16}>
+          <VersionsCard project={p} />
+          <RoadmapPanel projectId={id} project={p} />
         </Flex>
       ),
     },
-    { key: 'time', label: t('Temps'), children: <TimePanel projectId={id} /> },
-    { key: 'stats', label: t('Statistiques'), children: <StatsPanel projectId={id} project={p} /> },
+    { key: 'docs', label: t('Notes & specs'), children: <DocsPanel projectId={id} allowTypeFilter initialType={tab === 'specs' ? 'spec' : tab === 'notes' ? 'note' : 'all'} /> },
   ]
 
   return (
@@ -200,7 +241,7 @@ export default function ProjectDetail() {
         <CategoryTag name={p.category_name} color={p.category_color} />
         <LabelTag map={PROJECT_STATUS} value={p.status} />
         {p.client && <Tag>{p.client}</Tag>}
-        {p.outdated && <Tag color="orange" icon={<WarningOutlined />}>{t('Mise à jour disponible')}</Tag>}
+        {p.outdated && <Tag color="orange" icon={<WarningOutlined />} className="clickable" onClick={() => navigate(`/projects/${id}/roadmap`)}>{t('Mise à jour disponible')}</Tag>}
         <CiStatus ci={p.github?.ci} variant="tag" />
         {p.notify === false && <Tooltip title={t('Notifications ntfy désactivées pour ce projet')}><Tag>{t('muet')}</Tag></Tooltip>}
         <Flex gap={8} style={{ marginLeft: 'auto' }} align="center">
@@ -211,7 +252,7 @@ export default function ProjectDetail() {
           <Button type="primary" icon={<EditOutlined />} onClick={() => setEditing(p)}>{t('Modifier')}</Button>
         </Flex>
       </Flex>
-      <Tabs activeKey={tab} onChange={(key) => navigate(`/projects/${id}/${key}`)} items={tabs} destroyOnHidden />
+      <Tabs activeKey={active} onChange={(key) => navigate(`/projects/${id}/${key}`)} items={tabs} destroyOnHidden />
       <ProjectForm project={editing} onClose={() => setEditing(null)} onSaved={(saved) => { setEditing(null); if (saved) setData(saved); else navigate('/projects') }} />
     </Flex>
   )

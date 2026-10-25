@@ -11,10 +11,11 @@ import Markdown from './Markdown.jsx'
 import { t } from '../i18n/index.js'
 
 // Specs / notes for a project, or global notes when projectId is absent.
-export default function DocsPanel({ projectId, type, allowTypeFilter = false }) {
+// `allowTypeFilter` lets the user switch between notes and specs (`initialType` first).
+export default function DocsPanel({ projectId, type, allowTypeFilter = false, initialType = 'all' }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const [editing, setEditing] = useState(null)
-  const [filterType, setFilterType] = useState('all')
+  const [filterType, setFilterType] = useState(initialType)
   const [q, setQ] = useState('')
   const query = new URLSearchParams()
   if (projectId) query.set('project_id', projectId)
@@ -34,7 +35,7 @@ export default function DocsPanel({ projectId, type, allowTypeFilter = false }) 
   }, [data, searchParams, setSearchParams])
 
   const docs = (data || []).filter((d) => !q || `${d.title} ${d.content}`.toLowerCase().includes(q.toLowerCase()))
-  const newType = type === 'spec' ? 'spec' : 'note'
+  const newType = (type || filterType) === 'spec' ? 'spec' : 'note'
 
   return (
     <Flex vertical gap={12}>
@@ -43,7 +44,7 @@ export default function DocsPanel({ projectId, type, allowTypeFilter = false }) 
           <Segmented
             value={filterType}
             onChange={setFilterType}
-            options={[{ value: 'all', label: t('Tout') }, { value: 'global', label: t('Notes globales') }, { value: 'note', label: t('Notes') }, { value: 'spec', label: t('Specs') }]}
+            options={[{ value: 'all', label: t('Tout') }, ...(projectId ? [] : [{ value: 'global', label: t('Notes globales') }]), { value: 'note', label: t('Notes') }, { value: 'spec', label: t('Specs') }]}
           />
         )}
         <Input.Search placeholder={t('Filtrer…')} allowClear onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />
@@ -51,7 +52,7 @@ export default function DocsPanel({ projectId, type, allowTypeFilter = false }) 
           {newType === 'spec' ? t('Nouvelle spec') : t('Nouvelle note')}
         </Button>
       </Flex>
-      {!loading && !docs.length && <Empty description={type === 'spec' ? t('Aucune spécification') : t('Aucune note')} />}
+      {!loading && !docs.length && <Empty description={(type || filterType) === 'spec' ? t('Aucune spécification') : t('Aucune note')} />}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
         {docs.map((d) => (
           <Card

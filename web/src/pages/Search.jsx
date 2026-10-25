@@ -17,7 +17,7 @@ const GROUPS = [
 export function resultPath(r) {
   if (r.type === 'project') return `/projects/${r.project_id}`
   if (r.type === 'item') return `/projects/${r.project_id}/items?item=${r.id}`
-  if (r.type === 'doc') return r.project_id ? `/projects/${r.project_id}/${r.kind === 'spec' ? 'specs' : 'notes'}?doc=${r.id}` : `/notes?doc=${r.id}`
+  if (r.type === 'doc') return r.project_id ? `/projects/${r.project_id}/docs?doc=${r.id}` : `/notes?doc=${r.id}`
   return null
 }
 
