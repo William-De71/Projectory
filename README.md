@@ -15,7 +15,7 @@ Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
-  <img src="docs/screenshots/dashboard.png" alt="Tableau de bord de Projectory : chiffres clés, CI en échec, projets épinglés, nouveautés et tâches prioritaires">
+  <img src="docs/screenshots/dashboard.png" alt="Accueil de Projectory : CI en échec, Ma journée, échéances, reviews demandées et suggestions">
 </picture>
 
 ---
@@ -61,10 +61,10 @@ Thème clair/sombre, interface **en français ou en anglais** (bouton FR / EN en
 
 | | |
 |---|---|
-| ![Liste des projets par catégorie, avec issues, PR, état de la CI et versions](docs/screenshots/projects.png) | ![Fiche projet : description, liens, dépôt, CI et versions à mettre à jour](docs/screenshots/project.png) |
-| **Projets** — catégories, compteurs, CI, mises à jour disponibles | **Fiche projet** — dépôt, CI, versions utilisée / publiée |
-| ![Bugs et tâches de tous les projets en tableau Kanban](docs/screenshots/board.png) | ![Boîte de réception : sujets du forum, CI en échec, review demandée, nouvelles versions](docs/screenshots/inbox.png) |
-| **Bugs & tâches** — liste ou Kanban, tous projets confondus | **Boîte de réception** — forum, dépôts, CI, versions, notifications perso |
+| ![Liste des projets par catégorie, avec issues, PR, état de la CI et versions](docs/screenshots/projects.png) | ![Fiche projet : description, notes et specs, liens, dépôt, CI et activité](docs/screenshots/project.png) |
+| **Projets** — catégories, compteurs, CI, mises à jour disponibles | **Fiche projet** — aperçu, bugs, GitHub, versions, notes |
+| ![Bugs et tâches de tous les projets en tableau Kanban](docs/screenshots/board.png) | ![À traiter : sujets du forum, CI en échec, review demandée, nouvelles versions](docs/screenshots/inbox.png) |
+| **Bugs & tâches** — liste ou Kanban, tous projets confondus | **À traiter** — nouveautés, mon GitHub, dépendances, en attente |
 | ![Onglet Versions : jalons avec progression et éléments planifiés](docs/screenshots/versions.png) | ![Changelog Markdown généré pour une version](docs/screenshots/changelog.png) |
 | **Versions** — jalons, progression, éléments sans version | **Changelog** — généré à la publication, à copier ou télécharger |
 

@@ -15,7 +15,7 @@ Self-hosted (Docker), single-user, all data in one SQLite file.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
-  <img src="docs/screenshots/dashboard.png" alt="Projectory dashboard: key figures, failing CI, pinned projects, what's new and high-priority tasks">
+  <img src="docs/screenshots/dashboard.png" alt="Projectory home: failing CI, my day, due items, requested reviews and suggestions">
 </picture>
 
 
@@ -62,10 +62,10 @@ Light/dark theme, **English or French** user interface (FR / EN switch at the to
 
 | | |
 |---|---|
-| ![Projects by category, with issues, PRs, CI status and versions](docs/screenshots/projects.png) | ![Project page: description, links, repository, CI and versions to update](docs/screenshots/project.png) |
-| **Projects** — categories, counters, CI, available updates | **Project page** — repository, CI, used / published versions |
-| ![Bugs and tasks of every project on a Kanban board](docs/screenshots/board.png) | ![Inbox: forum topics, failing CI, review request, new versions](docs/screenshots/inbox.png) |
-| **Bugs & tasks** — list or Kanban, across all projects | **Inbox** — forums, repositories, CI, versions, personal notifications |
+| ![Projects by category, with issues, PRs, CI status and versions](docs/screenshots/projects.png) | ![Project page: description, notes and specs, links, repository, CI and activity](docs/screenshots/project.png) |
+| **Projects** — categories, counters, CI, available updates | **Project page** — overview, bugs, GitHub, versions, notes |
+| ![Bugs and tasks of every project on a Kanban board](docs/screenshots/board.png) | ![To do: forum topics, failing CI, review request, new versions](docs/screenshots/inbox.png) |
+| **Bugs & tasks** — list or Kanban, across all projects | **To do** — news, my GitHub, dependencies, waiting |
 | ![Versions tab: milestones with progress and planned items](docs/screenshots/versions.png) | ![Markdown changelog generated for a version](docs/screenshots/changelog.png) |
 | **Versions** — milestones, progress, unplanned items | **Changelog** — generated on publish, to copy or download |
 
