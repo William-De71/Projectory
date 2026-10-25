@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.15.0 — 2026-10-25
+
+### ✨ Nouveautés
+
+- shared item row, actionable empty states, shortcuts help and mobile tab bar (6f9f7ac)
+- project page down to five tabs (fd11a07)
+- five-entry menu with Home and To do pages (97c46a2)
+- single side panel for items, "+ New" menu, quick entry and lighter header (b5d3c64)
+
+### 🔧 Autres changements
+
+- refresh screenshots for the new interface (bddcea8)
+
 ## v0.14.0 — 2026-10-24
 
 ### ✨ Nouveautés
