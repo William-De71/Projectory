@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.16.0 — 2026-10-25
+
+### ✨ Nouveautés
+
+- releases to repair or launch, weekly review, UI walkthroughs in CI (95f26b2)
+
 ## v0.15.0 — 2026-10-25
 
 ### ✨ Nouveautés
