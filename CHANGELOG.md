@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.17.0 — 2026-10-25
+
+### ✨ Nouveautés
+
+- home page in two tabs, empty cards hidden (2312e84)
+
 ## v0.16.0 — 2026-10-25
 
 ### ✨ Nouveautés
