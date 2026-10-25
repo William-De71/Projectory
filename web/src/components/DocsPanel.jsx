@@ -52,7 +52,15 @@ export default function DocsPanel({ projectId, type, allowTypeFilter = false, in
           {newType === 'spec' ? t('Nouvelle spec') : t('Nouvelle note')}
         </Button>
       </Flex>
-      {!loading && !docs.length && <Empty description={(type || filterType) === 'spec' ? t('Aucune spécification') : t('Aucune note')} />}
+      {!loading && !docs.length && (
+        <Empty description={q ? t('Aucun document ne correspond') : (type || filterType) === 'spec' ? t('Aucune spécification') : t('Aucune note')}>
+          {!q && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing({ type: newType, project_id: projectId ? Number(projectId) : null })}>
+              {newType === 'spec' ? t('Nouvelle spec') : t('Nouvelle note')}
+            </Button>
+          )}
+        </Empty>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
         {docs.map((d) => (
           <Card

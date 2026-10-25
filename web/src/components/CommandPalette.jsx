@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Empty, Flex, Input, Modal, Tag, theme, Typography } from 'antd'
 import {
   AppstoreOutlined, BugOutlined, GithubOutlined, ClockCircleOutlined, CloudDownloadOutlined, DeploymentUnitOutlined, EditOutlined, FileTextOutlined,
-  GlobalOutlined, HomeOutlined, InboxOutlined, MoonOutlined, PlusOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SyncOutlined,
+  GlobalOutlined, HomeOutlined, InboxOutlined, MoonOutlined, PlusOutlined, QuestionCircleOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import { api } from '../api/client.js'
 import { t } from '../i18n/index.js'
@@ -64,6 +64,7 @@ export default function CommandPalette({ open, onClose, actions }) {
       { label: t('Synchroniser GitHub, versions et forums'), icon: <SyncOutlined />, run: actions.sync },
       { label: t('Changer de thème (clair / sombre)'), icon: <MoonOutlined />, run: actions.toggleDark },
       { label: t('Passer en anglais / français'), icon: <GlobalOutlined />, run: actions.toggleLang, keywords: 'language langue english français' },
+      { label: t('Raccourcis clavier'), icon: <QuestionCircleOutlined />, run: actions.shortcuts, keywords: 'clavier keyboard aide help ?' },
     ].map((e) => ({ ...e, group: t('Actions') }))
     const projectEntries = projects.map((p) => ({ label: p.name, hint: p.client || p.category_name, icon: <AppstoreOutlined />, group: t('Projets'), run: () => navigate(`/projects/${p.id}`) }))
     const searchEntries = results.filter((r) => r.type !== 'project').map((r) => ({

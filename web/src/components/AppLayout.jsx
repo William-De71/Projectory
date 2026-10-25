@@ -3,12 +3,13 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { App, AutoComplete, Badge, Button, Dropdown, Flex, Grid, Input, Layout, Menu, Tag, Tooltip, Typography, theme } from 'antd'
 import {
   AppstoreOutlined, BugOutlined, EditOutlined, FileTextOutlined, GlobalOutlined, HomeOutlined,
-  InboxOutlined, MoonOutlined, PlusOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined,
+  InboxOutlined, MoonOutlined, PlusOutlined, QuestionCircleOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined, TagOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useChangeListener } from '../api/client.js'
 import DocEditor from './DocEditor.jsx'
 import CommandPalette, { isPaletteShortcut } from './CommandPalette.jsx'
+import ShortcutsHelp, { openShortcuts } from './ShortcutsHelp.jsx'
 import UpdateNotice from './UpdateNotice.jsx'
 import { resultPath } from '../pages/Search.jsx'
 import { useTodoCounts } from './todoCounts.js'
@@ -22,6 +23,9 @@ const { Sider, Header, Content } = Layout
 const RELEASES_URL = 'https://github.com/William-De71/Projectory/releases'
 
 const NEW_ITEM_KEY = 'N'
+const HELP_KEY = '?'
+const SAFE_BOTTOM = 'env(safe-area-inset-bottom)'
+const releaseUrl = (version) => (/^\d+\.\d+\.\d+$/.test(version) ? `${RELEASES_URL}/tag/v${version}` : RELEASES_URL)
 
 const SEARCH_TYPES = { project: 'Projet', item: 'Suivi', doc: 'Doc', github: 'GitHub' }
 
@@ -144,8 +148,9 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+  // Until the breakpoint is measured, guess from the window: no flash of the wrong layout.
   const screens = Grid.useBreakpoint()
-  const mobile = !screens.lg
+  const mobile = screens.lg === undefined ? window.innerWidth < 992 : !screens.lg
 
   // One badge for the "To do" page: unread news, GitHub actions, green updates.
   const counts = useTodoCounts()
@@ -176,12 +181,17 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const prefsMenu = [
     { key: 'theme', icon: dark ? <SunOutlined /> : <MoonOutlined />, label: dark ? t('Thème clair') : t('Thème sombre') },
     { key: 'lang', icon: <GlobalOutlined />, label: lang === 'fr' ? 'English' : 'Français' },
+    { key: 'shortcuts', icon: <QuestionCircleOutlined />, label: t('Raccourcis clavier'), extra: HELP_KEY },
     { type: 'divider' },
     { key: 'settings', icon: <SettingOutlined />, label: t('Tous les paramètres') },
+    // No sidebar on phones: the version moves here.
+    ...(mobile && version ? [{ key: 'version', icon: <TagOutlined />, label: t('Notes de version') + ` · ${/^\d/.test(version) ? `v${version}` : version}` }] : []),
   ]
   const onPrefs = ({ key }) => {
     if (key === 'theme') onToggleDark()
     else if (key === 'lang') onChangeLang(lang === 'fr' ? 'en' : 'fr')
+    else if (key === 'shortcuts') openShortcuts()
+    else if (key === 'version') window.open(releaseUrl(version), '_blank', 'noopener')
     else navigate('/settings')
   }
 
@@ -193,40 +203,47 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
     { key: '/notes', icon: <ReadOutlined />, label: t('Notes & specs') },
   ]
   const selected = items.map((i) => i.key).filter((k) => k !== '/' && location.pathname.startsWith(k))[0] || (location.pathname === '/' ? '/' : '')
+  // Phones: the same five entries as a tab bar at the bottom of the screen.
+  const tabBar = [
+    { key: '/', icon: <HomeOutlined />, label: t('Accueil') },
+    { key: '/inbox', icon: <Badge count={todo} size="small" offset={[6, 0]}><InboxOutlined style={{ fontSize: 20 }} /></Badge>, label: t('À traiter') },
+    { key: '/projects', icon: <AppstoreOutlined />, label: t('Projets') },
+    { key: '/items', icon: <BugOutlined />, label: t('Tâches') },
+    { key: '/notes', icon: <ReadOutlined />, label: t('Notes') },
+  ]
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {/* "light" Sider follows the dark algorithm too; its "dark" theme is a fixed navy blue. */}
       {/* Sticky so the menu and the version stay in view on long pages. */}
-      <Sider
-        breakpoint="lg"
-        collapsedWidth="0"
-        width={230}
-        zeroWidthTriggerStyle={{ top: 12, zIndex: 20 }}
-        theme="light"
-        style={{ borderRight: `1px solid ${token.colorBorderSecondary}`, position: 'sticky', top: 0, height: '100vh', zIndex: 10 }}
-      >
-        <Flex vertical style={{ height: '100%' }}>
-          <div style={{ padding: '18px 20px', fontWeight: 700, fontSize: 18 }}><img src="/icons/icon.svg" alt="" width={24} height={24} style={{ verticalAlign: '-5px', marginRight: 8 }} />Projectory</div>
-          <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={({ key }) => navigate(key)} style={{ borderInlineEnd: 0, flex: 1, overflowY: 'auto' }} />
-          {version && (
-            <Flex vertical gap={4} style={{ padding: '12px 20px', fontSize: 12, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
-              <a
-                href={/^\d+\.\d+\.\d+$/.test(version) ? `${RELEASES_URL}/tag/v${version}` : RELEASES_URL}
-                target="_blank"
-                rel="noreferrer"
-                title={t('Notes de version')}
-                style={{ color: token.colorTextTertiary }}
-              >
-                {/^\d/.test(version) ? `v${version}` : version}
-              </a>
-              <UpdateNotice />
-            </Flex>
-          )}
-        </Flex>
-      </Sider>
+      {!mobile && (
+        <Sider
+          width={230}
+          theme="light"
+          style={{ borderRight: `1px solid ${token.colorBorderSecondary}`, position: 'sticky', top: 0, height: '100vh', zIndex: 10 }}
+        >
+          <Flex vertical style={{ height: '100%' }}>
+            <div style={{ padding: '18px 20px', fontWeight: 700, fontSize: 18 }}><img src="/icons/icon.svg" alt="" width={24} height={24} style={{ verticalAlign: '-5px', marginRight: 8 }} />Projectory</div>
+            <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={({ key }) => navigate(key)} style={{ borderInlineEnd: 0, flex: 1, overflowY: 'auto' }} />
+            {version && (
+              <Flex vertical gap={4} style={{ padding: '12px 20px', fontSize: 12, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
+                <a
+                  href={releaseUrl(version)}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t('Notes de version')}
+                  style={{ color: token.colorTextTertiary }}
+                >
+                  {/^\d/.test(version) ? `v${version}` : version}
+                </a>
+                <UpdateNotice />
+              </Flex>
+            )}
+          </Flex>
+        </Sider>
+      )}
       <Layout>
-        <Header style={{ background: token.colorBgContainer, padding: mobile ? '0 12px 0 56px' : '0 16px', lineHeight: 'normal', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Header style={{ background: token.colorBgContainer, padding: mobile ? '0 12px' : '0 16px', lineHeight: 'normal', borderBottom: `1px solid ${token.colorBorderSecondary}`, display: 'flex', alignItems: 'center', gap: 8 }}>
           <GlobalSearch onOpenPalette={() => setPalette(true)} />
           <Flex gap={8} style={{ marginLeft: 'auto' }}>
             <Dropdown menu={{ items: newMenu, onClick: ({ key }) => create(key) }} trigger={['click']}>
@@ -239,10 +256,37 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
           </Flex>
         </Header>
         <OfflineBanner />
-        <Content style={{ padding: mobile ? 12 : 24, maxWidth: 1400, width: '100%', margin: '0 auto' }}>
+        <Content style={{ padding: mobile ? `12px 12px calc(76px + ${SAFE_BOTTOM})` : 24, maxWidth: 1400, width: '100%', margin: '0 auto' }}>
+          {mobile && <UpdateNotice />}
           <Outlet />
         </Content>
       </Layout>
+      {mobile && (
+        <nav
+          aria-label={t('Navigation')}
+          style={{
+            position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 20, display: 'flex',
+            paddingBottom: SAFE_BOTTOM, background: token.colorBgContainer, borderTop: `1px solid ${token.colorBorderSecondary}`,
+          }}
+        >
+          {tabBar.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => navigate(tab.key)}
+              aria-current={selected === tab.key ? 'page' : undefined}
+              style={{
+                flex: 1, height: 56, border: 0, background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+                fontSize: 11, color: selected === tab.key ? token.colorPrimary : token.colorTextSecondary,
+              }}
+            >
+              <span style={{ fontSize: 20, lineHeight: 1, color: 'inherit' }}>{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
+      <ShortcutsHelp />
       <DocEditor doc={quickNote} withProjectPicker onClose={() => setQuickNote(null)} onSaved={() => { setQuickNote(null); notifyChange() }} />
       <CommandPalette
         open={palette}
@@ -254,6 +298,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
           sync: syncAll,
           toggleDark: onToggleDark,
           toggleLang: () => onChangeLang(lang === 'fr' ? 'en' : 'fr'),
+          shortcuts: openShortcuts,
         }}
       />
     </Layout>

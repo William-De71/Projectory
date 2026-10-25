@@ -24,7 +24,7 @@ export function collectKeys() {
   const keys = new Set()
   for (const file of files(SRC)) {
     const src = readFileSync(file, 'utf8')
-    const isConstFile = /labels\.js$|CiStatus\.jsx$|InboxList\.jsx$|AppLayout\.jsx$|ProjectDetail\.jsx$|MyGithub\.jsx$|Inbox\.jsx$/.test(file)
+    const isConstFile = /labels\.js$|CiStatus\.jsx$|InboxList\.jsx$|AppLayout\.jsx$|ProjectDetail\.jsx$|MyGithub\.jsx$|Inbox\.jsx$|ShortcutsHelp\.jsx$/.test(file)
     PATTERNS.forEach((re, i) => {
       if (i === 2 && !isConstFile) return
       for (const m of src.matchAll(re)) {

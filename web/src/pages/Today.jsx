@@ -4,9 +4,9 @@ import { Alert, App, Button, Card, Checkbox, Col, Empty, Flex, List, Row, Select
 import { CheckOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
-import { ITEM_KIND, ITEM_STATUS, OPEN_STATUSES, PRIORITY, formatMinutes } from '../components/labels.js'
-import { LabelTag } from '../components/Tags.jsx'
+import { OPEN_STATUSES, formatMinutes } from '../components/labels.js'
 import { useItemPanel } from '../components/ItemPanel.jsx'
+import ItemRow from '../components/ItemRow.jsx'
 import { setFocus, todayDate } from '../components/TodayButton.jsx'
 import ForumReplyModal, { needsForumReply } from '../components/ForumReplyModal.jsx'
 import { t } from '../i18n/index.js'
@@ -14,24 +14,8 @@ import { t } from '../i18n/index.js'
 const FOCUS_LIMIT = 5
 const isOpen = (it) => OPEN_STATUSES.includes(it.status)
 
-function ItemTags({ item, today }) {
-  return (
-    <Flex gap={2} wrap>
-      <Link to={`/projects/${item.project_id}/items`}><Tag>{item.project_name}</Tag></Link>
-      <LabelTag map={ITEM_KIND} value={item.kind} />
-      {item.priority !== 'normal' && <LabelTag map={PRIORITY} value={item.priority} />}
-      {['in_progress', 'testing', 'blocked'].includes(item.status) && <LabelTag map={ITEM_STATUS} value={item.status} />}
-      {item.due_date && (
-        <Tag color={item.due_date < today ? 'red' : item.due_date === today ? 'orange' : 'default'}>
-          {item.due_date < today ? t('en retard · {date}', { date: dayjs(item.due_date).format('D MMM') }) : item.due_date === today ? t('échéance aujourd’hui') : dayjs(item.due_date).format('D MMM')}
-        </Tag>
-      )}
-    </Flex>
-  )
-}
-
 // Candidate list (due, suggestions) with a button to plan the item for today.
-function Candidates({ title, items, today, onAdd, onOpen, empty }) {
+function Candidates({ title, items, onAdd, empty }) {
   return (
     <Card size="small" title={title}>
       <List
@@ -39,17 +23,15 @@ function Candidates({ title, items, today, onAdd, onOpen, empty }) {
         dataSource={items}
         locale={{ emptyText: <Typography.Text type="secondary">{empty}</Typography.Text> }}
         renderItem={(it) => (
-          <List.Item
-            actions={[
-              <Tooltip key="add" title={t('Ajouter à ma journée')}>
-                <Button size="small" icon={<PlusOutlined />} aria-label={t('Ajouter à ma journée')} onClick={() => onAdd(it)} />
-              </Tooltip>,
-            ]}
-          >
-            <Flex vertical gap={4} style={{ minWidth: 0 }}>
-              <Typography.Link onClick={() => onOpen(it)} ellipsis>{it.title}</Typography.Link>
-              <ItemTags item={it} today={today} />
-            </Flex>
+          <List.Item>
+            <ItemRow
+              item={it}
+              actions={(
+                <Tooltip title={t('Ajouter à ma journée')}>
+                  <Button size="small" icon={<PlusOutlined />} aria-label={t('Ajouter à ma journée')} onClick={() => onAdd(it)} />
+                </Tooltip>
+              )}
+            />
           </List.Item>
         )}
       />
@@ -63,7 +45,7 @@ export default function Today() {
   const today = todayDate()
   const { data, loading, setData } = useApi(`/today?date=${today}`, { listen: true })
   const { data: openItems } = useApi('/items?open=1', { listen: true })
-  const { openItem, newItem } = useItemPanel()
+  const { newItem } = useItemPanel()
   const [replyTo, setReplyTo] = useState(null)
 
   if (!data) return <Spin spinning={loading}><div style={{ height: 300 }} /></Spin>
@@ -100,10 +82,11 @@ export default function Today() {
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={14}>
           <Card
-            title={t('Ma journée')}
-            extra={(
-              <Flex gap={8} align="center">
-                <Typography.Text type={open.length > FOCUS_LIMIT ? 'warning' : 'secondary'}>{t('{done} / {total} terminées', { done, total: data.focus.length })}</Typography.Text>
+            title={(
+              // Wraps on phones instead of cutting the title.
+              <Flex gap={8} align="center" wrap style={{ padding: '8px 0' }}>
+                <span style={{ marginRight: 'auto' }}>{t('Ma journée')}</span>
+                <Typography.Text type={open.length > FOCUS_LIMIT ? 'warning' : 'secondary'} style={{ fontWeight: 'normal' }}>{t('{done} / {total} terminées', { done, total: data.focus.length })}</Typography.Text>
                 <Link to="/settings/time"><Tag style={{ marginInlineEnd: 0 }}>{t('{time} passées aujourd’hui', { time: formatMinutes(data.minutes) })}</Tag></Link>
               </Flex>
             )}
@@ -130,19 +113,16 @@ export default function Today() {
                 locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('Rien de prévu. Choisis 3 à 5 tâches : celles en cours, les prioritaires ou les échéances.')} /> }}
                 renderItem={(it) => (
                   <List.Item>
-                    <Flex gap={12} align="start" style={{ minWidth: 0, width: '100%' }}>
-                      <Checkbox checked={!isOpen(it)} onChange={(e) => toggleDone(it, e.target.checked)} style={{ marginTop: 2 }} aria-label={t('Terminé')} />
-                      <Flex vertical gap={4} style={{ minWidth: 0, flex: 1 }}>
-                        <Typography.Link onClick={() => openItem(it)} delete={!isOpen(it)} type={isOpen(it) ? undefined : 'secondary'}>{it.title}</Typography.Link>
-                        <Flex gap={2} wrap>
-                          <ItemTags item={it} today={today} />
-                          {isOpen(it) && it.focus_date < today && <Tag color="gold">{t('reportée depuis {date}', { date: dayjs(it.focus_date).format('D MMM') })}</Tag>}
-                        </Flex>
-                      </Flex>
-                      <Tooltip title={t('Retirer de ma journée')}>
-                        <Button size="small" type="text" icon={<CloseOutlined />} aria-label={t('Retirer de ma journée')} onClick={() => remove(it)} />
-                      </Tooltip>
-                    </Flex>
+                    <ItemRow
+                      item={it}
+                      prefix={<Checkbox checked={!isOpen(it)} onChange={(e) => toggleDone(it, e.target.checked)} style={{ marginTop: 2 }} aria-label={t('Terminé')} />}
+                      tags={isOpen(it) && it.focus_date < today && <Tag color="gold">{t('reportée depuis {date}', { date: dayjs(it.focus_date).format('D MMM') })}</Tag>}
+                      actions={(
+                        <Tooltip title={t('Retirer de ma journée')}>
+                          <Button size="small" type="text" icon={<CloseOutlined />} aria-label={t('Retirer de ma journée')} onClick={() => remove(it)} />
+                        </Tooltip>
+                      )}
+                    />
                   </List.Item>
                 )}
               />
@@ -167,7 +147,7 @@ export default function Today() {
                 />
               </Card>
             )}
-            <Candidates title={t('À échéance')} items={data.due} today={today} onAdd={add} onOpen={openItem} empty={t('Aucune échéance dépassée ni pour aujourd’hui')} />
+            <Candidates title={t('À échéance')} items={data.due} onAdd={add} empty={t('Aucune échéance dépassée ni pour aujourd’hui')} />
             <Card size="small" title={t('Reviews demandées')}>
               <List
                 size="small"
@@ -189,7 +169,7 @@ export default function Today() {
                 )}
               />
             </Card>
-            <Candidates title={t('Suggestions')} items={data.suggestions} today={today} onAdd={add} onOpen={openItem} empty={t('Rien en cours ni de prioritaire')} />
+            <Candidates title={t('Suggestions')} items={data.suggestions} onAdd={add} empty={t('Rien en cours ni de prioritaire')} />
           </Flex>
         </Col>
       </Row>

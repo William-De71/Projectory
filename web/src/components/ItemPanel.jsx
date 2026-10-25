@@ -3,10 +3,12 @@ import { useSearchParams } from 'react-router-dom'
 import { App } from 'antd'
 import { api } from '../api/client.js'
 import { ItemForm } from './ItemsPanel.jsx'
+import ForumReplyModal, { needsForumReply } from './ForumReplyModal.jsx'
 
-const ItemPanelContext = createContext({ openItem: () => {}, newItem: () => {} })
+const ItemPanelContext = createContext({ openItem: () => {}, newItem: () => {}, offerForumReply: () => {} })
 
-// openItem(item or id) shows an item in the side panel, newItem(defaults) a blank one.
+// openItem(item or id) shows an item in the side panel, newItem(defaults) a blank
+// one; offerForumReply(updated) drafts the forum answer once a reported bug is fixed.
 export const useItemPanel = () => useContext(ItemPanelContext)
 
 // True when a dialog or a side panel is open: page shortcuts must stand aside.
@@ -20,6 +22,7 @@ export function ItemPanelProvider({ children }) {
   const itemId = Number(searchParams.get('item')) || null
   const [loaded, setLoaded] = useState(null)
   const [draft, setDraft] = useState(null)
+  const [replyTo, setReplyTo] = useState(null)
 
   const close = useCallback(() => {
     setDraft(null)
@@ -55,6 +58,7 @@ export function ItemPanelProvider({ children }) {
       })
     },
     newItem: (defaults = {}) => setDraft({ ...defaults }),
+    offerForumReply: (updated) => { if (needsForumReply(updated)) setReplyTo(updated) },
   }), [setSearchParams])
 
   const item = draft || (itemId && loaded?.id === itemId ? loaded : null)
@@ -62,6 +66,7 @@ export function ItemPanelProvider({ children }) {
     <ItemPanelContext.Provider value={value}>
       {children}
       <ItemForm item={item} onClose={close} onSaved={close} />
+      <ForumReplyModal item={replyTo} onClose={() => setReplyTo(null)} />
     </ItemPanelContext.Provider>
   )
 }

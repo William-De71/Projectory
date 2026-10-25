@@ -3,9 +3,9 @@ import { App, Button, Card, Checkbox, DatePicker, Empty, Flex, Form, Input, List
 import { CopyOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, ExportOutlined, FileTextOutlined, PlusOutlined, RocketOutlined, SoundOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
-import { FORGES, ITEM_KIND, ITEM_STATUS, MILESTONE_STATUS } from './labels.js'
+import { FORGES, MILESTONE_STATUS } from './labels.js'
 import { LabelTag } from './Tags.jsx'
-import { useItemPanel } from './ItemPanel.jsx'
+import ItemRow from './ItemRow.jsx'
 import AnnouncementModal from './AnnouncementModal.jsx'
 import Markdown from './Markdown.jsx'
 import { compareVersions } from './versions.js'
@@ -175,7 +175,6 @@ export default function RoadmapPanel({ projectId, project }) {
   const { data, loading, reload } = useApi(`/projects/${projectId}/roadmap`, { listen: true })
   const [editing, setEditing] = useState(null)
   const [changelog, setChangelog] = useState(null)
-  const { openItem } = useItemPanel()
   const [releasing, setReleasing] = useState(null)
   const [announcing, setAnnouncing] = useState(null)
 
@@ -282,12 +281,8 @@ export default function RoadmapPanel({ projectId, project }) {
               size="small"
               dataSource={m.items}
               renderItem={(it) => (
-                <List.Item className="clickable" onClick={() => openItem(it)}>
-                  <Flex gap={6} align="center" style={{ width: '100%' }}>
-                    <LabelTag map={ITEM_STATUS} value={it.status} />
-                    <Typography.Text delete={it.status === 'wontfix'} style={{ flex: 1 }} ellipsis>{it.title}</Typography.Text>
-                    <LabelTag map={ITEM_KIND} value={it.kind} />
-                  </Flex>
+                <List.Item>
+                  <ItemRow item={it} showProject={false} />
                 </List.Item>
               )}
             />
@@ -301,16 +296,15 @@ export default function RoadmapPanel({ projectId, project }) {
             size="small"
             dataSource={data.unplanned}
             renderItem={(it) => (
-              <List.Item
-                actions={[
-                  <Select key="v" size="small" placeholder={t('Planifier dans…')} style={{ width: 150 }} disabled={!planned.length}
-                    options={planned.map((v) => ({ value: v.version, label: v.version }))} onChange={(v) => assign(it, v)} />,
-                ]}
-              >
-                <Flex gap={6} align="center" className="clickable" onClick={() => openItem(it)}>
-                  <LabelTag map={ITEM_KIND} value={it.kind} />
-                  <Typography.Text>{it.title}</Typography.Text>
-                </Flex>
+              <List.Item>
+                <ItemRow
+                  item={it}
+                  showProject={false}
+                  actions={(
+                    <Select size="small" placeholder={t('Planifier dans…')} style={{ width: 150 }} disabled={!planned.length}
+                      options={planned.map((v) => ({ value: v.version, label: v.version }))} onChange={(v) => assign(it, v)} />
+                  )}
+                />
               </List.Item>
             )}
           />

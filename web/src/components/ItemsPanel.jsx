@@ -16,6 +16,7 @@ import FormModal from './FormModal.jsx'
 import ItemChecklist, { ChecklistTag } from './ItemChecklist.jsx'
 import ItemLinks from './ItemLinks.jsx'
 import { overlayOpen, useItemPanel } from './ItemPanel.jsx'
+import { openShortcuts } from './ShortcutsHelp.jsx'
 
 // Opens an issue on the project's forge; the issue link then lives on the item.
 function IssueLink({ item, onLinked }) {
@@ -339,16 +340,6 @@ function BulkBar({ ids, onDone, onClear }) {
   )
 }
 
-const SHORTCUTS = [
-  { keys: 'j / ↓', label: 'Élément suivant' },
-  { keys: 'k / ↑', label: 'Élément précédent' },
-  { keys: '↵ / e', label: 'Ouvrir' },
-  { keys: 's', label: 'Statut suivant' },
-  { keys: 'x', label: 'Sélectionner' },
-  { keys: 'n', label: 'Nouveau bug / tâche' },
-  { keys: '/', label: 'Rechercher' },
-  { keys: 'Esc', label: 'Tout désélectionner' },
-]
 // Status reached with "s": through the work in progress, then done.
 const NEXT_STATUS = { todo: 'in_progress', in_progress: 'testing', testing: 'done', blocked: 'in_progress', done: 'todo', wontfix: 'todo' }
 const PAGE_SIZE = 25
@@ -475,6 +466,8 @@ export default function ItemsPanel({ projectId }) {
   ]
 
   const current = { ...filters, view }
+  const filtered = !!(filters.kind || filters.status || filters.priority || filters.q.trim())
+  const addButton = <Button type="primary" icon={<PlusOutlined />} onClick={() => newItem({ project_id: projectId ? Number(projectId) : undefined })}>{t('Bug / tâche')}</Button>
   return (
     <Flex vertical gap={12}>
       <Flex gap={8} wrap align="center">
@@ -493,8 +486,8 @@ export default function ItemsPanel({ projectId }) {
           allowClear
           prefix={<SearchOutlined />}
           suffix={(
-            <Tooltip title={<Flex vertical gap={2}><b>{t('Raccourcis clavier')}</b>{SHORTCUTS.map(({ keys, label }) => <span key={keys}><b>{keys}</b> — {t(label)}</span>)}</Flex>}>
-              <QuestionCircleOutlined aria-label={t('Raccourcis clavier')} style={{ opacity: 0.5 }} />
+            <Tooltip title={t('Raccourcis clavier ( ? )')}>
+              <QuestionCircleOutlined aria-label={t('Raccourcis clavier')} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={openShortcuts} />
             </Tooltip>
           )}
           placeholder={t('Filtrer… ( / )')}
@@ -509,7 +502,7 @@ export default function ItemsPanel({ projectId }) {
         <BulkBar ids={selected} onClear={() => setSelected([])} onDone={() => { setSelected([]); reload() }} />
       )}
       {view === 'board' ? (
-        items.length ? <Board items={items} onOpen={openItem} onMove={updateStatus} /> : <Empty description={t('Rien à suivre pour l\'instant')} />
+        items.length ? <Board items={items} onOpen={openItem} onMove={updateStatus} /> : <Empty description={t('Rien à suivre pour l\'instant')}>{addButton}</Empty>
       ) : (
         <Table
           rowKey="id"
@@ -527,7 +520,7 @@ export default function ItemsPanel({ projectId }) {
             rowExpandable: (it) => !!it.body,
             expandedRowRender: (it) => <Markdown>{it.body}</Markdown>,
           }}
-          locale={{ emptyText: <Empty description={t('Aucun bug ni tâche ouverts 🎉')} /> }}
+          locale={{ emptyText: <Empty description={filtered ? t('Aucun élément ne correspond aux filtres') : t('Aucun bug ni tâche ouverts 🎉')}>{filtered ? <Button onClick={() => setFilters(DEFAULT_FILTERS)}>{t('Effacer les filtres')}</Button> : addButton}</Empty> }}
         />
       )}
       <ForumReplyModal item={replyTo} onClose={() => { setReplyTo(null); reload() }} />
