@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { App, AutoComplete, Badge, Button, Dropdown, Flex, Grid, Input, Layout, Menu, Tag, Tooltip, Typography, theme } from 'antd'
 import {
-  AppstoreOutlined, BugOutlined, ClockCircleOutlined, DashboardOutlined, DeploymentUnitOutlined, EditOutlined, FileTextOutlined, GlobalOutlined,
-  InboxOutlined, MoonOutlined, CheckSquareOutlined, GithubOutlined, PlusOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined,
+  AppstoreOutlined, BugOutlined, EditOutlined, FileTextOutlined, GlobalOutlined, HomeOutlined,
+  InboxOutlined, MoonOutlined, PlusOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useChangeListener } from '../api/client.js'
@@ -11,7 +11,7 @@ import DocEditor from './DocEditor.jsx'
 import CommandPalette, { isPaletteShortcut } from './CommandPalette.jsx'
 import UpdateNotice from './UpdateNotice.jsx'
 import { resultPath } from '../pages/Search.jsx'
-import { isGreen } from '../pages/Dependencies.jsx'
+import { useTodoCounts } from './todoCounts.js'
 import OfflineBanner from './OfflineBanner.jsx'
 import { isTyping } from './ItemsPanel.jsx'
 import { overlayOpen, useItemPanel } from './ItemPanel.jsx'
@@ -111,7 +111,6 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const location = useLocation()
   const { message } = App.useApp()
   const { token } = theme.useToken()
-  const [unread, setUnread] = useState(0)
   const [syncing, setSyncing] = useState(false)
   const [quickNote, setQuickNote] = useState(null)
   const [palette, setPalette] = useState(false)
@@ -148,22 +147,9 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   const screens = Grid.useBreakpoint()
   const mobile = !screens.lg
 
-  const [githubTodo, setGithubTodo] = useState(0)
-  const [depsGreen, setDepsGreen] = useState(0)
-  const refreshUnread = useCallback(() => {
-    api.get('/inbox?unread=1&limit=1000').then((rows) => setUnread(rows.length)).catch(() => {})
-    // "My GitHub" badge: reviews to do, and my PRs that need something from me.
-    api.get('/my-github').then((rows) => setGithubTodo(rows.filter((it) => it.mine.includes('review')
-      || (it.type === 'pr' && it.mine.includes('author') && (it.pr_state?.review === 'changes_requested' || it.pr_state?.conflict || it.pr_state?.ci === 'failure'))).length)).catch(() => {})
-    // "Dependencies" badge: updates ready to merge.
-    api.get('/dependency-prs').then((rows) => setDepsGreen(rows.filter(isGreen).length)).catch(() => {})
-  }, [])
-  useEffect(() => {
-    refreshUnread()
-    const timer = setInterval(refreshUnread, 60_000)
-    return () => clearInterval(timer)
-  }, [refreshUnread])
-  useChangeListener(refreshUnread)
+  // One badge for the "To do" page: unread news, GitHub actions, green updates.
+  const counts = useTodoCounts()
+  const todo = counts.news + counts.github + counts.deps
 
   const syncAll = async () => {
     setSyncing(true)
@@ -200,16 +186,11 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   }
 
   const items = [
-    { key: '/', icon: <DashboardOutlined />, label: t('Tableau de bord') },
-    { key: '/today', icon: <CheckSquareOutlined />, label: t('Aujourd’hui') },
-    { key: '/mine', icon: <GithubOutlined />, label: <Flex justify="space-between" align="center">{t('Mon GitHub') + ' '}<Badge count={githubTodo} size="small" color="magenta" title={t('Reviews à faire et PR qui demandent une action')} /></Flex> },
-    { key: '/deps', icon: <DeploymentUnitOutlined />, label: <Flex justify="space-between" align="center">{t('Dépendances') + ' '}<Badge count={depsGreen} size="small" color="green" title={t('Mises à jour au vert, prêtes à fusionner')} /></Flex> },
+    { key: '/', icon: <HomeOutlined />, label: t('Accueil') },
+    { key: '/inbox', icon: <InboxOutlined />, label: <Flex justify="space-between" align="center">{t('À traiter') + ' '}<Badge count={todo} size="small" title={t('Non lus, actions GitHub et mises à jour prêtes à fusionner')} /></Flex> },
     { key: '/projects', icon: <AppstoreOutlined />, label: t('Projets') },
-    { key: '/inbox', icon: <InboxOutlined />, label: <Flex justify="space-between" align="center">{t('Boîte de réception') + ' '}<Badge count={unread} size="small" /></Flex> },
     { key: '/items', icon: <BugOutlined />, label: t('Bugs & tâches') },
     { key: '/notes', icon: <ReadOutlined />, label: t('Notes & specs') },
-    { key: '/time', icon: <ClockCircleOutlined />, label: t('Temps passé') },
-    { key: '/settings', icon: <SettingOutlined />, label: t('Paramètres') },
   ]
   const selected = items.map((i) => i.key).filter((k) => k !== '/' && location.pathname.startsWith(k))[0] || (location.pathname === '/' ? '/' : '')
 

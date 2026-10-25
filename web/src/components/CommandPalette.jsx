@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Empty, Flex, Input, Modal, Tag, theme, Typography } from 'antd'
 import {
-  AppstoreOutlined, BugOutlined, CheckSquareOutlined, GithubOutlined, ClockCircleOutlined, CloudDownloadOutlined, DashboardOutlined, DeploymentUnitOutlined, EditOutlined, FileTextOutlined,
-  GlobalOutlined, InboxOutlined, MoonOutlined, PlusOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SyncOutlined,
+  AppstoreOutlined, BugOutlined, GithubOutlined, ClockCircleOutlined, CloudDownloadOutlined, DeploymentUnitOutlined, EditOutlined, FileTextOutlined,
+  GlobalOutlined, HomeOutlined, InboxOutlined, MoonOutlined, PlusOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import { api } from '../api/client.js'
 import { t } from '../i18n/index.js'
@@ -43,17 +43,17 @@ export default function CommandPalette({ open, onClose, actions }) {
     const needle = normalize(q.trim())
     const match = (text) => !needle || normalize(text).includes(needle)
     const pages = [
-      { label: t('Tableau de bord'), icon: <DashboardOutlined />, run: () => navigate('/') },
-      { label: t('Aujourd’hui'), icon: <CheckSquareOutlined />, run: () => navigate('/today') },
-      { label: t('Mon GitHub'), icon: <GithubOutlined />, run: () => navigate('/mine') },
-      { label: t('Dépendances'), icon: <DeploymentUnitOutlined />, run: () => navigate('/deps'), keywords: 'dependabot renovate' },
-      { label: t('Recherche'), icon: <SearchOutlined />, run: () => navigate('/search') },
+      { label: t('Accueil'), icon: <HomeOutlined />, run: () => navigate('/'), keywords: `${t('Aujourd’hui')} ${t('Tableau de bord')}` },
+      { label: t('À traiter'), icon: <InboxOutlined />, run: () => navigate('/inbox'), keywords: t('Boîte de réception') },
+      { label: t('Nouveautés'), hint: t('À traiter'), icon: <InboxOutlined />, run: () => navigate('/inbox/news'), keywords: t('Boîte de réception') },
+      { label: t('Mon GitHub'), hint: t('À traiter'), icon: <GithubOutlined />, run: () => navigate('/inbox/github') },
+      { label: t('Dépendances'), hint: t('À traiter'), icon: <DeploymentUnitOutlined />, run: () => navigate('/inbox/deps'), keywords: 'dependabot renovate' },
       { label: t('Projets'), icon: <AppstoreOutlined />, run: () => navigate('/projects') },
-      { label: t('Boîte de réception'), icon: <InboxOutlined />, run: () => navigate('/inbox') },
       { label: t('Bugs & tâches'), icon: <BugOutlined />, run: () => navigate('/items') },
       { label: t('Notes & specs'), icon: <ReadOutlined />, run: () => navigate('/notes') },
-      { label: t('Temps passé'), icon: <ClockCircleOutlined />, run: () => navigate('/time') },
+      { label: t('Temps passé'), hint: t('Paramètres'), icon: <ClockCircleOutlined />, run: () => navigate('/settings/time') },
       { label: t('Paramètres'), icon: <SettingOutlined />, run: () => navigate('/settings') },
+      { label: t('Recherche'), icon: <SearchOutlined />, run: () => navigate('/search') },
     ].map((e) => ({ ...e, group: t('Aller à') }))
     const commands = [
       { label: t('Nouveau bug / tâche'), icon: <PlusOutlined />, run: actions.newItem },

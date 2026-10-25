@@ -13,17 +13,13 @@ import { api } from './api/client.js'
 import { getLang, hasSavedLang, setLang as storeLang } from './i18n/index.js'
 import AppLayout from './components/AppLayout.jsx'
 import { ItemPanelProvider } from './components/ItemPanel.jsx'
-import Dashboard from './pages/Dashboard.jsx'
-import Today from './pages/Today.jsx'
-import MyGithub from './pages/MyGithub.jsx'
+import Home from './pages/Home.jsx'
 import Projects from './pages/Projects.jsx'
 import ProjectDetail from './pages/ProjectDetail.jsx'
 import Inbox from './pages/Inbox.jsx'
 import Items from './pages/Items.jsx'
 import Notes from './pages/Notes.jsx'
-import TimeTracking from './pages/TimeTracking.jsx'
 import Settings from './pages/Settings.jsx'
-import Dependencies from './pages/Dependencies.jsx'
 import Search from './pages/Search.jsx'
 
 dayjs.extend(relativeTime)
@@ -77,18 +73,21 @@ export default function App() {
           <ItemPanelProvider>
             <Routes>
               <Route element={<AppLayout dark={dark} onToggleDark={toggleDark} lang={lang} onChangeLang={changeLang} />}>
-                <Route index element={<Dashboard />} />
-                <Route path="today" element={<Today />} />
-                <Route path="mine" element={<MyGithub />} />
+                <Route index element={<Home />} />
                 <Route path="projects" element={<Projects />} />
                 <Route path="projects/:id" element={<ProjectDetail />} />
                 <Route path="projects/:id/:tab" element={<ProjectDetail />} />
                 <Route path="inbox" element={<Inbox />} />
+                <Route path="inbox/:tab" element={<Inbox />} />
                 <Route path="items" element={<Items />} />
                 <Route path="notes" element={<Notes />} />
-                <Route path="time" element={<TimeTracking />} />
                 <Route path="settings" element={<Settings />} />
-                <Route path="deps" element={<Dependencies />} />
+                <Route path="settings/:tab" element={<Settings />} />
+                {/* Former pages, now part of Home, To do and Settings. */}
+                <Route path="today" element={<Navigate to="/" replace />} />
+                <Route path="mine" element={<Navigate to="/inbox/github" replace />} />
+                <Route path="deps" element={<Navigate to="/inbox/deps" replace />} />
+                <Route path="time" element={<Navigate to="/settings/time" replace />} />
                 <Route path="search" element={<Search />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>

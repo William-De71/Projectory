@@ -12,7 +12,6 @@ import ForumReplyModal, { needsForumReply } from '../components/ForumReplyModal.
 import { t } from '../i18n/index.js'
 
 const FOCUS_LIMIT = 5
-const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1)
 const isOpen = (it) => OPEN_STATUSES.includes(it.status)
 
 function ItemTags({ item, today }) {
@@ -58,6 +57,7 @@ function Candidates({ title, items, today, onAdd, onOpen, empty }) {
   )
 }
 
+// "My day" planner of the home page, with what could be added next to it.
 export default function Today() {
   const { message } = App.useApp()
   const today = todayDate()
@@ -97,28 +97,16 @@ export default function Today() {
 
   return (
     <Flex vertical gap={16}>
-      <Flex align="baseline" gap={12} wrap>
-        <Typography.Title level={3} style={{ margin: 0 }}>{t('Aujourd’hui')}</Typography.Title>
-        <Typography.Text type="secondary">{capitalize(dayjs(today).format('dddd LL'))}</Typography.Text>
-        <Link to="/time" style={{ marginLeft: 'auto' }}>
-          <Tag>{t('{time} passées aujourd’hui', { time: formatMinutes(data.minutes) })}</Tag>
-        </Link>
-      </Flex>
-
-      {data.ci_failing.length > 0 && (
-        <Alert
-          type="error"
-          showIcon
-          message={t('CI en échec')}
-          description={<Flex gap={12} wrap>{data.ci_failing.map((p) => <Link key={p.id} to={`/projects/${p.id}`}>{p.name}</Link>)}</Flex>}
-        />
-      )}
-
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={14}>
           <Card
             title={t('Ma journée')}
-            extra={<Typography.Text type={open.length > FOCUS_LIMIT ? 'warning' : 'secondary'}>{t('{done} / {total} terminées', { done, total: data.focus.length })}</Typography.Text>}
+            extra={(
+              <Flex gap={8} align="center">
+                <Typography.Text type={open.length > FOCUS_LIMIT ? 'warning' : 'secondary'}>{t('{done} / {total} terminées', { done, total: data.focus.length })}</Typography.Text>
+                <Link to="/settings/time"><Tag style={{ marginInlineEnd: 0 }}>{t('{time} passées aujourd’hui', { time: formatMinutes(data.minutes) })}</Tag></Link>
+              </Flex>
+            )}
           >
             <Flex vertical gap={12}>
               <Flex gap={8} wrap>

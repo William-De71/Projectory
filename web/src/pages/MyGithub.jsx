@@ -16,6 +16,10 @@ const SECTIONS = [
   { key: 'issues', title: 'Mes issues', match: (it) => it.type === 'issue' && it.mine.includes('author'), empty: 'Aucune issue ouverte' },
 ]
 
+// PRs and reviews waiting for the user: reviews to do, own PRs that need something.
+export const needsAction = (it) => it.mine.includes('review')
+  || (it.type === 'pr' && it.mine.includes('author') && (it.pr_state?.review === 'changes_requested' || it.pr_state?.conflict || it.pr_state?.ci === 'failure'))
+
 // Title of the task created from an item: what needs doing comes first.
 function taskFor(it) {
   const ref = `${refLabel(it.forge, it.type, it.number)} ${it.title}`
@@ -72,10 +76,7 @@ export default function MyGithub() {
 
   return (
     <Flex vertical gap={16}>
-      <Flex align="baseline" gap={12} wrap>
-        <Typography.Title level={3} style={{ margin: 0 }}>{t('Mon GitHub')}</Typography.Title>
-        <Typography.Text type="secondary">{t('Issues et PR qui te concernent, sur tous tes projets')}</Typography.Text>
-      </Flex>
+      <Typography.Text type="secondary">{t('Issues et PR qui te concernent, sur tous tes projets')}</Typography.Text>
       {!data.length ? (
         <Empty description={t('Rien pour l’instant. Ces listes utilisent le compte du token de la forge (Paramètres → Forges et tokens) et se remplissent à la synchro.')} />
       ) : (

@@ -98,7 +98,6 @@ export default function Dependencies() {
   return (
     <Flex vertical gap={16}>
       <Flex align="center" gap={12} wrap>
-        <Typography.Title level={3} style={{ margin: 0 }}>{t('Dépendances')}</Typography.Title>
         <Typography.Text type="secondary">{t('PR de Dependabot et Renovate sur tous tes projets')}</Typography.Text>
         <Popconfirm
           title={t('Fusionner {n} PR au vert ?', { n: green.length })}

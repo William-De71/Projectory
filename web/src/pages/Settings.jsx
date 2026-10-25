@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { App, Button, Card, ColorPicker, Descriptions, Flex, Input, InputNumber, Popconfirm, Table, Tag, Typography } from 'antd'
+import { useNavigate, useParams } from 'react-router-dom'
+import { App, Button, Card, ColorPicker, Descriptions, Flex, Input, InputNumber, Popconfirm, Table, Tabs, Tag, Typography } from 'antd'
 import { DeleteOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import NotificationSettings from '../components/NotificationSettings.jsx'
 import { ForgeAccounts, GithubNotificationSettings } from '../components/ForgeSettings.jsx'
 import { BackupSettings, CalendarSettings, DigestSettings, StaleSettings, ReleaseChecklistSettings } from '../components/AutomationSettings.jsx'
+import TimePanel from '../components/TimePanel.jsx'
 import { t } from '../i18n/index.js'
 
 function Categories() {
@@ -68,12 +70,11 @@ function Categories() {
   )
 }
 
-export default function Settings() {
+function General() {
   const { data: sync } = useApi('/sync/status', { listen: true })
   const { data: health } = useApi('/health')
   return (
     <Flex vertical gap={16}>
-      <Typography.Title level={3} style={{ margin: 0 }}>{t('Paramètres')}</Typography.Title>
       <Categories />
       <ForgeAccounts />
       <NotificationSettings notifyError={sync?.notify_error} />
@@ -104,6 +105,26 @@ export default function Settings() {
         <Typography.Text type="secondary" style={{ textAlign: 'center', fontSize: 12 }}>{t('Projectory') + ' '}{health.version} — <a href="https://github.com/William-De71/projectory/releases" target="_blank" rel="noreferrer">{t('notes de version')}</a>
         </Typography.Text>
       )}
+    </Flex>
+  )
+}
+
+// Settings, and the time spent report (/settings/time).
+export default function Settings() {
+  const { tab } = useParams()
+  const navigate = useNavigate()
+  return (
+    <Flex vertical gap={8}>
+      <Typography.Title level={3} style={{ margin: 0 }}>{t('Paramètres')}</Typography.Title>
+      <Tabs
+        activeKey={tab === 'time' ? 'time' : 'general'}
+        onChange={(key) => navigate(key === 'time' ? '/settings/time' : '/settings')}
+        destroyOnHidden
+        items={[
+          { key: 'general', label: t('Réglages'), children: <General /> },
+          { key: 'time', label: t('Temps passé'), children: <TimePanel /> },
+        ]}
+      />
     </Flex>
   )
 }
