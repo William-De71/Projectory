@@ -2,7 +2,7 @@ import { decode, getConfig, insertRow, setConfig, updateRow } from '../db.js'
 import { compareVersions } from '../sync/http.js'
 import { forgeFor, normalizeRepo } from '../sync/forges/index.js'
 import { tr } from '../i18n.js'
-import { unblockDependents } from '../items.js'
+import { logItemChanges, setItemStatus, unblockDependents } from '../items.js'
 import { remindForumReply } from '../sync/index.js'
 
 const FIELDS = ['project_id', 'version', 'title', 'description', 'due_date', 'status', 'released_at', 'checklist']
@@ -158,7 +158,9 @@ export default async function milestoneRoutes(app, { db }) {
       updateRow(db, 'milestones', id, body, FIELDS)
       // Renaming a version carries its items along.
       if (body.version && body.version !== before.version) {
+        const moved = db.prepare('SELECT * FROM items WHERE project_id = ? AND target_version = ?').all(before.project_id, before.version)
         db.prepare('UPDATE items SET target_version = ? WHERE project_id = ? AND target_version = ?').run(body.version, before.project_id, before.version)
+        for (const item of moved) logItemChanges(db, item, { target_version: body.version }, 'release')
       }
       db.exec('COMMIT')
     } catch (err) {
@@ -187,9 +189,8 @@ export default async function milestoneRoutes(app, { db }) {
     ).run(projectId, version, today)
     if (req.body?.close_items) {
       const closing = db.prepare("SELECT id FROM items WHERE project_id = ? AND target_version = ? AND status IN ('in_progress', 'testing')").all(projectId, version)
-      const close = db.prepare("UPDATE items SET status = 'done', updated_at = datetime('now') WHERE id = ?")
       for (const { id } of closing) {
-        close.run(id)
+        setItemStatus(db, id, 'done', 'release')
         unblockDependents(db, id)
       }
     }

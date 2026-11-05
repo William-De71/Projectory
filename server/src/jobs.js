@@ -1,8 +1,10 @@
 import { createBackup, isBackupDue } from './backup.js'
 import { digestConfig, isDigestDue } from './insights.js'
 import { sendDigest } from './routes/insights.js'
+import { dueAlertConfig, isDueAlertDue, sendDueAlerts } from './dueAlerts.js'
+import { ntfyConfig } from './sync/notify.js'
 
-// Checks once a minute for the weekly digest and the daily backup.
+// Checks once a minute for the weekly digest, the due date alerts and the daily backup.
 export function startJobs(db, log) {
   const tick = async () => {
     const now = new Date()
@@ -12,6 +14,15 @@ export function startJobs(db, log) {
         log.info('résumé hebdomadaire envoyé')
       } catch (err) {
         log.warn(`résumé hebdomadaire : ${err.message}`)
+      }
+    }
+    const ntfy = ntfyConfig(db)
+    if (ntfy.enabled && ntfy.topic && isDueAlertDue(dueAlertConfig(db), now)) {
+      try {
+        const { sent } = await sendDueAlerts(db, now)
+        if (sent) log.info(`alertes d'échéance envoyées : ${sent}`)
+      } catch (err) {
+        log.warn(`alertes d'échéance : ${err.message}`)
       }
     }
     if (isBackupDue(db, now)) {

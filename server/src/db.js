@@ -218,6 +218,25 @@ const MIGRATIONS = [
   );
   CREATE INDEX item_links_target ON item_links(target_id);
   `,
+  `
+  -- What changed on an item, and what changed it (user, sync, release, dependency).
+  CREATE TABLE item_events (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    field TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    source TEXT NOT NULL DEFAULT 'user',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX item_events_item ON item_events(item_id, id);
+  -- Last due date alert sent for an item: "<due date>:soon" or "<due date>:overdue".
+  ALTER TABLE items ADD COLUMN due_alert TEXT;
+  ALTER TABLE items ADD COLUMN estimate_minutes INTEGER;
+  -- Time can be logged on an item; it stays on the project if the item is deleted.
+  ALTER TABLE time_entries ADD COLUMN item_id INTEGER REFERENCES items(id) ON DELETE SET NULL;
+  CREATE INDEX time_item ON time_entries(item_id);
+  `,
 ]
 
 // Item statuses that still need work, as an SQL list.

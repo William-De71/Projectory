@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { App } from 'antd'
 import { api } from '../api/client.js'
@@ -7,8 +7,8 @@ import ForumReplyModal, { needsForumReply } from './ForumReplyModal.jsx'
 
 const ItemPanelContext = createContext({ openItem: () => {}, newItem: () => {}, offerForumReply: () => {} })
 
-// openItem(item or id) shows an item in the side panel, newItem(defaults) a blank
-// one; offerForumReply(updated) drafts the forum answer once a reported bug is fixed.
+// openItem(item or id) shows an item in the side panel, newItem(defaults, { onCreated })
+// a blank one; offerForumReply(updated) drafts the forum answer once a reported bug is fixed.
 export const useItemPanel = () => useContext(ItemPanelContext)
 
 // True when a dialog or a side panel is open: page shortcuts must stand aside.
@@ -23,8 +23,10 @@ export function ItemPanelProvider({ children }) {
   const [loaded, setLoaded] = useState(null)
   const [draft, setDraft] = useState(null)
   const [replyTo, setReplyTo] = useState(null)
+  const onCreated = useRef(null)
 
   const close = useCallback(() => {
+    onCreated.current = null
     setDraft(null)
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -57,15 +59,23 @@ export function ItemPanelProvider({ children }) {
         return next
       })
     },
-    newItem: (defaults = {}) => setDraft({ ...defaults }),
+    newItem: (defaults = {}, options = {}) => {
+      onCreated.current = options.onCreated || null
+      setDraft({ ...defaults })
+    },
     offerForumReply: (updated) => { if (needsForumReply(updated)) setReplyTo(updated) },
   }), [setSearchParams])
 
   const item = draft || (itemId && loaded?.id === itemId ? loaded : null)
+  const onSaved = (saved) => {
+    const created = draft && saved ? onCreated.current : null
+    close()
+    created?.(saved)
+  }
   return (
     <ItemPanelContext.Provider value={value}>
       {children}
-      <ItemForm item={item} onClose={close} onSaved={close} />
+      <ItemForm item={item} onClose={close} onSaved={onSaved} />
       <ForumReplyModal item={replyTo} onClose={() => setReplyTo(null)} />
     </ItemPanelContext.Provider>
   )

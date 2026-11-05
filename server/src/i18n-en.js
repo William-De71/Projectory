@@ -162,4 +162,7 @@ export default {
   "🔧 Autres changements": "🔧 Other changes",
   "🔴 CI en échec ({n})": "🔴 CI failing ({n})",
   "🚀 {project} {v} prévue": "🚀 {project} {v} planned",
+  "Projectory — échéances": "Projectory — due dates",
+  "⏰ En retard ({n})": "⏰ Overdue ({n})",
+  "📅 À venir ({n})": "📅 Coming up ({n})",
 }

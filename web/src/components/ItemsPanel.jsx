@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Alert, App, AutoComplete, Button, Card, DatePicker, Empty, Flex, Form, Input, Modal, Popconfirm, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Alert, App, AutoComplete, Button, Card, DatePicker, Empty, Flex, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import { BranchesOutlined, CloseOutlined, DeleteOutlined, DownOutlined, IssuesCloseOutlined, LinkOutlined, PlusOutlined, QuestionCircleOutlined, SaveOutlined, SearchOutlined, UpOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
@@ -15,6 +15,8 @@ import { t } from '../i18n/index.js'
 import FormModal from './FormModal.jsx'
 import ItemChecklist, { ChecklistTag } from './ItemChecklist.jsx'
 import ItemLinks from './ItemLinks.jsx'
+import ItemHistory from './ItemHistory.jsx'
+import ItemTime, { TimeTag } from './ItemTime.jsx'
 import { overlayOpen, useItemPanel } from './ItemPanel.jsx'
 import { openShortcuts } from './ShortcutsHelp.jsx'
 
@@ -105,11 +107,12 @@ export function ItemForm({ item, onClose, onSaved }) {
   const current = linked || item
   const projectId = Form.useWatch('project_id', form) ?? item?.project_id
   const kind = Form.useWatch('kind', form)
+  const estimateHours = Form.useWatch('estimate_hours', form)
 
   useEffect(() => {
     if (!item) return
     form.resetFields()
-    form.setFieldsValue({ kind: 'bug', status: 'todo', priority: 'normal', source: 'manual', ...item, due_date: item.due_date ? dayjs(item.due_date) : null })
+    form.setFieldsValue({ kind: 'bug', status: 'todo', priority: 'normal', source: 'manual', ...item, due_date: item.due_date ? dayjs(item.due_date) : null, estimate_hours: item.estimate_minutes ? item.estimate_minutes / 60 : null })
   }, [item, form])
 
   // New item: the project's template for its kind, as long as the text was not edited.
@@ -130,7 +133,7 @@ export function ItemForm({ item, onClose, onSaved }) {
     const values = await form.validateFields()
     setSaving(true)
     try {
-      const body = { ...values, project_id: values.project_id ?? item.project_id, due_date: values.due_date ? values.due_date.format('YYYY-MM-DD') : null }
+      const body = { ...values, project_id: values.project_id ?? item.project_id, due_date: values.due_date ? values.due_date.format('YYYY-MM-DD') : null, estimate_minutes: values.estimate_hours ? Math.round(values.estimate_hours * 60) : null }
       // Created from the "Today" view: planned for the day right away.
       if (!item.id && item.focus_date) body.focus_date = item.focus_date
       const saved = item.id ? await api.put(`/items/${item.id}`, body) : await api.post('/items', body)
@@ -163,7 +166,8 @@ export function ItemForm({ item, onClose, onSaved }) {
       deleteTitle={t('Supprimer ?')}
     >
       <IssueLink item={current} onLinked={setLinked} />
-      <Form form={form} layout="vertical">
+      {/* Named: it can be open over the doc editor, and field ids must not clash. */}
+      <Form form={form} name="item" layout="vertical">
         <Form.Item name="title" label={t('Titre')} rules={[{ required: true, message: t('Titre obligatoire') }]}>
           <Input autoFocus />
         </Form.Item>
@@ -190,6 +194,9 @@ export function ItemForm({ item, onClose, onSaved }) {
             <Select options={options(SOURCE).filter((o) => o.value !== 'version')} />
           </Form.Item>
           <Form.Item name="target_version" label={t('Version cible')} style={{ minWidth: 120, flex: 1 }}><Input placeholder={t('ex. 1.3.0')} /></Form.Item>
+          <Form.Item name="estimate_hours" label={t('Estimation')} style={{ minWidth: 120, flex: 1 }}>
+            <InputNumber min={0.25} step={0.25} suffix="h" style={{ width: '100%' }} />
+          </Form.Item>
         </Flex>
         <Form.Item name="external_url" label={t('Lien (post du forum, issue, mail…)')}><Input placeholder="https://…" /></Form.Item>
         <Form.Item name="pr_url" label={t('Pull request / merge request liée')}>
@@ -205,6 +212,16 @@ export function ItemForm({ item, onClose, onSaved }) {
         {item?.id && (
           <Form.Item label={t('Liens avec d’autres éléments')}>
             <ItemLinks item={item} />
+          </Form.Item>
+        )}
+        {item?.id && (
+          <Form.Item label={t('Temps passé')}>
+            <ItemTime item={item} estimateMinutes={estimateHours ? Math.round(estimateHours * 60) : null} />
+          </Form.Item>
+        )}
+        {item?.id && (
+          <Form.Item label={t('Historique')}>
+            <ItemHistory item={item} />
           </Form.Item>
         )}
       </Form>
@@ -246,6 +263,7 @@ function Board({ items, onOpen, onMove }) {
                     <LabelTag map={ITEM_KIND} value={it.kind} />
                     {it.status === 'blocked' && <LabelTag map={ITEM_STATUS} value={it.status} />}
                     <ChecklistTag checklist={it.checklist} />
+                    <TimeTag item={it} />
                     {it.priority !== 'normal' && <LabelTag map={PRIORITY} value={it.priority} />}
                     {it.project_name && <Tag>{it.project_name}</Tag>}
                   </Flex>
@@ -435,6 +453,7 @@ export default function ItemsPanel({ projectId }) {
               </Tooltip>
             )}
             <ChecklistTag checklist={it.checklist} />
+            <TimeTag item={it} />
             {it.open_blockers > 0 && <Tag color="error" style={{ marginInlineEnd: 0 }}>{t('bloqué par {n}', { n: it.open_blockers })}</Tag>}
             {it.external_url && <a href={it.external_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}><LinkOutlined /></a>}
             {needsForumReply(it) && (

@@ -5,7 +5,7 @@ import { computeMineOnly } from '../visibility.js'
 import { fetchForum, fetchTopic, forumSourceKey, latestVersion } from './sources.js'
 import { notifyProject } from './notify.js'
 import { tr } from '../i18n.js'
-import { unblockDependents } from '../items.js'
+import { setItemStatus, unblockDependents } from '../items.js'
 import { STUCK_MINUTES, releaseView } from '../releases.js'
 
 export const syncState = { running: false, last_run_at: null, last_duration_ms: null, errors: [], notify_error: null }
@@ -173,9 +173,8 @@ async function mergedLinkedPrs(db, project, forge, repo, info, items) {
 
 // Merged PR: the work is done, it now has to be tested.
 function moveMergedToTesting(db, project, merged, baseKey, opts) {
-  const update = db.prepare("UPDATE items SET status = 'testing', updated_at = datetime('now') WHERE id = ?")
   for (const it of merged) {
-    update.run(it.id)
+    setItemStatus(db, it.id, 'testing', 'sync')
     pushInbox(db, {
       project_id: project.id,
       source: project.forge,
@@ -211,10 +210,9 @@ function closeLinkedItems(db, project, items, opts) {
     `SELECT id, project_id, title, source, external_url, issue_number, forum_replied_at FROM items
      WHERE project_id = ? AND issue_number IS NOT NULL AND status IN ${OPEN_STATUSES} AND status != 'testing'`
   ).all(project.id)
-  const close = db.prepare("UPDATE items SET status = 'done', updated_at = datetime('now') WHERE id = ?")
   for (const it of linked) {
     if (open.has(it.issue_number)) continue
-    close.run(it.id)
+    setItemStatus(db, it.id, 'done', 'sync')
     unblockDependents(db, it.id)
     // A bug reported on the forum: remind to tell the reporter it is fixed.
     remindForumReply(db, it, opts)

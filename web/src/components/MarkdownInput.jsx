@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { App, Button, Flex, Image, Input, theme, Typography } from 'antd'
-import { EditOutlined, EyeOutlined, PaperClipOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, EditOutlined, EyeOutlined, PaperClipOutlined } from '@ant-design/icons'
 import { api } from '../api/client.js'
 import { t } from '../i18n/index.js'
 import Markdown from './Markdown.jsx'
@@ -22,7 +22,9 @@ export function uploadMarkdown(file, uploaded) {
 
 // Markdown text area accepting pasted, dropped or picked files: each one is
 // uploaded and its Markdown inserted at the cursor. Works as a Form.Item child.
-export default function MarkdownInput({ value = '', onChange, ...props }) {
+// `onCreateItem(selectedText, insertAfterSelection)` adds a button that turns the
+// selected text into a task.
+export default function MarkdownInput({ value = '', onChange, onCreateItem, ...props }) {
   const { message } = App.useApp()
   const { token } = theme.useToken()
   const ref = useRef(null)
@@ -30,6 +32,7 @@ export default function MarkdownInput({ value = '', onChange, ...props }) {
   const [uploading, setUploading] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [preview, setPreview] = useState(false)
+  const [hasSelection, setHasSelection] = useState(false)
   const images = useMemo(() => markdownImages(value), [value])
 
   const textarea = () => ref.current?.resizableTextArea?.textArea
@@ -79,6 +82,17 @@ export default function MarkdownInput({ value = '', onChange, ...props }) {
     insertFiles(files)
   }
 
+  const createItem = () => {
+    const el = textarea()
+    const selected = el ? el.value.slice(el.selectionStart, el.selectionEnd) : ''
+    if (!selected.trim()) return
+    const end = el.selectionEnd
+    onCreateItem(selected, (snippet) => {
+      const current = textarea()?.value ?? value
+      onChange?.(current.slice(0, end) + snippet + current.slice(end))
+    })
+  }
+
   return (
     <Flex vertical gap={4}>
       {preview ? (
@@ -92,6 +106,7 @@ export default function MarkdownInput({ value = '', onChange, ...props }) {
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         onPaste={onPaste}
+        onSelect={(e) => setHasSelection(e.target.selectionEnd > e.target.selectionStart)}
         onDrop={onDrop}
         onDragOver={(e) => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); setDragging(true) } }}
         onDragLeave={() => setDragging(false)}
@@ -121,6 +136,11 @@ export default function MarkdownInput({ value = '', onChange, ...props }) {
         <Button size="small" type="text" icon={<PaperClipOutlined />} disabled={preview} loading={uploading > 0} onClick={() => picker.current?.click()}>
           {uploading > 0 ? t('Envoi…') : t('Joindre un fichier')}
         </Button>
+        {onCreateItem && !preview && (
+          <Button size="small" type="text" icon={<CheckSquareOutlined />} disabled={!hasSelection} onClick={createItem}>
+            {t('Créer une tâche depuis la sélection')}
+          </Button>
+        )}
         {!preview && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t('ou colle / glisse une capture d’écran ici')}</Typography.Text>}
         <input
           ref={picker}

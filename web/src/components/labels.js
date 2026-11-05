@@ -27,6 +27,21 @@ export const ITEM_STATUS = {
 export const OPEN_STATUSES = ['todo', 'in_progress', 'testing', 'blocked']
 
 // Relations between items, read from either end (A blocked by B, B blocks A).
+// Fields and automatic sources shown in an item's history.
+export const HISTORY_FIELDS = {
+  status: 'Statut',
+  priority: 'Priorité',
+  kind: 'Type',
+  target_version: 'Version cible',
+  due_date: 'Échéance',
+  title: 'Titre',
+}
+export const HISTORY_SOURCES = {
+  sync: 'Synchro',
+  release: 'Version',
+  dependency: 'Déblocage',
+}
+
 export const LINK_TYPES = {
   blocked_by: { out: 'Bloqué par', in: 'Bloque', color: 'error' },
   duplicate_of: { out: 'Doublon de', in: 'A pour doublon', color: 'warning' },

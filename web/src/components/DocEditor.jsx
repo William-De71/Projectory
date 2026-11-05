@@ -8,6 +8,7 @@ import MarkdownInput from './MarkdownInput.jsx'
 import ProjectSelect from './ProjectSelect.jsx'
 import { getLang, t } from '../i18n/index.js'
 import FormModal from './FormModal.jsx'
+import { useItemPanel } from './ItemPanel.jsx'
 
 const SPEC_TEMPLATES = {
   fr: `## Contexte
@@ -50,9 +51,19 @@ Why is this needed? Who asked for it?
 
 export const specTemplate = () => SPEC_TEMPLATES[getLang()] || SPEC_TEMPLATES.fr
 
+const LINE_MARKERS = /^\s*(?:[#>]+\s*|[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)*/
+
+// Selected Markdown as a task: the first line without its markers is the title, the rest the description.
+export function selectionToItem(selected) {
+  const lines = selected.split('\n').map((l) => l.trimEnd())
+  const first = lines.findIndex((l) => l.trim())
+  return { title: lines[first].replace(LINE_MARKERS, '').slice(0, 200), body: lines.slice(first + 1).join('\n').trim() }
+}
+
 // Dialog to create or edit a spec / note. `doc` null = closed.
 export default function DocEditor({ doc, onClose, onSaved, onDeleted, withProjectPicker = false }) {
   const { message } = App.useApp()
+  const { newItem } = useItemPanel()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const type = Form.useWatch('type', form)
@@ -111,6 +122,24 @@ export default function DocEditor({ doc, onClose, onSaved, onDeleted, withProjec
     onClose()
   }
 
+  // The task created from the selection gets a link back to this document, and
+  // the document a link to the task (saved at once: the task already exists).
+  const createItem = (selected, insertAfterSelection) => {
+    const values = form.getFieldsValue(true)
+    const { title, body } = selectionToItem(selected)
+    const id = savedId.current
+    const from = !id ? '' : `${t('Depuis :')} [${values.title || t('le document')}](${values.project_id ? `/projects/${values.project_id}/docs` : '/notes'}?doc=${id})`
+    newItem(
+      { kind: 'task', project_id: values.project_id ?? undefined, title, body: [body, from].filter(Boolean).join('\n\n') },
+      {
+        onCreated: (item) => {
+          insertAfterSelection(` [→ #${item.id}](/items?item=${item.id})`)
+          save({ close: false })
+        },
+      },
+    )
+  }
+
   const onTypeChange = (type) => {
     if (type === 'spec' && !form.getFieldValue('content')) form.setFieldValue('content', specTemplate())
   }
@@ -157,7 +186,7 @@ export default function DocEditor({ doc, onClose, onSaved, onDeleted, withProjec
               forceRender: true,
               children: (
                 <Form.Item name="content" className="md-editor" style={{ marginBottom: 0 }}>
-                  <MarkdownInput autoSize={{ minRows: 16, maxRows: 40 }} placeholder={t('Markdown supporté : # titres, - listes, - [ ] cases à cocher, `code`…')} />
+                  <MarkdownInput onCreateItem={createItem} autoSize={{ minRows: 16, maxRows: 40 }} placeholder={t('Markdown supporté : # titres, - listes, - [ ] cases à cocher, `code`…')} />
                 </Form.Item>
               ),
             },

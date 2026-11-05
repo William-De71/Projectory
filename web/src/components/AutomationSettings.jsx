@@ -60,6 +60,50 @@ export function DigestSettings() {
   )
 }
 
+export function DueAlertSettings() {
+  const { message } = App.useApp()
+  const { data, setData } = useApi('/due-alerts')
+  const [sending, setSending] = useState(false)
+  if (!data) return null
+  const update = async (patch) => {
+    try {
+      setData(await api.put('/settings/due-alerts', { ...data, ...patch }))
+    } catch (err) {
+      message.error(err.message)
+    }
+  }
+  const send = async () => {
+    setSending(true)
+    try {
+      const res = await api.post('/due-alerts/send')
+      setData(res)
+      if (res.sent) message.success(t('{n} échéance(s) envoyée(s) — vérifie ton téléphone', { n: res.sent }))
+      else message.info(t('Aucune échéance à signaler'))
+    } catch (err) {
+      message.error(err.message)
+    } finally {
+      setSending(false)
+    }
+  }
+  return (
+    <Card size="small" title={t('Alertes d’échéance (ntfy)')}>
+      <Typography.Paragraph type="secondary">
+        {t('Une notification par jour au plus, seulement s’il y a du nouveau. Chaque bug ou tâche est signalé deux fois au maximum : quand son échéance approche, puis s’il passe en retard. Les projets rendus muets sont ignorés.')}
+      </Typography.Paragraph>
+      <Flex gap={12} wrap align="center">
+        <Flex gap={8} align="center"><Switch checked={data.enabled} onChange={(enabled) => update({ enabled })} aria-label={t('Alertes d’échéance (ntfy)')} /> {t('Activées')}</Flex>
+        <Flex gap={6} align="center">
+          <InputNumber min={0} max={30} value={data.days_before} onChange={(days_before) => days_before != null && update({ days_before })} style={{ width: 70 }} />
+          {t('jour(s) avant')}
+        </Flex>
+        <Flex gap={6} align="center">{t('à')} <Select value={data.hour} onChange={(hour) => update({ hour })} options={hoursOptions} style={{ width: 100 }} /></Flex>
+        <Button icon={<SendOutlined />} onClick={send} loading={sending}>{t('Envoyer maintenant')}</Button>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t('{n} à signaler', { n: data.pending })}</Typography.Text>
+      </Flex>
+    </Card>
+  )
+}
+
 export function StaleSettings() {
   const { message } = App.useApp()
   const { data, setData } = useApi('/stale')

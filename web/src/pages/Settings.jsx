@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import { api, notifyChange, useApi } from '../api/client.js'
 import NotificationSettings from '../components/NotificationSettings.jsx'
 import { ForgeAccounts, GithubNotificationSettings } from '../components/ForgeSettings.jsx'
-import { BackupSettings, CalendarSettings, DigestSettings, StaleSettings, ReleaseChecklistSettings } from '../components/AutomationSettings.jsx'
+import { BackupSettings, CalendarSettings, DigestSettings, DueAlertSettings, StaleSettings, ReleaseChecklistSettings } from '../components/AutomationSettings.jsx'
 import TimePanel from '../components/TimePanel.jsx'
 import { t } from '../i18n/index.js'
 
@@ -80,6 +80,7 @@ function General() {
       <NotificationSettings notifyError={sync?.notify_error} />
       <GithubNotificationSettings />
       <DigestSettings />
+      <DueAlertSettings />
       <StaleSettings />
       <CalendarSettings />
       <Card size="small" title={t('Synchronisation')}>

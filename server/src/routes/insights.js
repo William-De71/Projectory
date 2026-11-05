@@ -6,6 +6,7 @@ import { buildCalendar, calendarToken } from '../calendar.js'
 import { projectStats } from '../stats.js'
 import { ntfyConfig, sendNtfy } from '../sync/notify.js'
 import { buildReview, markReviewDone } from '../review.js'
+import { dueAlertConfig, findDueAlerts, sendDueAlerts } from '../dueAlerts.js'
 
 const clampInt = (v, min, max, fallback) => {
   const n = Number(v)
@@ -62,6 +63,30 @@ export default async function insightRoutes(app, { db }) {
   app.post('/digest/send', async (req, reply) => {
     try {
       return await sendDigest(db)
+    } catch (err) {
+      return reply.code(400).send({ error: err.message })
+    }
+  })
+
+  const dueAlerts = () => ({ ...dueAlertConfig(db), pending: findDueAlerts(db).length })
+
+  app.get('/due-alerts', async () => dueAlerts())
+
+  app.put('/settings/due-alerts', async (req) => {
+    const current = dueAlertConfig(db)
+    setConfig(db, 'due_alerts', {
+      ...current,
+      enabled: !!(req.body?.enabled ?? current.enabled),
+      days_before: clampInt(req.body?.days_before, 0, 30, current.days_before),
+      hour: clampInt(req.body?.hour, 0, 23, current.hour),
+    })
+    return dueAlerts()
+  })
+
+  app.post('/due-alerts/send', async (req, reply) => {
+    try {
+      const { sent } = await sendDueAlerts(db)
+      return { ...dueAlerts(), sent }
     } catch (err) {
       return reply.code(400).send({ error: err.message })
     }
