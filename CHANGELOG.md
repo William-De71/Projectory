@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.18.0 — 2026-11-05
+
+### ✨ Nouveautés
+
+- due date alerts, task from a selection, item history, time and estimate per task (f843bc4)
+
 ## v0.17.0 — 2026-10-25
 
 ### ✨ Nouveautés
