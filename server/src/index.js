@@ -1,5 +1,5 @@
 import { openDb } from './db.js'
-import { buildApp, defaultWebDist } from './app.js'
+import { APP_VERSION, buildApp, defaultWebDist } from './app.js'
 import { startScheduler } from './sync/index.js'
 import { startJobs } from './jobs.js'
 
@@ -8,7 +8,7 @@ const app = await buildApp({ db, webDist: process.env.WEB_DIST || defaultWebDist
 
 await app.listen({ port: Number(process.env.PORT || 3001), host: process.env.HOST || '0.0.0.0' })
 startScheduler(db, app.log)
-startJobs(db, app.log)
+startJobs(db, app.log, { version: APP_VERSION })
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, async () => {

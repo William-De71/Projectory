@@ -8,6 +8,7 @@ import NotificationSettings from '../components/NotificationSettings.jsx'
 import { ForgeAccounts, GithubNotificationSettings } from '../components/ForgeSettings.jsx'
 import { BackupSettings, CalendarSettings, DigestSettings, DueAlertSettings, StaleSettings, ReleaseChecklistSettings } from '../components/AutomationSettings.jsx'
 import TimePanel from '../components/TimePanel.jsx'
+import { UpdateSettings } from '../components/UpdateNotice.jsx'
 import { t } from '../i18n/index.js'
 
 function Categories() {
@@ -72,9 +73,9 @@ function Categories() {
 
 function General() {
   const { data: sync } = useApi('/sync/status', { listen: true })
-  const { data: health } = useApi('/health')
   return (
     <Flex vertical gap={16}>
+      <UpdateSettings />
       <Categories />
       <ForgeAccounts />
       <NotificationSettings notifyError={sync?.notify_error} />
@@ -102,10 +103,6 @@ function General() {
         <Typography.Paragraph>{t('Toutes les données sont dans') + ' '}<code>data/projectory.db</code>{' ' + t('(SQLite). Tu peux aussi exporter un JSON lisible :')}</Typography.Paragraph>
         <Button icon={<DownloadOutlined />} href="/api/export">{t('Exporter en JSON')}</Button>
       </Card>
-      {health?.version && (
-        <Typography.Text type="secondary" style={{ textAlign: 'center', fontSize: 12 }}>{t('Projectory') + ' '}{health.version} — <a href="https://github.com/William-De71/projectory/releases" target="_blank" rel="noreferrer">{t('notes de version')}</a>
-        </Typography.Text>
-      )}
     </Flex>
   )
 }

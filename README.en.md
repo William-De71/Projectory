@@ -103,7 +103,7 @@ Open http://localhost:3001. Data lives in `./data/projectory.db`.
 
 ### Updating from the interface
 
-Projectory checks the GitHub releases: when a new version is out, a notification pops up and a "vX.Y.Z available" link shows at the bottom of the menu, with the release notes. To also get the **Update now** button, enable [Watchtower](https://github.com/nicholas-fedor/watchtower) in `.env`:
+The server checks the GitHub releases every 6 hours: when a new version is out, a notification pops up, a "vX.Y.Z available" link shows at the bottom of the menu with the release notes, and ntfy tells you once (event "New Projectory version"). **Settings → Projectory updates** shows the installed version, the latest published one and the time of the last check, with a **Check for updates** button to check right away. To also get the **Update now** button, enable [Watchtower](https://github.com/nicholas-fedor/watchtower) in `.env`:
 
 ```bash
 COMPOSE_PROFILES=updater

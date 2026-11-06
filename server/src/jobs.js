@@ -3,11 +3,26 @@ import { digestConfig, isDigestDue } from './insights.js'
 import { sendDigest } from './routes/insights.js'
 import { dueAlertConfig, isDueAlertDue, sendDueAlerts } from './dueAlerts.js'
 import { ntfyConfig } from './sync/notify.js'
+import { checkForUpdate } from './update.js'
 
-// Checks once a minute for the weekly digest, the due date alerts and the daily backup.
-export function startJobs(db, log) {
+const UPDATE_CHECK_MS = 6 * 60 * 60 * 1000
+
+// Checks once a minute for the weekly digest, the due date alerts and the daily
+// backup; every 6 hours (and at startup) for a new Projectory version.
+export function startJobs(db, log, { version }) {
+  let lastUpdateCheck = 0
   const tick = async () => {
     const now = new Date()
+    if (now - lastUpdateCheck >= UPDATE_CHECK_MS) {
+      lastUpdateCheck = now.getTime()
+      try {
+        const { status, notified } = await checkForUpdate(db, version, now)
+        if (status.error) log.warn(`recherche de mise à jour : ${status.error}`)
+        if (notified) log.info(`nouvelle version signalée : ${status.latest.version}`)
+      } catch (err) {
+        log.warn(`recherche de mise à jour : ${err.message}`)
+      }
+    }
     if (isDigestDue(digestConfig(db), now)) {
       try {
         await sendDigest(db, now)

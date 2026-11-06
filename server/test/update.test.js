@@ -1,21 +1,26 @@
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { openDb } from '../src/db.js'
+import { getConfig, openDb, setConfig } from '../src/db.js'
 import { buildApp } from '../src/app.js'
+import { checkForUpdate, updateStatus } from '../src/update.js'
 
 // Keep tests hermetic whatever the developer's environment holds.
 for (const key of ['GITHUB_TOKEN', 'NTFY_TOPIC', 'APP_PASSWORD', 'APP_VERSION', 'UPDATER_TOKEN', 'UPDATER_URL', 'IMAGE_TAG']) delete process.env[key]
 
 // Fake GitHub release and Watchtower API.
 const calls = []
+let githubDown = false
 const realFetch = globalThis.fetch
 before(() => {
   globalThis.fetch = async (url, init) => {
     url = String(url)
     calls.push({ url, method: init?.method, auth: init?.headers?.Authorization })
     if (url === 'https://api.github.com/repos/William-De71/Projectory/releases/latest') {
+      if (githubDown) throw new Error('réseau coupé')
+      if (init?.headers?.Authorization === 'Bearer expired') return new Response('Bad credentials', { status: 401 })
       return new Response(JSON.stringify({ tag_name: 'v99.0.0', html_url: 'https://gh/v99', body: '### ✨ Nouveautés\n- tout', published_at: '2026-10-24T00:00:00Z' }))
     }
+    if (url === 'https://ntfy.test') return new Response('{}')
     if (url.startsWith('http://watchtower:8080/v1/update')) return new Response('', { status: 202 })
     return new Response('not found', { status: 404 })
   }
@@ -60,4 +65,70 @@ test('update now: Watchtower is called with the token, not for a fixed image tag
     delete process.env.UPDATER_TOKEN
     delete process.env.IMAGE_TAG
   }
+})
+
+test('the status says what was compared and when', async () => {
+  const db = openDb(':memory:')
+  const now = new Date('2026-11-06T10:00:00Z')
+  const upToDate = await updateStatus(db, '99.0.0', { now })
+  assert.equal(upToDate.available, false)
+  assert.equal(upToDate.comparable, true)
+  assert.equal(upToDate.checked_at, now.toISOString())
+  const dev = await updateStatus(db, 'dev-abc123', { now })
+  assert.equal(dev.comparable, false)
+  assert.equal(dev.available, false)
+})
+
+test('an expired token does not hide a new version', async () => {
+  process.env.GITHUB_TOKEN = 'expired'
+  try {
+    const status = await updateStatus(openDb(':memory:'), '1.0.0')
+    assert.equal(status.available, true)
+    assert.equal(status.error, undefined)
+  } finally {
+    delete process.env.GITHUB_TOKEN
+  }
+})
+
+test('a failed search is reported, what was known stays', async () => {
+  const db = openDb(':memory:')
+  githubDown = true
+  try {
+    const none = await updateStatus(db, '1.0.0')
+    assert.equal(none.latest, null)
+    assert.equal(none.available, false)
+    assert.match(none.error, /réseau coupé/)
+
+    githubDown = false
+    const { checked_at } = await updateStatus(db, '1.0.0')
+    githubDown = true
+    const stale = await updateStatus(db, '1.0.0', { refresh: true })
+    assert.match(stale.error, /réseau coupé/)
+    assert.equal(stale.latest.version, '99.0.0')
+    assert.equal(stale.available, true)
+    assert.equal(stale.checked_at, checked_at)
+  } finally {
+    githubDown = false
+  }
+})
+
+test('the background check tells ntfy once per version, if asked to', async () => {
+  const db = openDb(':memory:')
+  const sent = () => calls.filter((c) => c.url === 'https://ntfy.test').length
+  const start = sent()
+  // ntfy off: nothing sent, and the version is still to announce later.
+  assert.equal((await checkForUpdate(db, '1.0.0')).notified, false)
+  assert.equal(getConfig(db, 'update').notified, undefined)
+
+  setConfig(db, 'ntfy', { enabled: true, server: 'https://ntfy.test', topic: 'projectory', events: ['issue'], known_events: ['issue', 'app_update'] })
+  assert.equal((await checkForUpdate(db, '1.0.0')).notified, false)
+  assert.equal(sent(), start)
+
+  setConfig(db, 'ntfy', { enabled: true, server: 'https://ntfy.test', topic: 'projectory' })
+  assert.equal((await checkForUpdate(db, '99.0.0')).notified, false)
+  assert.equal(sent(), start)
+  assert.equal((await checkForUpdate(db, '1.0.0')).notified, true)
+  assert.equal((await checkForUpdate(db, '1.0.0')).notified, false)
+  assert.equal(sent(), start + 1)
+  assert.equal(getConfig(db, 'update').notified, '99.0.0')
 })

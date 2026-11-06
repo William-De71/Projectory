@@ -14,6 +14,7 @@ export const NOTIFY_EVENTS = {
   pr_status: 'Mes PR : approuvée, changements demandés, conflit, CI',
   pr_merged: 'PR liée fusionnée (élément passé en test)',
   release_failed: 'Release en échec ou bloquée',
+  app_update: 'Nouvelle version de Projectory',
 }
 // Events that existed before the list became extensible: anything newer is
 // switched on for users who saved their choice before it existed.
