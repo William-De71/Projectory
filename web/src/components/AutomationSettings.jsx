@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Alert, App, Button, Card, Flex, Input, InputNumber, Popconfirm, Select, Switch, Table, Typography } from 'antd'
-import { CalendarOutlined, CopyOutlined, DownloadOutlined, ReloadOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons'
+import { Alert, App, Button, Card, Flex, Grid, Input, InputNumber, Popconfirm, Select, Switch, Table, Typography } from 'antd'
+import { CalendarOutlined, CopyOutlined, DeleteOutlined, DownloadOutlined, ReloadOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, useApi } from '../api/client.js'
 import { t } from '../i18n/index.js'
@@ -172,6 +172,7 @@ export function BackupSettings() {
   const { message } = App.useApp()
   const { data, setData } = useApi('/backups')
   const [running, setRunning] = useState(false)
+  const narrow = Grid.useBreakpoint().md === false
   if (!data) return null
   const update = async (patch) => {
     try {
@@ -190,6 +191,15 @@ export function BackupSettings() {
       message.error(err.message)
     } finally {
       setRunning(false)
+    }
+  }
+  const remove = async (name) => {
+    try {
+      const res = await api.del(`/backups/${name}`)
+      setData({ ...data, backups: res.backups })
+      message.success(t('Sauvegarde {name} supprimée', { name }))
+    } catch (err) {
+      message.error(err.message)
     }
   }
   return (
@@ -212,9 +222,24 @@ export function BackupSettings() {
         locale={{ emptyText: t('Aucune sauvegarde pour l’instant') }}
         columns={[
           { title: t('Fichier'), dataIndex: 'name' },
-          { title: t('Date'), dataIndex: 'date', render: (d) => dayjs(d).format('L') },
+          // Phones: the file name already holds the date.
+          ...(narrow ? [] : [{ title: t('Date'), dataIndex: 'date', render: (d) => dayjs(d).format('L') }]),
           { title: t('Taille'), dataIndex: 'size', render: size, align: 'right' },
-          { width: 50, render: (_, b) => <Button size="small" type="text" icon={<DownloadOutlined />} href={`/api/backups/${b.name}`} /> },
+          {
+            align: 'right',
+            render: (_, b) => (
+              <Flex gap={4} justify="end">
+                <Button size="small" icon={<DownloadOutlined />} href={`/api/backups/${b.name}`} download={b.name} aria-label={t('Télécharger {name}', { name: b.name })}>{narrow ? null : t('Télécharger')}</Button>
+                <Popconfirm
+                  title={t('Supprimer définitivement {name} ?', { name: b.name })}
+                  description={data.backups.length === 1 ? t('C’est la dernière sauvegarde.') : undefined}
+                  onConfirm={() => remove(b.name)}
+                >
+                  <Button size="small" danger icon={<DeleteOutlined />} aria-label={t('Supprimer « {text} »', { text: b.name })} />
+                </Popconfirm>
+              </Flex>
+            ),
+          },
         ]}
       />
     </Card>

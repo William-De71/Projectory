@@ -14,6 +14,37 @@ const RELEASES_URL = 'https://github.com/William-De71/Projectory/releases'
 
 const label = (version) => (/^\d/.test(version) ? `v${version}` : version)
 
+// Asks GitHub now and tells the menu link; `open` shows the dialog if there is a new version.
+async function searchForUpdate({ open = false } = {}) {
+  const status = await api.get('/update?refresh=1')
+  // The answer is on screen: no need for the notification as well.
+  if (status.available) {
+    try { localStorage.setItem(SEEN_KEY, status.latest.version) } catch { /* storage unavailable */ }
+  }
+  window.dispatchEvent(new CustomEvent(STATUS_EVENT, { detail: { status, open } }))
+  return status
+}
+
+// Search from a menu or a button: the result comes as a message or the dialog.
+export function useUpdateSearch() {
+  const { message } = App.useApp()
+  const [searching, setSearching] = useState(false)
+  const search = useCallback(async () => {
+    setSearching(true)
+    try {
+      const status = await searchForUpdate({ open: true })
+      if (status.error) message.warning(t('Vérification impossible : {error}', { error: status.error }))
+      else if (!status.comparable) message.info(t('Version de développement : elle n’est pas comparée aux versions publiées.'))
+      else if (!status.available) message.success(t('Projectory est à jour.'))
+    } catch (err) {
+      message.error(t('Vérification impossible : {error}', { error: err.message }))
+    } finally {
+      setSearching(false)
+    }
+  }, [message])
+  return { search, searching }
+}
+
 // Waits for the container to come back with another version, then reloads.
 async function waitForNewVersion(current, deadline) {
   while (Date.now() < deadline) {
@@ -96,8 +127,11 @@ export default function UpdateNotice() {
   useEffect(() => {
     check()
     const timer = setInterval(check, CHECK_EVERY)
-    // A manual search in the settings updates the link right away.
-    const onStatus = (e) => setStatus(e.detail)
+    // A manual search updates the link right away.
+    const onStatus = (e) => {
+      setStatus(e.detail.status)
+      if (e.detail.open && e.detail.status.available) setOpen(true)
+    }
     window.addEventListener(STATUS_EVENT, onStatus)
     return () => {
       clearInterval(timer)
@@ -148,13 +182,7 @@ export function UpdateSettings() {
     setSearching(true)
     setFailure(null)
     try {
-      const next = await api.get('/update?refresh=1')
-      setStatus(next)
-      // The answer is on screen here: no need for the notification as well.
-      if (next.available) {
-        try { localStorage.setItem(SEEN_KEY, next.latest.version) } catch { /* storage unavailable */ }
-      }
-      window.dispatchEvent(new CustomEvent(STATUS_EVENT, { detail: next }))
+      setStatus(await searchForUpdate())
     } catch (err) {
       setFailure(err.message)
     } finally {

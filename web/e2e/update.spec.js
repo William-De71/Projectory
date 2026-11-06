@@ -33,3 +33,20 @@ test('rechercher une mise à jour : un échec ne dit pas « à jour »', async (
   await expect(card.getByText('Vérification impossible : GitHub a répondu 503')).toBeVisible()
   await expect(card.getByText('Projectory est à jour.')).toHaveCount(0)
 })
+
+test('rechercher une mise à jour depuis le menu : à jour, puis la fenêtre de la nouvelle version', async ({ page }) => {
+  let newer = false
+  await page.route('**/api/update*', (route) => answer(route, newer
+    ? { ...base, latest: release, available: true }
+    : { ...base, latest: { ...release, version: '1.0.0' }, available: false }))
+  await page.goto('/')
+
+  await page.getByRole('button', { name: 'Rechercher une mise à jour' }).click()
+  await expect(page.locator('.ant-message').getByText('Projectory est à jour.')).toBeVisible()
+
+  newer = true
+  await page.getByRole('button', { name: 'Préférences' }).click()
+  await page.getByRole('menuitem', { name: /Rechercher une mise à jour/ }).click()
+  await expect(page.locator('.ant-modal').getByText('Tout est neuf')).toBeVisible()
+  await expect(page.locator('.ant-notification-notice')).toHaveCount(0)
+})

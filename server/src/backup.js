@@ -1,6 +1,6 @@
 import { createReadStream, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { DATA_PATH, getConfig } from './db.js'
+import { DATA_PATH, getConfig, setConfig } from './db.js'
 import { mirrorUploads, pruneUploads } from './uploads.js'
 
 const NAME = /^projectory-(\d{4}-\d{2}-\d{2})\.db$/
@@ -70,7 +70,20 @@ export function createBackup(db, now = new Date()) {
 export function isBackupDue(db, now = new Date()) {
   const config = backupConfig(db)
   if (!config.enabled || now.getHours() < config.hour) return false
+  if (getConfig(db, 'backup').skip_date === localDate(now)) return false
   return !listBackups().some((b) => b.date === localDate(now))
+}
+
+// Today's backup deleted by hand must not come back on the next tick: the
+// schedule resumes tomorrow. Returns false when there is no such backup.
+export function deleteBackup(db, name, now = new Date()) {
+  const safe = basename(String(name))
+  if (!NAME.test(safe)) return false
+  const file = join(backupDir(), safe)
+  if (!existsSync(file)) return false
+  unlinkSync(file)
+  if (safe.match(NAME)[1] === localDate(now)) setConfig(db, 'backup', { ...getConfig(db, 'backup'), skip_date: localDate(now) })
+  return true
 }
 
 export function backupStream(name) {

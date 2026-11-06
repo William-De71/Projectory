@@ -5,7 +5,7 @@ const CACHE = 'projectory-shell-v2'
 const API_CACHE = 'projectory-api-v1'
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png']
 // Live state, downloads and secrets: never answered from the cache.
-const API_LIVE = ['/api/health', '/api/update', '/api/sync', '/api/export', '/api/calendar']
+const API_LIVE = ['/api/health', '/api/update', '/api/sync', '/api/export', '/api/calendar', '/api/backups']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()))
@@ -15,6 +15,11 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== API_CACHE).map((k) => caches.delete(k))))
+      // Earlier versions kept a copy of every downloaded backup.
+      .then(() => caches.open(API_CACHE))
+      .then((cache) => cache.keys().then((requests) => Promise.all(
+        requests.filter((r) => new URL(r.url).pathname.startsWith('/api/backups')).map((r) => cache.delete(r))
+      )))
       .then(() => self.clients.claim())
   )
 })

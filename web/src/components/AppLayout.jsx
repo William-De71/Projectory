@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { App, AutoComplete, Badge, Button, Dropdown, Flex, Grid, Input, Layout, Menu, Tag, Tooltip, Typography, theme } from 'antd'
 import {
-  AppstoreOutlined, BugOutlined, EditOutlined, FileTextOutlined, GlobalOutlined, HomeOutlined,
+  AppstoreOutlined, BugOutlined, CloudDownloadOutlined, EditOutlined, FileTextOutlined, GlobalOutlined, HomeOutlined,
   InboxOutlined, MoonOutlined, PlusOutlined, QuestionCircleOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined, TagOutlined, UnorderedListOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -10,7 +10,7 @@ import { api, notifyChange, useChangeListener } from '../api/client.js'
 import DocEditor from './DocEditor.jsx'
 import CommandPalette, { isPaletteShortcut } from './CommandPalette.jsx'
 import ShortcutsHelp, { openShortcuts } from './ShortcutsHelp.jsx'
-import UpdateNotice from './UpdateNotice.jsx'
+import UpdateNotice, { useUpdateSearch } from './UpdateNotice.jsx'
 import { resultPath } from '../pages/Search.jsx'
 import { useTodoCounts } from './todoCounts.js'
 import OfflineBanner from './OfflineBanner.jsx'
@@ -131,6 +131,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   createRef.current = create
   const [version, setVersion] = useState(null)
   useEffect(() => { api.get('/health').then((h) => setVersion(h.version)).catch(() => {}) }, [])
+  const { search: searchUpdate, searching: searchingUpdate } = useUpdateSearch()
 
   useEffect(() => {
     const onKey = (e) => {
@@ -183,6 +184,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
     { key: 'lang', icon: <GlobalOutlined />, label: lang === 'fr' ? 'English' : 'Français' },
     { key: 'shortcuts', icon: <QuestionCircleOutlined />, label: t('Raccourcis clavier'), extra: HELP_KEY },
     { type: 'divider' },
+    { key: 'update', icon: <CloudDownloadOutlined />, label: t('Rechercher une mise à jour') },
     { key: 'settings', icon: <SettingOutlined />, label: t('Tous les paramètres') },
     // No sidebar on phones: the version moves here.
     ...(mobile && version ? [{ key: 'version', icon: <TagOutlined />, label: t('Notes de version') + ` · ${/^\d/.test(version) ? `v${version}` : version}` }] : []),
@@ -191,6 +193,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
     if (key === 'theme') onToggleDark()
     else if (key === 'lang') onChangeLang(lang === 'fr' ? 'en' : 'fr')
     else if (key === 'shortcuts') openShortcuts()
+    else if (key === 'update') searchUpdate()
     else if (key === 'version') window.open(releaseUrl(version), '_blank', 'noopener')
     else navigate('/settings')
   }
@@ -229,15 +232,20 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
             <Menu mode="inline" selectedKeys={[selected]} items={items} onClick={({ key }) => navigate(key)} style={{ borderInlineEnd: 0, flex: 1, overflowY: 'auto' }} />
             {version && (
               <Flex vertical gap={4} style={{ padding: '12px 20px', fontSize: 12, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
-                <a
-                  href={releaseUrl(version)}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={t('Notes de version')}
-                  style={{ color: token.colorTextTertiary }}
-                >
-                  {/^\d/.test(version) ? `v${version}` : version}
-                </a>
+                <Flex justify="space-between" align="center">
+                  <a
+                    href={releaseUrl(version)}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={t('Notes de version')}
+                    style={{ color: token.colorTextTertiary }}
+                  >
+                    {/^\d/.test(version) ? `v${version}` : version}
+                  </a>
+                  <Tooltip title={t('Rechercher une mise à jour')}>
+                    <Button size="small" type="text" icon={<CloudDownloadOutlined />} loading={searchingUpdate} onClick={searchUpdate} aria-label={t('Rechercher une mise à jour')} />
+                  </Tooltip>
+                </Flex>
                 <UpdateNotice />
               </Flex>
             )}
@@ -301,6 +309,7 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
           toggleDark: onToggleDark,
           toggleLang: () => onChangeLang(lang === 'fr' ? 'en' : 'fr'),
           shortcuts: openShortcuts,
+          searchUpdate,
         }}
       />
     </Layout>

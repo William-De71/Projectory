@@ -56,7 +56,7 @@ Self-hosted (Docker), single-user, all data in one SQLite file.
 | **Calendar (ICS)** | Subscription link for Google Calendar, Apple Calendar, Thunderbird…: due dates of bugs & tasks, planned and released versions. Secret link, can be regenerated. |
 | **Command palette** | <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on Mac): go to a page or a project, search, create a bug, a note, a spec, sync, switch theme or language. |
 | **Installable app (PWA)** | "Install" from Chrome / Edge, or "Add to Home Screen" on iPhone: icon, full screen, shortcuts. **Offline**, pages already opened stay readable (last loaded data) and new bugs, tasks and notes are queued, then sent when the network is back. |
-| **Automatic backups** | Daily copy of the database (without stopping the app), 7 days + 4 weeks rotation, downloadable from the settings. |
+| **Automatic backups** | Daily copy of the database (without stopping the app), 7 days + 4 weeks rotation, to download or delete from the settings. |
 | **Global search** | Projects, bugs, specs, notes (attachment names included), repository issues and PRs; results page with an excerpt around the searched word. |
 | **Export** | Full JSON export in one click, or copy the `data/projectory.db` file. |
 
@@ -104,7 +104,7 @@ Open http://localhost:3001. Data lives in `./data/projectory.db`.
 
 ### Updating from the interface
 
-The server checks the GitHub releases every 6 hours: when a new version is out, a notification pops up, a "vX.Y.Z available" link shows at the bottom of the menu with the release notes, and ntfy tells you once (event "New Projectory version"). **Settings → Projectory updates** shows the installed version, the latest published one and the time of the last check, with a **Check for updates** button to check right away. To also get the **Update now** button, enable [Watchtower](https://github.com/nicholas-fedor/watchtower) in `.env`:
+The server checks the GitHub releases every 6 hours: when a new version is out, a notification pops up, a "vX.Y.Z available" link shows at the bottom of the menu with the release notes, and ntfy tells you once (event "New Projectory version"). **Settings → Projectory updates** shows the installed version, the latest published one and the time of the last check, with a **Check for updates** button to check right away (also next to the version at the bottom of the menu, in the ⚙ menu and the Ctrl K palette). To also get the **Update now** button, enable [Watchtower](https://github.com/nicholas-fedor/watchtower) in `.env`:
 
 ```bash
 COMPOSE_PROFILES=updater

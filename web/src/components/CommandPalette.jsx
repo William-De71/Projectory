@@ -65,6 +65,7 @@ export default function CommandPalette({ open, onClose, actions }) {
       { label: t('Nouveau projet'), icon: <PlusOutlined />, run: () => navigate('/projects?new=1') },
       { label: t('Importer des dépôts'), icon: <CloudDownloadOutlined />, run: () => navigate('/projects?import=1') },
       { label: t('Synchroniser GitHub, versions et forums'), icon: <SyncOutlined />, run: actions.sync },
+      { label: t('Rechercher une mise à jour'), icon: <CloudDownloadOutlined />, run: actions.searchUpdate, keywords: 'update version' },
       { label: t('Changer de thème (clair / sombre)'), icon: <MoonOutlined />, run: actions.toggleDark },
       { label: t('Passer en anglais / français'), icon: <GlobalOutlined />, run: actions.toggleLang, keywords: 'language langue english français' },
       { label: t('Raccourcis clavier'), icon: <QuestionCircleOutlined />, run: actions.shortcuts, keywords: 'clavier keyboard aide help ?' },

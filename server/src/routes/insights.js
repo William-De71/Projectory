@@ -1,7 +1,7 @@
 import { getConfig, setConfig } from '../db.js'
 import { tr } from '../i18n.js'
 import { buildDigest, digestConfig, findStale, staleConfig } from '../insights.js'
-import { backupConfig, backupStream, createBackup, listBackups } from '../backup.js'
+import { backupConfig, backupStream, createBackup, deleteBackup, listBackups } from '../backup.js'
 import { buildCalendar, calendarToken } from '../calendar.js'
 import { projectStats } from '../stats.js'
 import { ntfyConfig, sendNtfy } from '../sync/notify.js'
@@ -121,7 +121,7 @@ export default async function insightRoutes(app, { db }) {
       keep_daily: clampInt(req.body?.keep_daily, 1, 60, current.keep_daily),
       keep_weekly: clampInt(req.body?.keep_weekly, 0, 52, current.keep_weekly),
     }
-    setConfig(db, 'backup', next)
+    setConfig(db, 'backup', { ...getConfig(db, 'backup'), ...next })
     return { ...backupConfig(db), backups: listBackups() }
   })
 
@@ -133,5 +133,10 @@ export default async function insightRoutes(app, { db }) {
     reply.header('Content-Type', 'application/vnd.sqlite3')
     reply.header('Content-Disposition', `attachment; filename="${req.params.name}"`)
     return reply.send(stream)
+  })
+
+  app.delete('/backups/:name', async (req, reply) => {
+    if (!deleteBackup(db, req.params.name)) return reply.code(404).send({ error: tr('Sauvegarde introuvable') })
+    return { backups: listBackups() }
   })
 }

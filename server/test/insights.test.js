@@ -135,6 +135,35 @@ test('backups: snapshot, listing, download, rotation, schedule', async () => {
   assert.equal((await call('GET', '/api/backups')).body.enabled, false)
 })
 
+test('deleting a backup removes only that file, today\'s does not come back', async () => {
+  await call('PUT', '/api/settings/backup', { enabled: true, hour: 0 })
+  const { name: today } = (await call('POST', '/api/backups')).body
+  const old = 'projectory-2020-01-01.db'
+  writeFileSync(join(BACKUPS, old), 'x')
+  writeFileSync(join(BACKUPS, 'keep.db'), 'x')
+
+  assert.equal((await call('DELETE', '/api/backups/projectory-2019-01-01.db')).status, 404)
+  assert.equal((await call('DELETE', '/api/backups/keep.db')).status, 404)
+  assert.equal((await call('DELETE', '/api/backups/..%2Fprojectory.db')).status, 404)
+  assert.ok(readdirSync(BACKUPS).includes('keep.db'))
+
+  const res = await call('DELETE', `/api/backups/${old}`)
+  assert.equal(res.status, 200)
+  assert.ok(res.body.backups.some((b) => b.name === today))
+  assert.ok(!readdirSync(BACKUPS).includes(old))
+  const now = new Date()
+  assert.equal(isBackupDue(db, now), false)
+
+  assert.equal((await call('DELETE', `/api/backups/${today}`)).status, 200)
+  assert.ok(!readdirSync(BACKUPS).includes(today))
+  assert.equal(isBackupDue(db, now), false, 'not recreated today')
+  await call('PUT', '/api/settings/backup', { keep_daily: 8 })
+  assert.equal(isBackupDue(db, now), false, 'changing a setting keeps the skip')
+  assert.equal(isBackupDue(db, new Date(now.getTime() + 864e5)), true, 'back to normal tomorrow')
+  rmSync(join(BACKUPS, 'keep.db'))
+  await call('PUT', '/api/settings/backup', { enabled: false, keep_daily: 7 })
+})
+
 test('stats aggregate forge activity and local data per week', async () => {
   const [p] = (await call('GET', '/api/projects')).body
   await call('POST', '/api/time', { project_id: p.id, date: new Date().toISOString().slice(0, 10), minutes: 90 })

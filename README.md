@@ -55,7 +55,7 @@ Auto-hébergé (Docker), mono-utilisateur, données dans un seul fichier SQLite.
 | **Calendrier (ICS)** | Lien d'abonnement pour Google Agenda, Apple Calendrier, Thunderbird… : échéances des bugs & tâches, versions prévues et publiées. Lien secret régénérable. |
 | **Palette de commandes** | <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> sur Mac) : aller à une page ou un projet, chercher, créer un bug, une note, une spec, synchroniser, changer de thème ou de langue. |
 | **Application installable (PWA)** | « Installer » depuis Chrome / Edge, ou « Sur l'écran d'accueil » sur iPhone : icône, plein écran, raccourcis. **Hors ligne**, les pages déjà ouvertes restent consultables (dernières données chargées) et les nouveaux bugs, tâches et notes sont mis en attente puis envoyés au retour du réseau. |
-| **Sauvegardes automatiques** | Copie quotidienne de la base (sans arrêter l'app), rotation 7 jours + 4 semaines, téléchargeables depuis les paramètres. |
+| **Sauvegardes automatiques** | Copie quotidienne de la base (sans arrêter l'app), rotation 7 jours + 4 semaines, à télécharger ou supprimer depuis les paramètres. |
 | **Recherche globale** | Projets, bugs, specs, notes (noms des pièces jointes compris), issues et PR des dépôts ; page de résultats avec un extrait autour du mot cherché. |
 | **Export** | JSON complet en un clic, ou copie du fichier `data/projectory.db`. |
 
@@ -105,7 +105,7 @@ Ouvre http://localhost:3001. Les données sont dans `./data/projectory.db`.
 
 ### Mise à jour depuis l'interface
 
-Le serveur vérifie les releases GitHub toutes les 6 heures : quand une nouvelle version sort, une notification apparaît, un lien « vX.Y.Z disponible » s'affiche en bas du menu avec les notes de version, et ntfy te prévient une fois (événement « Nouvelle version de Projectory »). **Paramètres → Mises à jour de Projectory** indique la version installée, la dernière publiée et la date de vérification, avec un bouton **Rechercher une mise à jour** pour vérifier tout de suite. Pour avoir aussi le bouton **Mettre à jour maintenant**, active [Watchtower](https://github.com/nicholas-fedor/watchtower) dans `.env` :
+Le serveur vérifie les releases GitHub toutes les 6 heures : quand une nouvelle version sort, une notification apparaît, un lien « vX.Y.Z disponible » s'affiche en bas du menu avec les notes de version, et ntfy te prévient une fois (événement « Nouvelle version de Projectory »). **Paramètres → Mises à jour de Projectory** indique la version installée, la dernière publiée et la date de vérification, avec un bouton **Rechercher une mise à jour** pour vérifier tout de suite (aussi à côté de la version en bas du menu, dans le menu ⚙ et la palette Ctrl K). Pour avoir aussi le bouton **Mettre à jour maintenant**, active [Watchtower](https://github.com/nicholas-fedor/watchtower) dans `.env` :
 
 ```bash
 COMPOSE_PROFILES=updater
