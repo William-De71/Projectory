@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.21.0 — 2026-11-06
+
+### ✨ Nouveautés
+
+- download and delete backups, check for updates from the menu (865238f)
+
 ## v0.20.0 — 2026-11-06
 
 ### ✨ Nouveautés
