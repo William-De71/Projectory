@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.19.0 — 2026-11-06
+
+### ✨ Nouveautés
+
+- check for updates button, background update detection (863cfa8)
+
 ## v0.18.0 — 2026-11-05
 
 ### ✨ Nouveautés
