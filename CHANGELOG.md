@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.20.0 — 2026-11-06
+
+### ✨ Nouveautés
+
+- to-do lists, one general and one per project (8df3a62)
+
 ## v0.19.0 — 2026-11-06
 
 ### ✨ Nouveautés
