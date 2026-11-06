@@ -7,6 +7,8 @@ export const test = base.extend({
     const errors = []
     page.on('pageerror', (err) => errors.push(err.message))
     page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()) })
+    // No real GitHub call: its "new version" popup would cover the top right of the page.
+    await page.route('**/api/update*', (route) => route.fulfill({ json: { current: '1.0.0', comparable: true, can_update: false, image_tag: 'latest', latest: { version: '1.0.0', url: '', notes: '' }, checked_at: null, available: false } }))
     await use(page)
     expect(errors, 'erreurs dans la console').toEqual([])
   },

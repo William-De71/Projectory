@@ -7,7 +7,7 @@ test('chaque entrée du menu ouvre sa page', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('tab', { name: 'Ma journée' })).toBeVisible()
   const menu = page.getByRole('menu')
-  for (const [entry, heading] of [['À traiter', 'À traiter'], ['Projets', 'Projets'], ['Bugs & tâches', 'Bugs & tâches'], ['Notes & specs', 'Notes & spécifications'], ['Accueil', 'Aujourd’hui']]) {
+  for (const [entry, heading] of [['À traiter', 'À traiter'], ['Projets', 'Projets'], ['Bugs & tâches', 'Bugs & tâches'], ['Todo list', 'Todo list'], ['Notes & specs', 'Notes & spécifications'], ['Accueil', 'Aujourd’hui']]) {
     await menu.getByText(entry, { exact: true }).click()
     await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible()
   }
@@ -22,10 +22,10 @@ test('les anciennes adresses mènent aux nouvelles pages', async ({ page }) => {
   await expect(page).toHaveURL(/\/settings\/time$/)
 })
 
-test('la fiche projet a cinq onglets', async ({ page }) => {
+test('la fiche projet a six onglets', async ({ page }) => {
   await page.goto(`/projects/${project.id}`)
   const tabs = page.getByRole('tab')
-  await expect(tabs).toHaveCount(5)
+  await expect(tabs).toHaveCount(6)
   await page.getByRole('tab', { name: /Versions/ }).click()
   await expect(page.getByText('Bug planifié')).toBeVisible()
   await page.getByRole('tab', { name: /Notes & specs/ }).click()

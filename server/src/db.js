@@ -237,6 +237,17 @@ const MIGRATIONS = [
   ALTER TABLE time_entries ADD COLUMN item_id INTEGER REFERENCES items(id) ON DELETE SET NULL;
   CREATE INDEX time_item ON time_entries(item_id);
   `,
+  `
+  -- Quick to-do lists: no project is the general list.
+  CREATE TABLE todos (
+    id INTEGER PRIMARY KEY,
+    project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    done_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX todos_project ON todos(project_id);
+  `,
 ]
 
 // Item statuses that still need work, as an SQL list.

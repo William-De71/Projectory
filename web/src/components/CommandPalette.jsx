@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Empty, Flex, Input, Modal, Tag, theme, Typography } from 'antd'
 import {
   AppstoreOutlined, BugOutlined, CheckSquareOutlined, GithubOutlined, ClockCircleOutlined, CloudDownloadOutlined, DeploymentUnitOutlined, EditOutlined, FileTextOutlined,
-  GlobalOutlined, HomeOutlined, InboxOutlined, MoonOutlined, PlusOutlined, QuestionCircleOutlined, ReadOutlined, RocketOutlined, SearchOutlined, SettingOutlined, SyncOutlined,
+  GlobalOutlined, HomeOutlined, InboxOutlined, MoonOutlined, PlusOutlined, QuestionCircleOutlined, ReadOutlined, RocketOutlined, SearchOutlined, SettingOutlined, SyncOutlined, UnorderedListOutlined,
 } from '@ant-design/icons'
 import { api } from '../api/client.js'
 import { t } from '../i18n/index.js'
@@ -52,6 +52,7 @@ export default function CommandPalette({ open, onClose, actions }) {
       { label: t('Revue de la semaine'), icon: <CheckSquareOutlined />, run: () => navigate('/review'), keywords: t('tâches qui traînent') },
       { label: t('Projets'), icon: <AppstoreOutlined />, run: () => navigate('/projects') },
       { label: t('Bugs & tâches'), icon: <BugOutlined />, run: () => navigate('/items') },
+      { label: t('Todo list'), icon: <UnorderedListOutlined />, run: () => navigate('/todos') },
       { label: t('Notes & specs'), icon: <ReadOutlined />, run: () => navigate('/notes') },
       { label: t('Temps passé'), hint: t('Paramètres'), icon: <ClockCircleOutlined />, run: () => navigate('/settings/time') },
       { label: t('Paramètres'), icon: <SettingOutlined />, run: () => navigate('/settings') },

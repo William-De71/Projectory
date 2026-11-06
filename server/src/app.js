@@ -14,6 +14,7 @@ import { loadLocale } from './i18n.js'
 import insightRoutes from './routes/insights.js'
 import uploadRoutes from './routes/uploads.js'
 import updateRoutes from './routes/update.js'
+import todoRoutes from './routes/todos.js'
 
 // Set by the Docker build (release tag or dev-<sha>); package.json otherwise.
 export const APP_VERSION = process.env.APP_VERSION || JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version
@@ -52,6 +53,7 @@ export async function buildApp({ db, logger = true, webDist = process.env.WEB_DI
   app.get('/api/health', async () => ({ ok: true, version: APP_VERSION }))
   await app.register(projectRoutes, { prefix: '/api', db })
   await app.register(contentRoutes, { prefix: '/api', db })
+  await app.register(todoRoutes, { prefix: '/api', db })
   await app.register(overviewRoutes, { prefix: '/api', db })
   await app.register(integrationRoutes, { prefix: '/api', db })
   await app.register(milestoneRoutes, { prefix: '/api', db })

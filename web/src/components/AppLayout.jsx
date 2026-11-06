@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { App, AutoComplete, Badge, Button, Dropdown, Flex, Grid, Input, Layout, Menu, Tag, Tooltip, Typography, theme } from 'antd'
 import {
   AppstoreOutlined, BugOutlined, EditOutlined, FileTextOutlined, GlobalOutlined, HomeOutlined,
-  InboxOutlined, MoonOutlined, PlusOutlined, QuestionCircleOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined, TagOutlined,
+  InboxOutlined, MoonOutlined, PlusOutlined, QuestionCircleOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined, TagOutlined, UnorderedListOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useChangeListener } from '../api/client.js'
@@ -200,15 +200,17 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
     { key: '/inbox', icon: <InboxOutlined />, label: <Flex justify="space-between" align="center">{t('À traiter') + ' '}<Badge count={todo} size="small" title={t('Non lus, actions GitHub et mises à jour prêtes à fusionner')} /></Flex> },
     { key: '/projects', icon: <AppstoreOutlined />, label: t('Projets') },
     { key: '/items', icon: <BugOutlined />, label: t('Bugs & tâches') },
+    { key: '/todos', icon: <UnorderedListOutlined />, label: t('Todo list') },
     { key: '/notes', icon: <ReadOutlined />, label: t('Notes & specs') },
   ]
   const selected = items.map((i) => i.key).filter((k) => k !== '/' && location.pathname.startsWith(k))[0] || (location.pathname === '/' ? '/' : '')
-  // Phones: the same five entries as a tab bar at the bottom of the screen.
+  // Phones: the same six entries as a tab bar at the bottom of the screen.
   const tabBar = [
     { key: '/', icon: <HomeOutlined />, label: t('Accueil') },
     { key: '/inbox', icon: <Badge count={todo} size="small" offset={[6, 0]}><InboxOutlined style={{ fontSize: 20 }} /></Badge>, label: t('À traiter') },
     { key: '/projects', icon: <AppstoreOutlined />, label: t('Projets') },
     { key: '/items', icon: <BugOutlined />, label: t('Tâches') },
+    { key: '/todos', icon: <UnorderedListOutlined />, label: t('Todo') },
     { key: '/notes', icon: <ReadOutlined />, label: t('Notes') },
   ]
 

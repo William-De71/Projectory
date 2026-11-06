@@ -22,6 +22,7 @@ import Notes from './pages/Notes.jsx'
 import Settings from './pages/Settings.jsx'
 import Search from './pages/Search.jsx'
 import Review from './pages/Review.jsx'
+import Todos from './pages/Todos.jsx'
 
 dayjs.extend(relativeTime)
 dayjs.extend(utc)
@@ -81,6 +82,7 @@ export default function App() {
                 <Route path="inbox" element={<Inbox />} />
                 <Route path="inbox/:tab" element={<Inbox />} />
                 <Route path="items" element={<Items />} />
+                <Route path="todos" element={<Todos />} />
                 <Route path="notes" element={<Notes />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/:tab" element={<Settings />} />

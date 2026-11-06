@@ -19,6 +19,7 @@ import DocEditor from '../components/DocEditor.jsx'
 import InboxList from '../components/InboxList.jsx'
 import ForumWatches from '../components/ForumWatches.jsx'
 import TimePanel from '../components/TimePanel.jsx'
+import TodoList, { TodoAdd } from '../components/TodoList.jsx'
 import { compareVersions } from '../components/versions.js'
 import CiStatus, { CI } from '../components/CiStatus.jsx'
 import { t } from '../i18n/index.js'
@@ -192,6 +193,7 @@ export default function ProjectDetail() {
   const [editing, setEditing] = useState(null)
   const [syncing, setSyncing] = useState(false)
   const { data: p, error, loading, reload, setData } = useApi(`/projects/${id}`, { listen: true })
+  const { data: todos } = useApi(`/todos?project_id=${id}`, { listen: true })
 
   if (error) return <Result status="404" title={t('Projet introuvable')} extra={<Button onClick={() => navigate('/projects')}>{t('Retour')}</Button>} />
   if (!p) return <Spin spinning={loading}><div style={{ height: 200 }} /></Spin>
@@ -220,6 +222,16 @@ export default function ProjectDetail() {
       children: <Overview project={p} section={section} onSection={(s) => navigate(`/projects/${id}/${s}`, { replace: true })} onRead={reload} />,
     },
     { key: 'items', label: <>{t('Bugs & tâches') + ' '}<Badge count={p.open_items} size="small" color="blue" /></>, children: <ItemsPanel projectId={id} /> },
+    {
+      key: 'todos',
+      label: <>{t('Todo') + ' '}<Badge count={(todos || []).filter((todo) => !todo.done_at).length} size="small" color="blue" /></>,
+      children: (
+        <Flex vertical gap={16}>
+          <TodoAdd projectId={Number(id)} />
+          <TodoList todos={todos || []} projectId={Number(id)} />
+        </Flex>
+      ),
+    },
     { key: 'github', label: <>{FORGES[p.forge]?.label || t('Dépôt')} <Badge count={p.open_issues + p.open_prs} size="small" color="geekblue" /></>, children: <GithubPanel projectId={id} project={p} /> },
     {
       key: 'roadmap',
