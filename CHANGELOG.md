@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.22.0 — 2026-11-07
+
+### ✨ Nouveautés
+
+- create a project without repository from the task form (c912980)
+- a merged linked PR marks the item as done (32e879f)
+
 ## v0.21.0 — 2026-11-06
 
 ### ✨ Nouveautés
