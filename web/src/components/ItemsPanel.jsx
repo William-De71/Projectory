@@ -173,7 +173,7 @@ export function ItemForm({ item, onClose, onSaved }) {
         </Form.Item>
         <Flex gap={12} wrap>
           <Form.Item name="project_id" label={t('Projet')} rules={[{ required: true, message: t('Projet obligatoire') }]} style={{ minWidth: 220, flex: 2 }}>
-            <ProjectSelect />
+            <ProjectSelect creatable />
           </Form.Item>
           <Form.Item name="kind" label={t('Type')} style={{ minWidth: 150, flex: 1 }}><Select options={options(ITEM_KIND)} /></Form.Item>
         </Flex>

@@ -804,4 +804,7 @@ export default {
   "le document": "the document",
   "{n} à signaler": "{n} to report",
   "{n} échéance(s) envoyée(s) — vérifie ton téléphone": "{n} due date(s) sent — check your phone",
+  "Projet (tape un nom pour en créer un)": "Project (type a name to create one)",
+  "Projet « {name} » créé": "Project “{name}” created",
+  "+ Créer le projet « {name} »": "+ Create project “{name}”",
 }
