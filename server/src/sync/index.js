@@ -73,8 +73,8 @@ async function syncForge(db, project, fresh, errors) {
     db.prepare("SELECT number, pr_state FROM github_items WHERE project_id = ? AND type = 'pr'").all(project.id)
       .map((r) => [r.number, r.pr_state ? JSON.parse(r.pr_state) : null])
   )
-  const merged = await mergedLinkedPrs(db, project, forge, repo, info, items)
   const baseKey = forgeKey(project, repo)
+  const merged = await mergedLinkedPrs(db, project, forge, repo, info, items, baseKey)
   const asRead = !isBaselined(db, baseKey)
   const source = project.forge
 
@@ -143,7 +143,7 @@ async function syncForge(db, project, fresh, errors) {
       }
     }
     closeLinkedItems(db, project, items, { asRead, fresh })
-    moveMergedToTesting(db, project, merged, baseKey, { asRead, fresh })
+    closeMergedItems(db, project, merged, { asRead, fresh })
     db.prepare('UPDATE projects SET github = ?, mine_only = ? WHERE id = ?').run(JSON.stringify(info), mineOnly, project.id)
     markBaselined(db, baseKey)
     db.exec('COMMIT')
@@ -154,15 +154,21 @@ async function syncForge(db, project, fresh, errors) {
 }
 
 // Items waiting on a PR of this repository that is no longer open: asks the
-// forge whether it was merged (capped, never fatal).
-async function mergedLinkedPrs(db, project, forge, repo, info, items) {
+// forge whether it was merged (capped, never fatal). A merge is acted on once
+// (its inbox entry is the marker): an item reopened by hand afterwards stays open.
+async function mergedLinkedPrs(db, project, forge, repo, info, items, baseKey) {
   if (!forge.fetchPrOutcome) return []
   const open = new Set(items.filter((it) => it.type === 'pr').map((it) => it.number))
+  const handled = db.prepare('SELECT 1 FROM inbox WHERE external_key = ?')
   const candidates = db.prepare(
-    "SELECT id, title, pr_url FROM items WHERE project_id = ? AND pr_url != '' AND status IN ('todo', 'in_progress', 'blocked')"
+    `SELECT id, project_id, title, source, external_url, forum_replied_at, pr_url FROM items
+     WHERE project_id = ? AND pr_url != '' AND status IN ${OPEN_STATUSES}`
   ).all(project.id)
-    .map((it) => ({ ...it, number: prNumberIn(it.pr_url, info.html_url) }))
-    .filter((it) => it.number && !open.has(it.number))
+    .map((it) => {
+      const number = prNumberIn(it.pr_url, info.html_url)
+      return { ...it, number, mergeKey: `${baseKey}:pr-merged-done:${it.id}:${number}` }
+    })
+    .filter((it) => it.number && !open.has(it.number) && !handled.get(it.mergeKey))
     .slice(0, 20)
   const merged = []
   await Promise.all(candidates.map(async (it) => {
@@ -171,17 +177,19 @@ async function mergedLinkedPrs(db, project, forge, repo, info, items) {
   return merged
 }
 
-// Merged PR: the work is done, it now has to be tested.
-function moveMergedToTesting(db, project, merged, baseKey, opts) {
+// Merged PR: the item is finished.
+function closeMergedItems(db, project, merged, opts) {
   for (const it of merged) {
-    setItemStatus(db, it.id, 'testing', 'sync')
+    setItemStatus(db, it.id, 'done', 'sync')
+    unblockDependents(db, it.id)
+    remindForumReply(db, it, opts)
     pushInbox(db, {
       project_id: project.id,
       source: project.forge,
       kind: 'pr_merged',
-      title: tr('PR fusionnée : « {title} » passe en test', { title: it.title }),
+      title: tr('PR fusionnée : « {title} » est terminé', { title: it.title }),
       url: it.pr_url,
-      external_key: `${baseKey}:pr-merged:${it.id}:${it.number}`,
+      external_key: it.mergeKey,
     }, opts)
   }
 }

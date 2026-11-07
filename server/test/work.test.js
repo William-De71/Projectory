@@ -81,7 +81,7 @@ test('checklist, links, unblocking and bulk edits', async () => {
   assert.deepEqual(Object.keys(await listed()), ['C'])
 })
 
-test('a merged linked PR moves the item to testing; its closed issue does not close it', async () => {
+test('a merged linked PR finishes the item, once: reopening it by hand sticks', async () => {
   const { body: p } = await call('POST', '/api/projects', { name: 'Lib', repo: 'acme/lib' })
   gh.open = [prIssue(7, 'Fix', 'me'), { number: 3, title: 'Bug', user: { login: 'bob' }, html_url: 'https://github.com/acme/lib/issues/3', labels: [], created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z' }]
   await call('POST', `/api/projects/${p.id}/sync`)
@@ -99,12 +99,42 @@ test('a merged linked PR moves the item to testing; its closed issue does not cl
   gh.pulls[7] = { merged: true, state: 'closed' }
   await call('POST', `/api/projects/${p.id}/sync`)
   const rows = (await call('GET', `/api/items?project_id=${p.id}`)).body
-  assert.equal(rows.find((it) => it.id === item.id).status, 'testing')
+  assert.equal(rows.find((it) => it.id === item.id).status, 'done')
   assert.equal(rows.find((it) => it.id === other.id).status, 'todo')
   const inbox = (await call('GET', '/api/inbox?unread=1&limit=100')).body
   assert.ok(inbox.some((e) => e.kind === 'pr_merged' && e.title.includes('Le bug')))
 
-  // Next sync: the closed issue leaves the item in testing.
+  // Reopened by hand: the next sync leaves it alone.
+  await call('PUT', `/api/items/${item.id}`, { status: 'in_progress', issue_number: null, issue_url: '' })
+  await call('POST', `/api/projects/${p.id}/sync`)
+  assert.equal((await call('GET', `/api/items?project_id=${p.id}`)).body.find((it) => it.id === item.id).status, 'in_progress')
+})
+
+test('a merged linked PR closes an item in testing, unblocks dependents and reminds the forum reply', async () => {
+  const { body: p } = await call('POST', '/api/projects', { name: 'Merge', repo: 'acme/lib' })
+  gh.open = [prIssue(8, 'Fix', 'me')]
+  await call('POST', `/api/projects/${p.id}/sync`)
+  const { body: item } = await call('POST', '/api/items', {
+    project_id: p.id, title: 'Forum bug', status: 'testing', source: 'forum', external_url: 'https://forum.test/t/bug/8', pr_url: 'https://github.com/acme/lib/pull/8',
+  })
+  const { body: waiting } = await call('POST', '/api/items', { project_id: p.id, title: 'Waiting', status: 'blocked' })
+  await call('POST', `/api/items/${waiting.id}/links`, { target_id: item.id, type: 'blocked_by' })
+
+  gh.open = []
+  gh.pulls[8] = { merged: true, state: 'closed' }
+  await call('POST', `/api/projects/${p.id}/sync`)
+  const rows = (await call('GET', `/api/items?project_id=${p.id}`)).body
+  assert.equal(rows.find((it) => it.id === item.id).status, 'done')
+  assert.equal(rows.find((it) => it.id === waiting.id).status, 'todo')
+  const inbox = (await call('GET', '/api/inbox?unread=1&limit=100')).body
+  assert.ok(inbox.some((e) => e.kind === 'forum_reply' && e.title.includes('Forum bug')))
+})
+
+test('a closed issue leaves an item in testing alone', async () => {
+  const { body: p } = await call('POST', '/api/projects', { name: 'Issue', repo: 'acme/lib' })
+  gh.open = []
+  await call('POST', `/api/projects/${p.id}/sync`)
+  const { body: item } = await call('POST', '/api/items', { project_id: p.id, title: 'In test', status: 'testing', issue_number: 3 })
   await call('POST', `/api/projects/${p.id}/sync`)
   assert.equal((await call('GET', `/api/items?project_id=${p.id}`)).body.find((it) => it.id === item.id).status, 'testing')
 })

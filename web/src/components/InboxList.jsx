@@ -25,7 +25,7 @@ const ICONS = {
   pr_merged: <PullRequestOutlined style={{ color: '#722ed1' }} />,
   release_failed: <RocketOutlined style={{ color: '#ff4d4f' }} />,
 }
-const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', discourse_mentions: 'Pour toi', rss: 'RSS', ci_failed: 'CI', ci_fixed: 'CI', gh_notification: 'Pour toi', pr_status: 'Ma PR', forum_reply: 'À répondre', forum_followed: 'Sujet suivi', pr_merged: 'À tester', release_failed: 'Release' }
+const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', discourse_mentions: 'Pour toi', rss: 'RSS', ci_failed: 'CI', ci_fixed: 'CI', gh_notification: 'Pour toi', pr_status: 'Ma PR', forum_reply: 'À répondre', forum_followed: 'Sujet suivi', pr_merged: 'PR fusionnée', release_failed: 'Release' }
 
 function ConvertModal({ entry, onClose, onDone }) {
   const { message } = App.useApp()

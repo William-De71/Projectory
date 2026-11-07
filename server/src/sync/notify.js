@@ -12,7 +12,7 @@ export const NOTIFY_EVENTS = {
   forum_mention: 'Mention sur le forum',
   forum_followed: 'Réponse sur un sujet suivi',
   pr_status: 'Mes PR : approuvée, changements demandés, conflit, CI',
-  pr_merged: 'PR liée fusionnée (élément passé en test)',
+  pr_merged: 'PR liée fusionnée (élément terminé)',
   release_failed: 'Release en échec ou bloquée',
   app_update: 'Nouvelle version de Projectory',
 }
