@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { App, AutoComplete, Badge, Button, Dropdown, Flex, Grid, Input, Layout, Menu, Tag, Tooltip, Typography, theme } from 'antd'
 import {
   AppstoreOutlined, BugOutlined, CloudDownloadOutlined, EditOutlined, FileTextOutlined, GlobalOutlined, HomeOutlined,
-  InboxOutlined, MoonOutlined, PlusOutlined, QuestionCircleOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined, TagOutlined, UnorderedListOutlined,
+  InboxOutlined, MoonOutlined, PlusOutlined, PullRequestOutlined, QuestionCircleOutlined, ReadOutlined, SearchOutlined, SettingOutlined, SunOutlined, SyncOutlined, TagOutlined, UnorderedListOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { api, notifyChange, useChangeListener } from '../api/client.js'
@@ -156,6 +156,12 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   // One badge for the "To do" page: unread news, GitHub actions, green updates.
   const counts = useTodoCounts()
   const todo = counts.news + counts.github + counts.deps + counts.releases
+  // New issues / PRs get their own badge, and show in the browser tab title.
+  const contribTip = t('{n} nouvelle(s) issue(s) / PR non lue(s)', { n: counts.contrib })
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\) /, '')
+    document.title = counts.contrib ? `(${counts.contrib}) ${base}` : base
+  }, [counts.contrib])
 
   const syncAll = async () => {
     setSyncing(true)
@@ -200,7 +206,28 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
 
   const items = [
     { key: '/', icon: <HomeOutlined />, label: t('Accueil') },
-    { key: '/inbox', icon: <InboxOutlined />, label: <Flex justify="space-between" align="center">{t('À traiter') + ' '}<Badge count={todo} size="small" title={t('Non lus, actions GitHub et mises à jour prêtes à fusionner')} /></Flex> },
+    {
+      key: '/inbox',
+      icon: <InboxOutlined />,
+      label: (
+        <Flex justify="space-between" align="center" gap={4}>
+          {t('À traiter') + ' '}
+          <Flex gap={4} align="center">
+            {counts.contrib > 0 && (
+              <Tooltip title={contribTip}>
+                <Tag
+                  color="blue"
+                  icon={<PullRequestOutlined />}
+                  style={{ margin: 0, lineHeight: '18px', paddingInline: 5 }}
+                  onClick={(e) => { e.stopPropagation(); navigate('/inbox/news?filter=contrib') }}
+                >{counts.contrib}</Tag>
+              </Tooltip>
+            )}
+            <Badge count={todo} size="small" title={t('Non lus, actions GitHub et mises à jour prêtes à fusionner')} />
+          </Flex>
+        </Flex>
+      ),
+    },
     { key: '/projects', icon: <AppstoreOutlined />, label: t('Projets') },
     { key: '/items', icon: <BugOutlined />, label: t('Bugs & tâches') },
     { key: '/todos', icon: <UnorderedListOutlined />, label: t('Todo list') },
@@ -210,7 +237,8 @@ export default function AppLayout({ dark, onToggleDark, lang, onChangeLang }) {
   // Phones: the same six entries as a tab bar at the bottom of the screen.
   const tabBar = [
     { key: '/', icon: <HomeOutlined />, label: t('Accueil') },
-    { key: '/inbox', icon: <Badge count={todo} size="small" offset={[6, 0]}><InboxOutlined style={{ fontSize: 20 }} /></Badge>, label: t('À traiter') },
+    // Blue badge while new issues / PRs wait.
+    { key: '/inbox', icon: <Badge count={todo} size="small" offset={[6, 0]} color={counts.contrib ? 'blue' : undefined} title={counts.contrib ? contribTip : undefined}><InboxOutlined style={{ fontSize: 20 }} /></Badge>, label: t('À traiter') },
     { key: '/projects', icon: <AppstoreOutlined />, label: t('Projets') },
     { key: '/items', icon: <BugOutlined />, label: t('Tâches') },
     { key: '/todos', icon: <UnorderedListOutlined />, label: t('Todo') },

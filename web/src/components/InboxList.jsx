@@ -25,6 +25,8 @@ const ICONS = {
   pr_merged: <PullRequestOutlined style={{ color: '#722ed1' }} />,
   release_failed: <RocketOutlined style={{ color: '#ff4d4f' }} />,
 }
+// New issues / PRs stand out from the rest of the news.
+const KIND_COLORS = { issue: 'blue', pr: 'purple' }
 const KIND_LABELS = { issue: 'Issue', pr: 'PR', release: 'Version', discourse: 'Forum', discourse_mentions: 'Pour toi', rss: 'RSS', ci_failed: 'CI', ci_fixed: 'CI', gh_notification: 'Pour toi', pr_status: 'Ma PR', forum_reply: 'À répondre', forum_followed: 'Sujet suivi', pr_merged: 'PR fusionnée', release_failed: 'Release' }
 
 function ConvertModal({ entry, onClose, onDone }) {
@@ -100,7 +102,7 @@ export default function InboxList({ entries, loading, onChange, showProject = tr
               avatar={<span style={{ fontSize: 18, opacity: entry.read_at ? 0.45 : 1 }}>{ICONS[entry.kind] || <MessageOutlined />}</span>}
               title={
                 <Flex gap={6} wrap align="center" className={entry.read_at ? '' : 'unread-row'}>
-                  <Tag>{t(KIND_LABELS[entry.kind] || entry.kind)}</Tag>
+                  <Tag color={entry.read_at ? undefined : KIND_COLORS[entry.kind]}>{t(KIND_LABELS[entry.kind] || entry.kind)}</Tag>
                   {entry.url ? (
                     <a href={entry.url} target="_blank" rel="noreferrer" onClick={() => !entry.read_at && toggleRead(entry)}>{entry.title}</a>
                   ) : entry.title}

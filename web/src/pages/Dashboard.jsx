@@ -1,16 +1,73 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Alert, Button, Card, Col, Flex, List, Row, Statistic, Tag, Tooltip, Typography } from 'antd'
-import { PullRequestOutlined } from '@ant-design/icons'
+import { GithubOutlined, PullRequestOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { api, notifyChange } from '../api/client.js'
+import { CONTRIBUTION_KINDS } from '../components/todoCounts.js'
 import { formatMinutes } from '../components/labels.js'
 import ProjectCard, { latestVersion } from '../components/ProjectCard.jsx'
 import { t } from '../i18n/index.js'
 
-// What needs a look before anything else: no project yet, red CI, failed syncs.
+const SHOWN_CONTRIBUTIONS = 5
+
+// New issues and PRs / MRs not read yet: listed until read (opening one marks
+// it read).
+function ContributionsAlert({ entries }) {
+  const navigate = useNavigate()
+  const read = async (entry) => {
+    await api.post(`/inbox/${entry.id}/read`, { read: true })
+    notifyChange()
+  }
+  const readAll = async () => {
+    await api.post('/inbox/read-all', { kind: CONTRIBUTION_KINDS.join(',') })
+    notifyChange()
+  }
+  const prs = entries.filter((x) => x.kind === 'pr').length
+  const issues = entries.length - prs
+  const title = [
+    prs && t('{n} nouvelle(s) PR / MR', { n: prs }),
+    issues && t('{n} nouvelle(s) issue(s)', { n: issues }),
+  ].filter(Boolean).join(' · ')
+  return (
+    <Alert
+      type="info"
+      showIcon
+      icon={<PullRequestOutlined />}
+      message={<Typography.Text strong>{title}</Typography.Text>}
+      description={
+        <Flex vertical gap={4}>
+          {entries.slice(0, SHOWN_CONTRIBUTIONS).map((x) => (
+            <Flex key={x.id} gap={6} align="baseline" wrap>
+              <Tag color={x.kind === 'pr' ? 'purple' : 'blue'} icon={x.kind === 'pr' ? <PullRequestOutlined /> : <GithubOutlined />}>{x.kind === 'pr' ? t('PR') : t('Issue')}</Tag>
+              {x.url ? <a href={x.url} target="_blank" rel="noreferrer" onClick={() => read(x)}>{x.title}</a> : x.title}
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {x.project_name && <><Link to={`/projects/${x.project_id}`}>{x.project_name}</Link> · </>}
+                {dayjs.utc(x.created_at).local().fromNow()}
+              </Typography.Text>
+            </Flex>
+          ))}
+          {entries.length > SHOWN_CONTRIBUTIONS && (
+            <Typography.Text type="secondary">{t('… et {n} autre(s)', { n: entries.length - SHOWN_CONTRIBUTIONS })}</Typography.Text>
+          )}
+        </Flex>
+      }
+      action={
+        <Flex vertical gap={8}>
+          <Button type="primary" onClick={() => navigate('/inbox/news?filter=contrib')}>{t('Voir')}</Button>
+          <Button onClick={readAll}>{t('Tout marquer comme lu')}</Button>
+        </Flex>
+      }
+    />
+  )
+}
+
+// What needs a look before anything else: no project yet, new issues / PRs,
+// red CI, failed syncs.
 export function DashboardAlerts({ data }) {
   const navigate = useNavigate()
   return (
     <>
+      {!!data.contributions?.length && <ContributionsAlert entries={data.contributions} />}
       {data.stats.projects === 0 && (
         <Alert
           type="info"

@@ -807,4 +807,9 @@ export default {
   "Projet (tape un nom pour en créer un)": "Project (type a name to create one)",
   "Projet « {name} » créé": "Project “{name}” created",
   "+ Créer le projet « {name} »": "+ Create project “{name}”",
+  "Issues & PR": "Issues & PRs",
+  "{n} nouvelle(s) PR / MR": "{n} new PR(s) / MR(s)",
+  "{n} nouvelle(s) issue(s)": "{n} new issue(s)",
+  "{n} nouvelle(s) issue(s) / PR non lue(s)": "{n} new unread issue(s) / PR(s)",
+  "… et {n} autre(s)": "… and {n} more",
 }

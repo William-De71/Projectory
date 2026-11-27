@@ -9,6 +9,20 @@ import { VISIBLE_ITEM } from '../visibility.js'
 
 const REPO_SOURCES = "'github', 'gitlab', 'gitea'"
 const INBOX_SQL = `SELECT x.*, p.name AS project_name FROM inbox x LEFT JOIN projects p ON p.id = x.project_id`
+// Kinds of inbox entries for a new issue or PR / MR opened by someone.
+export const CONTRIBUTION_KINDS = ['pr', 'issue']
+
+// Inbox filters shared by the list and "mark all as read". `kind`: comma-separated list.
+function inboxFilter({ project_id, source, kind }, prefix = '') {
+  const where = []
+  const params = []
+  if (project_id) { where.push(`${prefix}project_id = ?`); params.push(Number(project_id)) }
+  if (source === 'repo') where.push(`${prefix}source IN (${REPO_SOURCES})`)
+  else if (source) { where.push(`${prefix}source = ?`); params.push(source) }
+  const kinds = String(kind || '').split(',').filter(Boolean)
+  if (kinds.length) { where.push(`${prefix}kind IN (${kinds.map(() => '?').join(', ')})`); params.push(...kinds) }
+  return { where, params }
+}
 
 // ~200 characters of `text` around the first occurrence of `q`, on one line;
 // Markdown links and images are reduced to their text (attachment names).
@@ -23,13 +37,10 @@ export function excerptAround(text, q, size = 200) {
 // Inbox, dashboard, search, sync control and export.
 export default async function overviewRoutes(app, { db }) {
   app.get('/inbox', async (req) => {
-    const { unread, project_id, source, limit = 200 } = req.query
-    const where = ['1 = 1']
-    const params = []
+    const { unread, limit = 200 } = req.query
+    const { where, params } = inboxFilter(req.query, 'x.')
+    where.unshift('1 = 1')
     if (unread) where.push('x.read_at IS NULL')
-    if (project_id) { where.push('x.project_id = ?'); params.push(Number(project_id)) }
-    if (source === 'repo') where.push(`x.source IN (${REPO_SOURCES})`)
-    else if (source) { where.push('x.source = ?'); params.push(source) }
     return db.prepare(`${INBOX_SQL} WHERE ${where.join(' AND ')} ORDER BY x.created_at DESC, x.id DESC LIMIT ?`).all(...params, Number(limit))
   })
 
@@ -40,12 +51,8 @@ export default async function overviewRoutes(app, { db }) {
   })
 
   app.post('/inbox/read-all', async (req) => {
-    const { project_id, source } = req.body || {}
-    const where = ['read_at IS NULL']
-    const params = []
-    if (project_id) { where.push('project_id = ?'); params.push(Number(project_id)) }
-    if (source === 'repo') where.push(`source IN (${REPO_SOURCES})`)
-    else if (source) { where.push('source = ?'); params.push(source) }
+    const { where, params } = inboxFilter(req.body || {})
+    where.unshift('read_at IS NULL')
     const { changes } = db.prepare(`UPDATE inbox SET read_at = datetime('now') WHERE ${where.join(' AND ')}`).run(...params)
     return { changes: Number(changes) }
   })
@@ -88,6 +95,10 @@ export default async function overviewRoutes(app, { db }) {
          ORDER BY CASE i.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END, i.due_date LIMIT 15`
       ).all(),
       inbox: db.prepare(`${INBOX_SQL} WHERE x.read_at IS NULL ORDER BY x.created_at DESC LIMIT 10`).all(),
+      // New issues and PRs / MRs not seen yet: shown first on the home page.
+      contributions: db.prepare(
+        `${INBOX_SQL} WHERE x.read_at IS NULL AND x.kind IN (${CONTRIBUTION_KINDS.map(() => '?').join(', ')}) ORDER BY x.created_at DESC, x.id DESC`
+      ).all(...CONTRIBUTION_KINDS),
       stale: findStale(db).slice(0, 8),
       recent_prs: db.prepare(
         `SELECT g.*, p.name AS project_name FROM github_items g JOIN projects p ON p.id = g.project_id

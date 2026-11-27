@@ -1,30 +1,41 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Badge, Button, Empty, Flex, List, Segmented, Spin, Tabs, Tag, Typography } from 'antd'
 import { api, notifyChange, useApi } from '../api/client.js'
 import InboxList from '../components/InboxList.jsx'
 import ProjectSelect from '../components/ProjectSelect.jsx'
 import StaleTag from '../components/StaleTag.jsx'
 import { refLabel } from '../components/labels.js'
-import { useTodoCounts } from '../components/todoCounts.js'
+import { CONTRIBUTION_KINDS, useTodoCounts } from '../components/todoCounts.js'
 import MyGithub from './MyGithub.jsx'
 import Dependencies from './Dependencies.jsx'
 import Releases from './Releases.jsx'
 import { t } from '../i18n/index.js'
 
-// News found by the syncs, read / unread.
+// Source filter -> API parameters; "contrib" = new issues and PRs / MRs only.
+const filterParams = (filter) => (
+  filter === 'contrib' ? { kind: CONTRIBUTION_KINDS.join(',') } : filter === 'all' ? {} : { source: filter }
+)
+
+// News found by the syncs, read / unread. ?filter= preselects the source filter.
 function News() {
+  const [params, setParams] = useSearchParams()
   const [scope, setScope] = useState('unread')
-  const [source, setSource] = useState('all')
+  const filter = params.get('filter') || 'all'
+  const setFilter = (value) => setParams((prev) => {
+    const next = new URLSearchParams(prev)
+    if (value === 'all') next.delete('filter')
+    else next.set('filter', value)
+    return next
+  }, { replace: true })
   const [projectId, setProjectId] = useState(null)
-  const query = new URLSearchParams()
+  const query = new URLSearchParams(filterParams(filter))
   if (scope === 'unread') query.set('unread', '1')
-  if (source !== 'all') query.set('source', source)
   if (projectId) query.set('project_id', projectId)
   const { data, loading, reload } = useApi(`/inbox?${query}`, { listen: true })
 
   const markAll = async () => {
-    await api.post('/inbox/read-all', { project_id: projectId, source: source === 'all' ? undefined : source })
+    await api.post('/inbox/read-all', { project_id: projectId, ...filterParams(filter) })
     notifyChange()
   }
 
@@ -36,9 +47,9 @@ function News() {
       <Flex gap={8} wrap>
         <Segmented value={scope} onChange={setScope} options={[{ value: 'unread', label: t('Non lus') }, { value: 'all', label: t('Tout') }]} />
         <Segmented
-          value={source}
-          onChange={setSource}
-          options={[{ value: 'all', label: t('Toutes sources') }, { value: 'repo', label: t('Dépôts') }, { value: 'forum', label: t('Forums') }, { value: 'version', label: t('Versions') }]}
+          value={filter}
+          onChange={setFilter}
+          options={[{ value: 'all', label: t('Toutes sources') }, { value: 'contrib', label: t('Issues & PR') }, { value: 'repo', label: t('Dépôts') }, { value: 'forum', label: t('Forums') }, { value: 'version', label: t('Versions') }]}
         />
         <ProjectSelect allowClear value={projectId} onChange={setProjectId} style={{ width: 220 }} placeholder={t('Tous les projets')} />
         <Button style={{ marginLeft: 'auto' }} onClick={markAll} disabled={!data?.some((x) => !x.read_at)}>{t('Tout marquer comme lu')}</Button>

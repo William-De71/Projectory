@@ -97,8 +97,13 @@ test('full sync flow: baseline, new issue, new release, forum, convert to bug', 
   assert.equal(dash.stats.unread, 2)
   assert.equal(dash.urgent.length, 1)
   assert.equal(dash.outdated.length, 1)
+  // The new PR is singled out for the home page.
+  assert.deepEqual(dash.contributions.map((x) => [x.kind, x.title]), [['pr', '#2 New PR']])
+  assert.deepEqual((await call('GET', '/api/inbox?unread=1&kind=pr,issue')).body.map((x) => x.kind), ['pr'])
+  assert.equal((await call('POST', '/api/inbox/read-all', { kind: 'pr,issue' })).body.changes, 1)
+  assert.equal((await call('GET', '/api/dashboard')).body.contributions.length, 0)
 
-  assert.equal((await call('POST', '/api/inbox/read-all', {})).body.changes, 2)
+  assert.equal((await call('POST', '/api/inbox/read-all', {})).body.changes, 1)
 })
 
 test('docs, search, time and export', async () => {
