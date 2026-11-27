@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.23.0 — 2026-11-27
+
+### ✨ Nouveautés
+
+- show new issues and PRs clearly (0a0c4a8)
+
 ## v0.22.0 — 2026-11-07
 
 ### ✨ Nouveautés
